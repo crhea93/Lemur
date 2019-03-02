@@ -7,7 +7,7 @@ sigma = 2
 merge = False
 redshift = 0.0555
 n_H = 0.028
-Temp_Guess = 2.0
+Temp_Guess = 5.0
 debug = False
 
 

@@ -56,8 +56,6 @@ def display_ccds(ccd_list):
     print_window(outfile_name,['clobber','yes'])
     return None
 
-
-
 def display_entire(home_dir,OBSID,repro_evt):
     os.chdir(home_dir+'/'+OBSID+'/repro')
     point_srcs = True
@@ -74,7 +72,7 @@ def display_entire(home_dir,OBSID,repro_evt):
     img = copy_piximgvals(cr)
     set_piximgvals(cr, gsmooth(img, 3))
     add_image(cr, ["depth", 50, "wcs", "logical"])
-    set_image(["threshold", [0,max_cts/10]])
+    set_image(["threshold", [0,max_cts/5]])
     set_image(["colormap", "heat"])
     x_min = min_coord(repro_evt,'x'); x_max = max_coord(repro_evt,'x')
     y_min = min_coord(repro_evt,'y'); y_max = max_coord(repro_evt,'y')
@@ -98,7 +96,7 @@ def display_entire(home_dir,OBSID,repro_evt):
     ptsrc_file.write("# Region file format: DS9 version 4.1 \n")
     ptsrc_file.write("physical \n")
     while point_srcs == True:
-        msg = "Are there any point sources in the src CCD?"
+        msg = "Are there any point sources contaminating the diffuse emission?"
         point_srcs = gui.ynbox(msg)
         if point_srcs == True:
             msg = "Please pick the point source and then the extent of the source after pressing continue..."
@@ -109,8 +107,8 @@ def display_entire(home_dir,OBSID,repro_evt):
             add_point(pt_src_edge[0], pt_src_edge[1], ["style", "cross", "color", "green"])
             radius = np.sqrt((float(pt_src_coord[0])-float(pt_src_edge[0]))**2+(float(pt_src_coord[1])-float(pt_src_edge[1]))**2)
             ptsrc_file.write('circle(%s,%s,%f) \n'%(pt_src_coord[0][0],pt_src_coord[1][0],radius))
-    #if sum(1 for line in open('pt_srcs.reg')) < 3:
-        #ptsrc_file.write('annulus(0,0,0,0)') #Just so that there is something in the file
+    if sum(1 for line in open('pt_srcs.reg')) < 3:
+        ptsrc_file.write('annulus(0,0,0,0)') #Just so that there is something in the file
     ptsrc_file.close()
     copyfile('pt_srcs.reg',home_dir+'/'+OBSID+'/Background/pt_srcs.reg')
     return coords[0][0],coords[1][0]

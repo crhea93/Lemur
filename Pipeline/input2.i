@@ -1,12 +1,12 @@
 #INPUT FILE: All lines starting with # will not be read
 home_dir = /home/carterrhea/Documents/Test
-dir_list = 15173
+dir_list = 2203
 num_ann_guess = 50
 threshold = 5000
 sigma = 2
 merge = False
-redshift = 0.0555
-n_H = 0.028
+redshift = 0.0558
+n_H = 0.0155
 Temp_Guess = 2.0
 debug = False
 

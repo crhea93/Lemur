@@ -60,7 +60,7 @@ def main():
     for obsid_ in inputs['dir_list']:
         main_out = open(inputs['home_dir']+'/'+obsid_+"/decisions.txt",'w+')
         if inputs['debug'].lower() == 'false':
-            display_ccds(ccds)
+            '''display_ccds(ccds)
             imgplot = plt.imshow(mpimg.imread('ccds.png'))
             plt.ion()
             plt.show()
@@ -72,14 +72,16 @@ def main():
             main_out.write("The source CCD chosen is CCD#%s\n"%src_ccd)
             plt.close()
             bkg_clean_srcs(bkg_ccd)
-            bkg_lightcurve(bkg_ccd)
+            bkg_lightcurve(bkg_ccd)'''
+            bkg_ccd = '6'
+            src_ccd = '7'
             cen_x,cen_y = basic_centroid_guess(src_ccd)
             filenames = FaintCleaning(inputs['home_dir'],obsid_,bkg_ccd,cen_x,cen_y)
             os.chdir(inputs['home_dir']+'/'+obsid_)
-            print("    We will now choose the extent of the source and any point sources on the src ccd...")
+            print("    We will now choose the extent of the source and any contamination...")
             edge_x,edge_y = display_entire(inputs['home_dir'],obsid_,filenames['evt2_repro'])
             os.chdir(inputs['home_dir']+'/'+obsid_+'/Background')
-            cen_x, cen_y = basic_centroid(src_ccd)
+            cen_x,cen_y = basic_centroid(src_ccd)
             os.chdir(inputs['home_dir']+'/'+obsid_+'/repro')
             create_clean_img(filenames)
             run_bkg_sub(filenames['evt2_repro_uncontam'],filenames['evt_uncontam_img'],obsid_,filenames)
@@ -124,8 +126,7 @@ def main():
         Norms = temperature_data['Norm']; Norm_mins = temperature_data['Norm_min']; Norm_maxes = temperature_data['Norm_max']
         Fluxes = temperature_data['Flux']
     #Annuli = PostProcess(annuli_data.keys(),list(annuli_data.values()),Temperatures, Temp_mins, Temp_maxes, Abundances, Ab_mins, Ab_maxes, Norms, Norm_mins, Norm_maxes, Fluxes,inputs['redshift'])
-        Annuli = PostProcess(annuli_data.keys(), list(annuli_data.values()), Temperatures, Temp_min, Temp_max,
-                             Abundances, Ab_min, Ab_max, Norms, Norm_min, Norm_max, Fluxes, inputs['redshift'])
+    Annuli = PostProcess(annuli_data.keys(),list(annuli_data.values()),Temperatures, Abundances,  Norms, Fluxes,inputs['redshift'])
     all_profiles(inputs['home_dir']+'/'+obsid_+'/repro/Fits',inputs['home_dir']+'/'+obsid_+'/repro/Fits',inputs['redshift'])
     main_out.close()
     return None

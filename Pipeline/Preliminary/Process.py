@@ -28,5 +28,5 @@ def Process(filenames,OBSID):
     dmcopy.outfile = 'acisf'+OBSID+'_repro_evt2.fits'
     dmcopy.clobber = True
     dmcopy()
-
-    return None
+    filenames['evt2_repro'] = 'acisf'+OBSID+'_repro_evt2.fits'
+    return filenames

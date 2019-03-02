@@ -25,8 +25,8 @@ def get_filenames():
             filenames['flt1'] = os.getcwd()+'/secondary/'+ file
         if file.endswith("_bias0.fits"):
             CCD_number = file.split("_")[1]
-
+            print(CCD_number)
             filenames[CCD_number+'_bias0'] = os.getcwd()+'/secondary/'+ file
             num_of_biases += 1
-
+        exit()
     return filenames,num_of_biases
