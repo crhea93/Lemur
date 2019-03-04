@@ -33,13 +33,13 @@ from Preliminary.unzip import unzip
 from Misc.Post_Process import PostProcess
 from Misc.filenames import get_filenames
 from Misc.read_input import read_input_file
-from Misc.Bkg_sub import run_bkg_sub, create_clean_img
+from Misc.Bkg_sub import run_bkg_sub, create_clean_img, exp_corr
 from Preliminary.Merge import merge_objects
 from Preliminary.CCD_split import split_ccds
 from Preliminary.Centroid import basic_centroid, basic_centroid_guess, merged_centroid
 from Spectra.deproject_mod import deproj_final
 from Preliminary.FaintCleaning import FaintCleaning
-from Spectra.annuli_create import create_annuli
+from Spectra.annuli_create import create_annuli,create_src_img
 from Spectra.Batch_Spec import spec_create
 from Spectra.Fit_Temp import PrimeFitting
 from Misc.Profiles import all_profiles
@@ -80,9 +80,11 @@ def main():
             edge_x,edge_y = display_entire(inputs['home_dir'],obsid_,filenames['evt2_repro'])
             os.chdir(inputs['home_dir']+'/'+obsid_+'/Background')
             cen_x, cen_y = basic_centroid(src_ccd)
+            main_out.write("The centroid's X,Y physical coordinates are: %.2f,%.2f"%(cen_x,cen_y))
             os.chdir(inputs['home_dir']+'/'+obsid_+'/repro')
             create_clean_img(filenames)
             run_bkg_sub(filenames['evt2_repro_uncontam'],filenames['evt_uncontam_img'],obsid_,filenames)
+            exp_corr(filenames) #exposure correct bkg sub image and update
         if inputs['debug'].lower() == 'true':
             bkg_ccd = '3'
             src_ccd = '0'
@@ -98,7 +100,7 @@ def main():
         os.chdir(inputs['home_dir']+'/'+obsid_+'/repro')
         print("    Creating Annuli...")
         if inputs['merge'].lower() == 'false':
-            annuli_data = create_annuli(os.getcwd(),filenames['evt_bkgsub_img'],[cen_x,cen_y],[edge_x,edge_y],int(inputs['num_ann_guess']),int(inputs['threshold']))
+            annuli_data,max_rad = create_annuli(os.getcwd(),filenames['evt_bkgsub_img'],[cen_x,cen_y],[edge_x,edge_y],int(inputs['num_ann_guess']),int(inputs['threshold']))
     if inputs['merge'].lower() == 'true':
         print("Merging obsids...")
         os.chdir(inputs['home_dir'])
@@ -106,7 +108,9 @@ def main():
         edge_x,edge_y = display_merge(inputs['home_dir'],'Merged','merged_evt.fits')
         os.chdir(inputs['home_dir']+'/Merged')
         cen_x,cen_y = merged_centroid('merged_evt.fits')
-        annuli_data = create_annuli(os.getcwd(),'Merged/merged_evt.fits',[cen_x,cen_y],[edge_x,edge_y],int(inputs['num_ann_guess']),int(inputs['threshold']))
+        annuli_data,max_rad = create_annuli(os.getcwd(),'Merged/merged_evt.fits',[cen_x,cen_y],[edge_x,edge_y],int(inputs['num_ann_guess']),int(inputs['threshold']))
+    main_out.write("The radius of interest extends to %.2f arcsec"%max_rad)
+    create_src_img(filenames['evt_bkgsub_img'],[cen_x,cen_y],[edge_x,edge_y])
     print("Beginning Spectra Extraction...")
     total_ann_num = len(annuli_data.keys())
     print("    We have a total of %i annuli..."%total_ann_num)
