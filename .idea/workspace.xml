@@ -2,11 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="e88104fd-2d38-4e7c-a489-a073cc71b33e" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Pipeline/Misc/Bkg_sub.py" beforeDir="false" afterPath="$PROJECT_DIR$/Pipeline/Misc/Bkg_sub.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Pipeline/Preliminary/CreateLightcurves.py" beforeDir="false" afterPath="$PROJECT_DIR$/Pipeline/Preliminary/CreateLightcurves.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Pipeline/Preliminary/chips_ccd.py" beforeDir="false" afterPath="$PROJECT_DIR$/Pipeline/Preliminary/chips_ccd.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Pipeline/Spectra/annuli_create.py" beforeDir="false" afterPath="$PROJECT_DIR$/Pipeline/Spectra/annuli_create.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Pipeline/pipeline.py" beforeDir="false" afterPath="$PROJECT_DIR$/Pipeline/pipeline.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -17,11 +13,11 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="600">
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/Pipeline/pipeline.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="250">
-              <caret line="86" column="74" selection-start-line="86" selection-start-column="74" selection-end-line="86" selection-end-column="74" />
+            <state relative-caret-position="453">
+              <caret line="111" column="77" selection-start-line="111" selection-start-column="77" selection-end-line="111" selection-end-column="77" />
               <folding>
                 <element signature="e#709#718#0" expanded="true" />
               </folding>
@@ -32,16 +28,13 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Pipeline/Misc/Bkg_sub.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="974">
+            <state relative-caret-position="1247">
               <caret line="44" column="12" selection-start-line="44" selection-start-column="4" selection-end-line="44" selection-end-column="12" />
-              <folding>
-                <element signature="e#51#57#0" expanded="true" />
-              </folding>
             </state>
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Pipeline/Spectra/annuli_create.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="1322">
@@ -65,7 +58,7 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Pipeline/Preliminary/chips_ccd.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1247">
+            <state relative-caret-position="1595">
               <caret line="115" column="66" lean-forward="true" selection-start-line="115" selection-start-column="4" selection-end-line="115" selection-end-column="66" />
               <folding>
                 <element signature="e#37#46#0" expanded="true" />
@@ -85,8 +78,8 @@
         <option value="$PROJECT_DIR$/Pipeline/Preliminary/CreateLightcurves.py" />
         <option value="$PROJECT_DIR$/Pipeline/Preliminary/chips_ccd.py" />
         <option value="$PROJECT_DIR$/Pipeline/Misc/Bkg_sub.py" />
-        <option value="$PROJECT_DIR$/Pipeline/pipeline.py" />
         <option value="$PROJECT_DIR$/Pipeline/Spectra/annuli_create.py" />
+        <option value="$PROJECT_DIR$/Pipeline/pipeline.py" />
       </list>
     </option>
   </component>
@@ -104,6 +97,7 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
+      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -138,7 +132,6 @@
           <select />
         </subPane>
       </pane>
-      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -169,18 +162,18 @@
       <option name="presentableId" value="Default" />
       <updated>1551549766814</updated>
       <workItem from="1551549770389" duration="623000" />
-      <workItem from="1551726440480" duration="2334000" />
+      <workItem from="1551726440480" duration="2934000" />
+      <workItem from="1551820950149" duration="345000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="2957000" />
+    <option name="totallyTimeSpent" value="3902000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="0" y="48" width="3200" height="1752" extended-state="6" />
-    <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.13414635" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.13575096" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
@@ -206,27 +199,21 @@
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="1" />
   </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Minor change to output file" />
+    <option name="LAST_COMMIT_MESSAGE" value="Minor change to output file" />
+  </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/Pipeline/Preliminary/CreateLightcurves.py">
+    <entry file="file://$PROJECT_DIR$/Pipeline/Misc/Bkg_sub.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="870">
-          <caret line="35" column="15" selection-start-line="35" selection-start-column="15" selection-end-line="35" selection-end-column="15" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Pipeline/pipeline.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="250">
-          <caret line="86" column="74" selection-start-line="86" selection-start-column="74" selection-end-line="86" selection-end-column="74" />
-          <folding>
-            <element signature="e#709#718#0" expanded="true" />
-          </folding>
+        <state relative-caret-position="1247">
+          <caret line="44" column="12" selection-start-line="44" selection-start-column="4" selection-end-line="44" selection-end-column="12" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/Pipeline/Preliminary/chips_ccd.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1247">
+        <state relative-caret-position="1595">
           <caret line="115" column="66" lean-forward="true" selection-start-line="115" selection-start-column="4" selection-end-line="115" selection-end-column="66" />
           <folding>
             <element signature="e#37#46#0" expanded="true" />
@@ -234,13 +221,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Pipeline/Misc/Bkg_sub.py">
+    <entry file="file://$PROJECT_DIR$/Pipeline/Preliminary/CreateLightcurves.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="974">
-          <caret line="44" column="12" selection-start-line="44" selection-start-column="4" selection-end-line="44" selection-end-column="12" />
-          <folding>
-            <element signature="e#51#57#0" expanded="true" />
-          </folding>
+        <state relative-caret-position="870">
+          <caret line="35" column="15" selection-start-line="35" selection-start-column="15" selection-end-line="35" selection-end-column="15" />
         </state>
       </provider>
     </entry>
@@ -250,6 +234,16 @@
           <caret line="85" column="32" selection-start-line="85" selection-start-column="32" selection-end-line="85" selection-end-column="32" />
           <folding>
             <element signature="e#59#68#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Pipeline/pipeline.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="453">
+          <caret line="111" column="77" selection-start-line="111" selection-start-column="77" selection-end-line="111" selection-end-column="77" />
+          <folding>
+            <element signature="e#709#718#0" expanded="true" />
           </folding>
         </state>
       </provider>
