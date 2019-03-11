@@ -3,6 +3,7 @@ Create annulus regions used by McDonald et al 2017
 '''
 import os
 import shutil
+from pychips.all import *
 import numpy as np
 from ciao_contrib.runtool import *
 
@@ -45,7 +46,7 @@ def create_annuli(curent_dir,evt2,centrd,edge,num_ann,threshold):
             annuli_num += 1
             write_reg(evt2,region,annuli_num,reg_all)
     reg_all.close()
-    return annuli_data
+    return annuli_data,max_rad
 
 def create_annuli_preset(curent_dir,evt2,centrd,max_rad,num_ann,threshold):
     if not os.path.exists(os.getcwd()+'/Annuli'):
@@ -65,4 +66,22 @@ def create_annuli_preset(curent_dir,evt2,centrd,max_rad,num_ann,threshold):
             annuli_num += 1
             write_reg(evt2,region,annuli_num,reg_all)
     reg_all.close()
-    return annuli_data
+    return annuli_data,max_rad
+
+def create_src_img(repro_img,centrd,edge):
+    #Be sure that repro_img is the exposure corrected bkg-subtracted one!
+    max_rad = np.sqrt((float(centrd[0]) - float(edge[0])) ** 2 + (float(centrd[1]) - float(edge[1])) ** 2)
+    add_window(32, 32)
+    max_cts = max_counts(repro_img)
+    cr = read_file(repro_img)
+    img = copy_piximgvals(cr)
+    set_piximgvals(cr, gsmooth(img, 3))
+    add_image(cr, ["depth", 50, "wcs", "logical"])
+    set_image(["threshold", [0, max_cts / 10]])
+    set_image(["colormap", "heat"])
+    limits(centrd[0]-2*max_rad, centrd[0]+2*max_rad,centrd[1]-2*max_rad,centrd[1]+2*max_rad)
+    add_region(50,centrd[0],centrd[1],max_rad)
+    attrs = {'coordsys': PLOT_NORM}
+    attrs['opacity'] = 0.0
+    attrs['edge.color'] = 'green'
+    print_window(os.getcwd() + '/bkgsub_exp.png', ['clobber', 'yes'])
