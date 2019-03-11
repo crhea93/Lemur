@@ -1,6 +1,7 @@
 '''
 Background Subtracted image from blank sky
 '''
+import os
 from ciao_contrib.runtool import *
 
 def run_bkg_sub(evt_file,image_file,obsid,filenames):
@@ -39,4 +40,13 @@ def create_clean_img(filenames):
     dmcopy.clobber = True
     dmcopy()
     filenames['evt_uncontam_img'] = 'evt_uncontam.img'
+    return None
+
+def exp_corr(filenames):
+    fluximage.punlearn()
+    fluximage.infile = filenames['evt_bkgsub_img']
+    fluximage.outfile = 'flux/'
+    fluximage.clobber = True
+    fluximage()
+    filenames['evt_bkgsub_img'] = os.getcwd()+'/flux/broad_flux.img'
     return None
