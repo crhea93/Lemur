@@ -113,6 +113,10 @@ def display_entire(home_dir,OBSID,repro_evt):
         #ptsrc_file.write('annulus(0,0,0,0)') #Just so that there is something in the file
     ptsrc_file.close()
     copyfile('pt_srcs.reg',home_dir+'/'+OBSID+'/Background/pt_srcs.reg')
+    print_window(home_dir+'/'+OBSID+'bkg.png', ['clobber', 'yes'])
+    #now for a nice image
+
+
     return coords[0][0],coords[1][0]
 
 
