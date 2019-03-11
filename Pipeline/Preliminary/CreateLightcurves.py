@@ -33,6 +33,7 @@ def bkg_lightcurve(bkg_ccd):
     dmextract.clobber = True
     dmextract()
     #Plot Lightcurve using CHIPS
+    add_window()
     make_figure('ccd'+bkg_ccd+'_bkg.lc[cols dt, count_rate]')
     set_curve(["symbol.style", "none"])
     set_plot_title("Light Curve")
