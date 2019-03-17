@@ -54,6 +54,7 @@ def display_ccds(ccd_list):
     hide_axis()
     outfile_name = "ccds.png"
     print_window(outfile_name,['clobber','yes'])
+    clear()
     return None
 
 
@@ -93,7 +94,7 @@ def display_entire(home_dir,OBSID,repro_evt):
     bkg_file.write("# Region file format: DS9 version 4.1 \n")
     bkg_file.write("physical \n")
     bkg_file.write('circle(%s,%s,%f) \n'%(bkg_coord[0][0],bkg_coord[1][0],bkg_radius))
-
+    bkg_file.close()
     ptsrc_file = open('pt_srcs.reg','w+')
     ptsrc_file.write("# Region file format: DS9 version 4.1 \n")
     ptsrc_file.write("physical \n")
@@ -113,10 +114,10 @@ def display_entire(home_dir,OBSID,repro_evt):
         #ptsrc_file.write('annulus(0,0,0,0)') #Just so that there is something in the file
     ptsrc_file.close()
     copyfile('pt_srcs.reg',home_dir+'/'+OBSID+'/Background/pt_srcs.reg')
-    print_window(home_dir+'/'+OBSID+'bkg.png', ['clobber', 'yes'])
+    print_window(home_dir+'/'+OBSID+'/bkg.png', ['clobber', 'yes'])
     #now for a nice image
 
-
+    clear()
     return coords[0][0],coords[1][0]
 
 
@@ -129,7 +130,7 @@ def display_merge(merged_dir,merged_evt):
     dmcopy.outfile = merged_img
     dmcopy.option = 'image'
     dmcopy.clobber = True
-    #dmcopy()
+    dmcopy()
     add_window(32,32)
     max_cts = max_counts(merged_img)
     cr = read_file(merged_img)
@@ -145,6 +146,19 @@ def display_merge(merged_dir,merged_evt):
     gui.ccbox(msg)
     coords = get_pick()
     add_point(coords[0], coords[1], ["style", "cross", "color", "red"])
+    msg = "Please pick the center and edge of background region..."
+    gui.ccbox(msg)
+    bkg_coord = get_pick()
+    add_point(bkg_coord[0], bkg_coord[1], ["style", "cross", "color", "blue"])
+    bkg_edge = get_pick()
+    add_point(bkg_edge[0], bkg_edge[1], ["style", "cross", "color", "blue"])
+    bkg_radius = np.sqrt(
+        (float(bkg_coord[0]) - float(bkg_edge[0])) ** 2 + (float(bkg_coord[1]) - float(bkg_edge[1])) ** 2)
+    bkg_file = open('bkg.reg', 'w+')
+    bkg_file.write("# Region file format: DS9 version 4.1 \n")
+    bkg_file.write("physical \n")
+    bkg_file.write('circle(%s,%s,%f) \n' % (bkg_coord[0][0], bkg_coord[1][0], bkg_radius))
+    bkg_file.close()
     ptsrc_file = open('pt_srcs.reg','w+')
     ptsrc_file.write("# Region file format: DS9 version 4.1 \n")
     ptsrc_file.write("physical \n")
@@ -160,7 +174,8 @@ def display_merge(merged_dir,merged_evt):
             add_point(pt_src_edge[0], pt_src_edge[1], ["style", "cross", "color", "green"])
             radius = np.sqrt((float(pt_src_coord[0])-float(pt_src_edge[0]))**2+(float(pt_src_coord[1])-float(pt_src_edge[1]))**2)
             ptsrc_file.write('annulus(%s,%s,0.0,%f) \n'%(pt_src_coord[0][0],pt_src_coord[1][0],radius))
-    if sum(1 for line in open('pt_srcs.reg')) < 3:
-        ptsrc_file.write('annulus(0,0,0,0)') #Just so that there is something in the file
+    #if sum(1 for line in open('pt_srcs.reg')) < 3:
+    #    ptsrc_file.write('annulus(0,0,0,0)') #Just so that there is something in the file
     ptsrc_file.close()
+    clear()
     return coords[0][0],coords[1][0]

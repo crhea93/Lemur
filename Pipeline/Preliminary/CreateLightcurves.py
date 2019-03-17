@@ -31,6 +31,7 @@ def bkg_lightcurve(bkg_ccd):
     dmextract.outfile = 'ccd'+bkg_ccd+'_bkg.lc'
     dmextract.opt = 'ltc1'
     dmextract.clobber = True
+    dmextract.verbose = 0
     dmextract()
     #Plot Lightcurve using CHIPS
     add_window()
@@ -44,8 +45,7 @@ def bkg_lightcurve(bkg_ccd):
     clear()
     add_window()
     #Clip image
-    lc_sigma_clip('ccd'+bkg_ccd+'_bkg.lc','ccd'+bkg_ccd+'_bkg_clean.gti',sigma=10,pattern="none")
+    lc_sigma_clip('ccd'+bkg_ccd+'_bkg.lc','ccd'+bkg_ccd+'_bkg_clean.gti',sigma=5,pattern="none",verbose=0)
     print_window('ccd'+bkg_ccd+'_bkg_cleanedLC.pdf')
     clear()
-    add_window()
     return None

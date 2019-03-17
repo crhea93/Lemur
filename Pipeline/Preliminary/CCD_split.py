@@ -11,8 +11,9 @@ background_dir = 'Background'
 #-----------------------------------------#
 
 def split_ccds(chandra_dir,dir_to_split):
-    os.chdir(chandra_dir)
     for dir in dir_to_split:
+        os.chdir(chandra_dir)
+        print("    Working on obsid %s"%dir)
         #Basic Setup
         if not os.path.exists(dir+'/'+background_dir):
             os.makedirs(dir+'/'+background_dir)
@@ -45,5 +46,5 @@ def split_ccds(chandra_dir,dir_to_split):
                 dmcopy.clobber = True
                 dmcopy()
 
-        #os.chdir(chandra_dir)
+        os.chdir(chandra_dir)
     return ccds

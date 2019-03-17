@@ -5,6 +5,7 @@ import os
 from ciao_contrib.runtool import *
 
 def run_bkg_sub(evt_file,image_file,obsid,filenames):
+    print("      Creating blanksky event file...")
     #Create Blanksky File
     blanksky.punlearn()
     blanksky.evtfile = evt_file
@@ -13,6 +14,7 @@ def run_bkg_sub(evt_file,image_file,obsid,filenames):
     blanksky.clobber = True
     blanksky()
     #Now create background subtracted image
+    print("      Creating background-subtracted image")
     blanksky_image.punlearn()
     blanksky_image.bkgfile = obsid+'_blank.evt'
     blanksky_image.outroot = obsid+'_blank'
@@ -25,14 +27,18 @@ def run_bkg_sub(evt_file,image_file,obsid,filenames):
 
 def create_clean_img(filenames):
     if sum(1 for line in open('pt_srcs.reg')) < 3:
-        filenames['evt2_repro_uncontam'] = filenames['evt2_repro']
+        dmcopy.punlearn()
+        dmcopy.infile = filenames['evt2_repro']
+        dmcopy.outfile = filenames['evt2_repro'].split('.')[0] + '_uncontam.fits'
+        dmcopy.clobber = True
+        dmcopy()
     else:
         dmcopy.punlearn()
         dmcopy.infile = filenames['evt2_repro']+'[exclude sky=region(pt_srcs.reg)]'
         dmcopy.outfile = filenames['evt2_repro'].split('.')[0]+'_uncontam.fits'
         dmcopy.clobber = True
         dmcopy()
-        filenames['evt2_repro_uncontam'] = filenames['evt2_repro'].split('.')[0]+'_uncontam.fits'
+    filenames['evt2_repro_uncontam'] = filenames['evt2_repro'].split('.')[0]+'_uncontam.fits'
     dmcopy.punlearn()
     dmcopy.infile = filenames['evt2_repro_uncontam']
     dmcopy.outfile = 'evt_uncontam.img'
@@ -45,7 +51,7 @@ def create_clean_img(filenames):
 def exp_corr(filenames):
     fluximage.punlearn()
     fluximage.infile = filenames['evt_bkgsub_img']
-    fluximage.outfile = 'flux/'
+    fluximage.outroot = 'flux/'
     fluximage.clobber = True
     fluximage()
     filenames['evt_bkgsub_img'] = os.getcwd()+'/flux/broad_flux.img'

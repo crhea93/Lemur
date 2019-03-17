@@ -64,6 +64,42 @@ def isFloat(string):
         return False
     except TypeError:
         return False
+
+#Dynamically set source for OBSID
+def obsid_set(src_model_dict,bkg_model_dict,obsid, obs_count,redshift,nH_val,Temp_guess):
+    load_pha(obs_count,obsid) #Read in
+    if obs_count == 0:
+        src_model_dict[obsid] = xsphabs('abs'+str(obs_count)) * xsapec('apec'+str(obs_count)) #set model and name
+    else:
+        src_model_dict[obsid] = get_model_component('abs0') * xsapec('apec' + str(obs_count))
+        get_model_component('apec'+str(obs_count)).kT = get_model_component('apec0').kT #link to first kT
+        get_model_component('apec' + str(obs_count)).Abundanc = get_model_component('apec0').Abundanc  # link to first kT
+    bkg_model_dict[obsid] = xsapec('bkgApec'+str(obs_count))+get_model_component('abs0')*xsbremss('brem'+str(obs_count))
+    set_source(obs_count, src_model_dict[obsid]) #set model to source
+    set_bkg_model(obs_count,bkg_model_dict[obsid])
+    #Change src model component values
+    get_model_component('abs0').nH = nH_val#change preset value
+    freeze(get_model_component('abs0'))
+    get_model_component('apec'+str(obs_count)).kT = Temp_guess
+    get_model_component('apec' + str(obs_count)).kT = redshift
+    get_model_component('apec' + str(obs_count)).Abundanc = 0.3
+    thaw(get_model_component('apec'+str(obs_count)).Abundanc)
+    #Change bkg model component values
+    get_model_component('bkgApec' + str(obs_count)).kT = 0.18
+    thaw(get_model_component('bkgApec'+str(obs_count)).kT)
+    get_model_component('brem' + str(obs_count)).kT = 40.0
+    thaw(get_model_component('brem' + str(obs_count)).kT)
+    return None
+
+#Get ready for flux calculations
+def flux_prep(src_model_dict,obsid,obs_count):
+    freeze(get_model_component('apec'+str(obs_count)).kT)
+    freeze(get_model_component('apec'+str(obs_count)).Abundanc)
+    freeze(get_model_component('bkgApec'+str(obs_count)).norm)
+    freeze(get_model_component('brem'+str(obs_count)).norm)
+    src_model_dict[obsid] = get_model_component('abs0')*cflux(get_model_component('apec'+str(obs_count)))
+    return None
+
 #FitXSPEC
 # Fit spectra
 #   parameters:
@@ -78,40 +114,35 @@ def FitXSPEC(spectrum_files,background_files,redshift,n_H,Temp_guess,spec_count,
     #FIX HEADER
     set_stat(statistic)
     set_method(optimization)
-    hdu_number = 1  #Want evnts so hdu_number = 1
-    count = 0
-    load_pha(1, spectrum_files[0], use_errors=True)
-    load_bkg(1, background_files[0])
     ignore(0,energy_min)
     ignore(energy_max,)
-    group_counts(1,grouping)
-    #Set source with background
+    #group_counts(1,grouping)
+    #---------------Set source with background------------#
     cflux.emin = energy_flux_min
     cflux.emax = energy_flux_max
-    set_source(1 , xsphabs.abs1*xsapec.mekal1)
+    src_model_dict = {}; bkg_model_dict = {}
+    obs_count = 0
+    for spec_pha in spectrum_files:
+        obsid_set(src_model_dict, bkg_model_dict, spec_pha, obs_count, redshift, n_H, Temp_guess)
+        obs_count += 1
+    for ob_num in obs_count:
+        group_counts(ob_num,grouping)
+    '''set_source(1 , xsphabs.abs1*xsapec.mekal1)
     set_bkg_model(1, xsapec.apec1 + abs1 * xsbremss.brem1)
     apec1.kT = 0.18;
     freeze(apec1.kT);
     brem1.kT = 40;
     freeze(brem1.kT)
-    #set_bkg_model(1, abs1*(xspowerlaw.bkgpwd1+xsapec.bkgapec11)+xsapec.bkgapec12)
     abs1.nH = n_H; freeze(abs1.nH)
     mekal1.kT = Temp_guess
     mekal1.Abundanc = 0.3
     thaw(mekal1.Abundanc)
-    mekal1.redshift = redshift
-    '''
-    set_bkg_model(1, abs1*(xspowerlaw.bkgpwd1+xsapec.bkgapec11)+xsapec.bkgapec12)
-    bkgpwd1.PhoIndex = 1.5
-    freeze(bkgpwd1.PhoIndex)
-    bkgapec11.kT = .25
-    bkgapec12.kT = .08
-    freeze(bkgapec12.kT)
-    '''
+    mekal1.redshift = redshift'''
     fit()
-    f = get_fit_results()
     set_covar_opt("sigma",sigma_covar)
-    covar(mekal1.kT,mekal1.Abundanc,mekal1.norm)
+    #covar(mekal1.kT,mekal1.Abundanc,mekal1.norm)
+    covar(get_model_component('apec0').kT,get_model_component('apec0').Abundanc,get_model_component('apec0').norm)
+    #----------Calculate min/max values---------#
     mins = list(get_covar_results().parmins)
     maxes = list(get_covar_results().parmaxes)
     for val in range(len(mins)):
@@ -121,8 +152,11 @@ def FitXSPEC(spectrum_files,background_files,redshift,n_H,Temp_guess,spec_count,
             maxes[val] = 0.0
         else:
             pass
-    freeze(mekal1.kT);freeze(mekal1.Abundanc);freeze(mekal1.norm)
-    set_source(1 , xsphabs.abs1*cflux(xsapec.mekal1))
+    #---------Set up Flux Calculation----------#
+    freeze(get_model_component('apec0').kT);freeze(get_model_component('apec0').Abundanc);
+    #set_source(1 , xsphabs.abs1*cflux(xsapec.mekal1))
+    for spec_pha in spectrum_files:
+        flux_prep(src_model_dict, spec_pha, obs_count)
     fit()
     set_log_sherpa()
     plot("fit", 1)
