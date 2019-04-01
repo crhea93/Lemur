@@ -48,6 +48,23 @@ def create_clean_img(filenames):
     filenames['evt_uncontam_img'] = 'evt_uncontam.img'
     return None
 
+def create_clean_img_merge(filenames):
+    dmcopy.punlearn()
+    dmcopy.infile = filenames['evt2_repro']
+    dmcopy.outfile = filenames['evt2_repro'].split('.')[0] + '_uncontam.fits'
+    dmcopy.clobber = True
+    dmcopy()
+    filenames['evt2_repro_uncontam'] = filenames['evt2_repro'].split('.')[0] + '_uncontam.fits'
+    dmcopy.punlearn()
+    dmcopy.infile = filenames['evt2_repro_uncontam']
+    dmcopy.outfile = 'evt_uncontam.img'
+    dmcopy.opt = 'image'
+    dmcopy.clobber = True
+    dmcopy()
+    filenames['evt_uncontam_img'] = 'evt_uncontam.img'
+    return None
+
+
 def exp_corr(filenames):
     fluximage.punlearn()
     fluximage.infile = filenames['evt_bkgsub_img']

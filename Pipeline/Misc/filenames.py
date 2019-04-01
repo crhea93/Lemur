@@ -4,7 +4,7 @@ Small script to collect all relavent file names
 import os
 def get_filenames():
     filenames = dict()
-    num_of_biases = 0
+    biases = []
     for file in os.listdir(os.getcwd()+'/primary'):
         if file.endswith("_evt2.fits"):
             filenames['evt2'] = os.getcwd()+'/primary/'+ file
@@ -24,9 +24,7 @@ def get_filenames():
         if file.endswith("_flt1.fits"):
             filenames['flt1'] = os.getcwd()+'/secondary/'+ file
         if file.endswith("_bias0.fits"):
-            CCD_number = file.split("_")[1]
-
-            filenames[CCD_number+'_bias0'] = os.getcwd()+'/secondary/'+ file
-            num_of_biases += 1
-
-    return filenames,num_of_biases
+            bias_number = file.split("_")[1]
+            filenames[bias_number+'_bias0'] = os.getcwd()+'/secondary/'+ file
+            biases.append(bias_number)
+    return filenames,biases

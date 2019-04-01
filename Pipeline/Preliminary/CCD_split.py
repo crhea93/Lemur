@@ -11,6 +11,7 @@ background_dir = 'Background'
 #-----------------------------------------#
 
 def split_ccds(chandra_dir,dir_to_split):
+    ccds_dict = {}
     for dir in dir_to_split:
         os.chdir(chandra_dir)
         print("    Working on obsid %s"%dir)
@@ -26,6 +27,7 @@ def split_ccds(chandra_dir,dir_to_split):
         evt_file_data = read_file(evt2_file)
         ccds = get_keyval(evt_file_data, 'DETNAM').split('-')[1]
         ccds = [i for i in ccds]
+        ccds_dict[dir] = ccds
         os.chdir(chandra_dir+'/'+dir+'/'+background_dir)
         #Create fits files for each ccd
         for ccd in ccds:
@@ -47,4 +49,4 @@ def split_ccds(chandra_dir,dir_to_split):
                 dmcopy()
 
         os.chdir(chandra_dir)
-    return ccds
+    return ccds_dict

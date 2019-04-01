@@ -45,7 +45,7 @@ def bkg_lightcurve(bkg_ccd):
     clear()
     add_window()
     #Clip image
-    lc_sigma_clip('ccd'+bkg_ccd+'_bkg.lc','ccd'+bkg_ccd+'_bkg_clean.gti',sigma=5,pattern="none",verbose=0)
+    lc_sigma_clip('ccd'+bkg_ccd+'_bkg.lc','ccd'+bkg_ccd+'_bkg_clean.gti',sigma=3,pattern="none",verbose=0)
     print_window('ccd'+bkg_ccd+'_bkg_cleanedLC.pdf')
     clear()
     return None

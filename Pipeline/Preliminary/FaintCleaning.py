@@ -30,10 +30,10 @@ output_dir = 'repro'
 #-----------------------------------------#
 
 
-def FaintCleaning(chandra_dir,OBSID,ccd_bkg,source_ra,source_dec):
+def FaintCleaning(chandra_dir,OBSID,ccd_bkg,source_ra,source_dec,ccds):
 	base_dir = chandra_dir+'/'+OBSID
 	os.chdir(base_dir)
-	filenames,num_bias = get_filenames()
+	filenames,biases = get_filenames()
 	#print(filenames)
 	if not os.path.exists(os.getcwd()+'/'+output_dir):
 		os.makedirs(os.getcwd()+'/'+output_dir)
@@ -47,7 +47,7 @@ def FaintCleaning(chandra_dir,OBSID,ccd_bkg,source_ra,source_dec):
 	print("      Destreaking Event File...")
 	Destreak(base_dir,output_dir,filenames)
 	print("      Creating New Badpixel File...")
-	BadPixel(base_dir,output_dir,OBSID,filenames,num_bias)
+	BadPixel(base_dir,output_dir,OBSID,filenames,biases)
 	print("      Apply GTI and Completing Reprocessing...")
 	filenames = Process(filenames,OBSID)
 	return filenames

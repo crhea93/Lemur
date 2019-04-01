@@ -33,7 +33,7 @@ from Preliminary.unzip import unzip
 from Misc.Post_Process import PostProcess
 from Misc.filenames import get_filenames
 from Misc.read_input import read_input_file
-from Misc.Bkg_sub import run_bkg_sub, create_clean_img, exp_corr
+from Misc.Bkg_sub import run_bkg_sub, create_clean_img, exp_corr, create_clean_img_merge
 from Preliminary.Merge import merge_objects
 from Preliminary.CCD_split import split_ccds
 from Preliminary.Centroid import basic_centroid, basic_centroid_guess, merged_centroid
@@ -60,7 +60,6 @@ def main():
     print("Generating fits and image files for each individual CCD...")
     ccds = split_ccds(inputs['home_dir'],inputs['dir_list'])
     #-------------------------Single Obsid Scenario------------------------------#
-
     if inputs['merge'].lower() == 'false':
         print("#-----Single Observation Mode----#")
         for obsid_ in inputs['dir_list']: #left as a list to keep input deck the same and sample :)
@@ -69,15 +68,15 @@ def main():
                 os.chdir(os.getcwd() + '/' + obsid_ + '/Background')
                 print("    Now let us pick our src and background ccd...")
                 #Lets take a look at each ccd and pick our background and src ccds
-                display_ccds(ccds)
+                display_ccds(ccds,obsid_)
                 plt.imshow(mpimg.imread('ccds.png')) #the next few lines are just a bunch of minor decisions and pop-ups
                 plt.ion()
                 plt.show()
                 msg = "Which CCD should be used for Background Flare Extraction?"
-                bkg_ccd = gui.buttonbox(msg, choices=ccds)
+                bkg_ccd = gui.buttonbox(msg, choices=ccds[obsid_])
                 main_out.write("The background CCD chosen is CCD#%s\n"%bkg_ccd)
                 msg = "Which CCD should be used for Source Centroid Extraction?"
-                src_ccd = gui.buttonbox(msg, choices=ccds)
+                src_ccd = gui.buttonbox(msg, choices=ccds[obsid_])
                 main_out.write("The source CCD chosen is CCD#%s\n"%src_ccd)
                 plt.close() #don't forget to close
                 print("    We can now create a lightcurve for the background...")
@@ -85,15 +84,19 @@ def main():
                 bkg_lightcurve(bkg_ccd)
                 cen_x,cen_y = basic_centroid_guess(src_ccd) #Currently not actually used
                 print("    We need to clean our diffuse emission...")
-                filenames = FaintCleaning(inputs['home_dir'],obsid_,bkg_ccd,cen_x,cen_y)
+                filenames = FaintCleaning(inputs['home_dir'],obsid_,bkg_ccd,cen_x,cen_y,ccds[obsid_])
                 os.chdir(inputs['home_dir']+'/'+obsid_)
                 print("    We will now choose the extent of the source and any point sources on the src ccd...")
                 #Here we calculate three things: Extent of diffuse emission, BKG region, Contaminating Pt Srcs
                 edge_x,edge_y = display_entire(inputs['home_dir'],obsid_,filenames['evt2_repro'])
+                #print(edge_x,edge_y)'''
+                #edge_x, edge_y = 4253.430527931717, 3812.8298364769335
+                main_out.write('The edge point is chosen to be %.2f,%.2f'%(edge_x,edge_y))
                 os.chdir(inputs['home_dir']+'/'+obsid_+'/Background')
                 print("    We will now calculate the centroid...")
                 #Just a quick calculation of the centroid based off the pixel with the most counts in a region of choice (deteremined in this step by the user)
                 cen_x, cen_y = basic_centroid(src_ccd)
+                #cen_x,cen_y = 4228, 3854
                 main_out.write("The centroid's X,Y physical coordinates are: %s,%s"%(str(cen_x),str(cen_y)))
                 #We can now get a pretty picture with all of our information and run the background subtraction
                 os.chdir(inputs['home_dir']+'/'+obsid_+'/repro')
@@ -116,77 +119,86 @@ def main():
             #Clean up data
             os.chdir(inputs['home_dir']+'/'+obsid_+'/repro')
             print("    Creating Annuli...")
-            annuli_data,max_rad = create_annuli(os.getcwd(),filenames['evt_bkgsub_img'],[cen_x,cen_y],[edge_x,edge_y],int(inputs['num_ann_guess']),int(inputs['threshold']))
+            annuli_data,max_rad,cen_ra,cen_dec = create_annuli(main_out,filenames['evt_bkgsub_img'],[cen_x,cen_y],[edge_x,edge_y],int(inputs['num_ann_guess']),int(inputs['threshold']))
+            create_src_img(filenames['evt_bkgsub_img'],[cen_x,cen_y],[edge_x,edge_y])
     #--------------------------------Multiple Obsid Scenario--------------------------------------#
     if inputs['merge'].lower() == 'true':
         print("#-----Multiple Observation Mode----#")
         #We must clean each observation first :)
         print("Beginning cleaning process for each individual obsid...")
-        '''for obsid_ in inputs['dir_list']: #left as a list to keep input deck the same and sample :)
+        for obsid_ in inputs['dir_list']: #left as a list to keep input deck the same and sample :)
+            '''main_out = open(inputs['home_dir'] + "/" + obsid_ + "/decisions.txt", 'w+')
             os.chdir(inputs['home_dir'] + '/' + obsid_ + '/Background')
-
+            print("We are on obsid %s"%obsid_)
+            main_out.write('Obsid %s'%obsid_)
             print("    Now let us pick our src and background ccd...")
             #Lets take a look at each ccd and pick our background and src ccds
-            display_ccds(ccds)
+            display_ccds(ccds,obsid_)
             plt.imshow(mpimg.imread('ccds.png')) #the next few lines are just a bunch of minor decisions and pop-ups
             plt.ion()
             plt.show()
             msg = "Which CCD should be used for Background Flare Extraction?"
-            bkg_ccd = gui.buttonbox(msg, choices=ccds)
-            #main_out.write("The background CCD chosen is CCD#%s\n"%bkg_ccd)
-            msg = "Which CCD should be used for Source Centroid Extraction?"
-            src_ccd = gui.buttonbox(msg, choices=ccds)
+            bkg_ccd = gui.buttonbox(msg, choices=ccds[obsid_])
+            main_out.write("The background CCD chosen is CCD#%s\n"%bkg_ccd)
+            #msg = "Which CCD should be used for Source Centroid Extraction?"
+            #src_ccd = gui.buttonbox(msg, choices=ccds[obsid_])
             #main_out.write("The source CCD chosen is CCD#%s\n"%src_ccd)
             plt.close() #don't forget to close
-
             print("    We can now create a lightcurve for the background...")
             bkg_clean_srcs(bkg_ccd)
             bkg_lightcurve(bkg_ccd)
             cen_x,cen_y = basic_centroid_guess(src_ccd)# currently not actually used
             print("    We need to clean our diffuse emission...")
-            filenames = FaintCleaning(inputs['home_dir'],obsid_,bkg_ccd,cen_x,cen_y)
+            filenames = FaintCleaning(inputs['home_dir'],obsid_,bkg_ccd,cen_x,cen_y,ccds[obsid_])
             #We have to create bkg-subtracted images for each obsid because we need them for our merged image!
             print("    We will now choose the extent of the source and any point sources on the src ccd...")
-            # Here we calculate three things: Extent of diffuse emission, BKG region, Contaminating Pt Srcs
-            edge_x, edge_y = display_entire(inputs['home_dir'], obsid_, filenames['evt2_repro'])
             os.chdir(inputs['home_dir'] + '/' + obsid_ + '/repro')
             print("    Creating Clean Image...")
-            create_clean_img(filenames)
+            create_clean_img_merge(filenames)
             print("    Running Background Subtraction...")
             run_bkg_sub(filenames['evt2_repro_uncontam'], filenames['evt_uncontam_img'], obsid_, filenames)
-        print("Beginning Merged Calculations...")'''
+            main_out.close()'''
+        print("Beginning Merged Calculations...")
         print("    Merging obsids...")
+        '''filenames,temp = get_filenames()
+        filenames['evt2_repro'] = os.getcwd()+'/repro/acisf'+obsid_+'_repro_evt2.fits'
+        filenames['evt2_repro_uncontam'] = filenames['evt2_repro'].split('.')[0]+'_uncontam.fits'
+        filenames['evt_bkgsub_img'] = obsid_+'_blank_particle_bkgsub.img'
+        filenames['evt_uncontam_img'] = 'evt_uncontam.img'''
         os.chdir(inputs['home_dir'])
-        '''merge_objects(inputs['dir_list'],inputs['merge_name'],clean='yes')
         if not os.path.exists(inputs['home_dir']+'/'+inputs['merge_name']):
-            os.makedirs(inputs['home_dir']+'/'+inputs['merge_name'])'''
+            os.makedirs(inputs['home_dir']+'/'+inputs['merge_name'])
+        #merge_objects(inputs['dir_list'], inputs['merge_name'], clean='yes')
         os.chdir(inputs['home_dir']+'/'+inputs['merge_name'])
-        print("    Chosing extent of source and contaminating point sources")
+        print("    Choosing extent of source and contaminating point sources")
         main_out = open(os.getcwd() + "/decisions.txt", 'w+')
-        edge_x,edge_y = display_merge(inputs['home_dir']+'/'+inputs['merge_name'],'merged_evt.fits')
-        #edge_x,edge_y = 4149.38,3721.35
+        #edge_x,edge_y = display_merge(inputs['home_dir']+'/'+inputs['merge_name'],'merged_evt.fits')
+        edge_x,edge_y = 3937.56,4017.19
+        main_out.write('The edge point is chosen to be %.2f,%.2f \n' % (edge_x, edge_y))
         os.chdir(inputs['home_dir']+'/'+inputs['merge_name'])
         print("    Calculating centroid position")
         #cen_x,cen_y = merged_centroid('merged_evt')
-        cen_x,cen_y = 4128,3903
+        cen_x,cen_y = 4093.00,3978.00
+        main_out.write('The center point is chosen to be %.2f,%.2f \n' % (float(cen_x), float(cen_y)))
         print("    Creating annuli...")
-        print(edge_x,edge_y); print(cen_x,cen_y)
-        annuli_data,max_rad = create_annuli(os.getcwd(),inputs['home_dir']+'/'+inputs['merge_name']+'/merged_evt.fits',[cen_x,cen_y],[edge_x,edge_y],int(inputs['num_ann_guess']),int(inputs['threshold']))
-        annuli_obs(inputs['home_dir'],inputs['dir_list'])
+        annuli_data,max_rad,cen_ra,cen_dec = create_annuli(main_out,inputs['home_dir']+'/'+inputs['merge_name']+'/merged_evt',[cen_x,cen_y],[edge_x,edge_y],int(inputs['num_ann_guess']),int(inputs['threshold']))
+        #create_src_img(inputs['home_dir']+'/'+inputs['merge_name']+'/merged_evt.img',[cen_x,cen_y],[edge_x,edge_y])
     #---------------------------------Spectral Extraction------------------------------------------#
-    main_out.write("The radius of interest extends to %s arcsec"%str(max_rad))
+    main_out.write("The centroid's coordinates in ra/dec are: ra=%s dec=%s \n"%(str(cen_ra),str(cen_dec)))
+    main_out.write("The radius of interest extends to %.2f arcsec \n"%max_rad)
     #Create nice image of source
-    #create_src_img(filenames['evt_bkgsub_img'],[cen_x,cen_y],[edge_x,edge_y])
     print("Beginning Spectra Extraction...")
     total_ann_num = len(annuli_data.keys())
     print("    We have a total of %i annuli..."%total_ann_num)
     if inputs['debug'].lower() == 'false':
+        '''if inputs['merge'].lower() == 'true': #Move annuli data to each obsid
+            annuli_obs(inputs['home_dir'],inputs['dir_list'],cen_ra,cen_dec)
         spec_create(inputs['home_dir'],inputs['dir_list'],total_ann_num,list(annuli_data.values()))
         for obsid_ in inputs['dir_list']:
             prefix = inputs['home_dir']+'/'+obsid_+'/repro/Annuli/Annulus_'
             deproj_final(prefix,'.pi',1,total_ann_num,0,prefix,'.deproj')
-        os.chdir(inputs['home_dir'])
-        Temperatures, Temp_min, Temp_max, Abundances, Ab_min, Ab_max, Norms, Norm_min, Norm_max, Fluxes = PrimeFitting(inputs['home_dir'],inputs['dir_list'],'repro/Annuli/Annulus','temperatures',list(annuli_data.values()),total_ann_num,inputs['redshift'],inputs['n_h'],inputs['temp_guess'],inputs['sigma'])
+        os.chdir(inputs['home_dir'])'''
+        Temperatures, Temp_min, Temp_max, Abundances, Ab_min, Ab_max, Norms, Norm_min, Norm_max, Fluxes = PrimeFitting(inputs['home_dir'],inputs['merge_name'],inputs['dir_list'],'repro/Annuli/Annulus','temperatures',list(annuli_data.values()),total_ann_num,inputs['redshift'],inputs['n_h'],inputs['temp_guess'],inputs['sigma'])
     if inputs['debug'].lower() == 'true':
         temperature_data = pd.read_csv(inputs['home_dir']+'/'+obsid_+'/repro/Fits/temperatures.csv')
         Temperatures = temperature_data['Temperature']; Temp_min = temperature_data['Temp_min']; Temp_max = temperature_data['Temp_max']
@@ -196,7 +208,7 @@ def main():
     print("Postprocessing and creating plots...")
     Annuli = PostProcess(annuli_data.keys(), list(annuli_data.values()), Temperatures, Temp_min, Temp_max,
                              Abundances, Ab_min, Ab_max, Norms, Norm_min, Norm_max, Fluxes, inputs['redshift'])
-    all_profiles(inputs['home_dir']+'/'+obsid_+'/repro/Fits',inputs['home_dir']+'/'+obsid_+'/repro/Fits',inputs['redshift'])
+    all_profiles(inputs['home_dir']+'/'+inputs['merge_name']+'/Fits',inputs['home_dir']+'/'+inputs['merge_name']+'/Fits',inputs['redshift'])
     main_out.close()
     return None
 main()

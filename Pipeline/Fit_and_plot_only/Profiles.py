@@ -4,10 +4,10 @@ Python file to create temperature profile
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from Misc.LSCalc import ls_calc
+from LSCalc import ls_calc
 
 def all_profiles(data_folder,output_folder,redshift):
-    properties = {"Temperature":'keV','Density':'$cm^{-3}$','Pressure':'$erg cm^{-3}$','Entropy':'$keV cm^{2}$','T_Cool':'Gyr'}
+    properties = {"Temperature":'keV','Density':'$cm^{-3}$','Pressure':'$erg cm^{-3}$','Entropy':'$keV cm^{2}$','T_Cool':'years'}
     for key,val in properties.items():
         profile(data_folder,output_folder,redshift,key,val)
     return None

@@ -30,19 +30,20 @@ def min_coord(image,coord):
     dmstat()
     return float(dmstat.out_min)
 
-def display_ccds(ccd_list):
+def display_ccds(ccd_list,obsid):
     add_window(32,32)
-    split(2,int(len(ccd_list)/2)+1)
+    split(2,int(len(ccd_list[obsid])/2)+1)
     ccd_count = 1
-    full_ccd_list = ['ccd'+i for i in ccd_list]
+    full_ccd_list = ['ccd'+i for i in ccd_list[obsid]]
     for ccd in full_ccd_list:
         max_cts = max_counts(ccd+'.img')
         cr = read_file(ccd+".img")
         current_plot("plot"+str(ccd_count))
         img = copy_piximgvals(cr)
         set_piximgvals(cr, gsmooth(img, 3))
-        add_image(cr, ["depth", 50, "wcs", "logical"])
-        set_image(["threshold", [0,max_cts/25]])
+        pvalues = get_piximgvals(cr)
+        add_image(np.arcsinh(pvalues))
+        set_image(["threshold", [0, np.max(np.arcsinh(pvalues)) / 10]])
         set_image(["colormap", "heat"])
         x_min = min_coord(ccd+".fits",'x'); x_max = max_coord(ccd+".fits",'x')
         y_min = min_coord(ccd+".fits",'y'); y_max = max_coord(ccd+".fits",'y')
@@ -74,8 +75,9 @@ def display_entire(home_dir,OBSID,repro_evt):
     cr = read_file(repro_img)
     img = copy_piximgvals(cr)
     set_piximgvals(cr, gsmooth(img, 3))
-    add_image(cr, ["depth", 50, "wcs", "logical"])
-    set_image(["threshold", [0,max_cts/10]])
+    pvalues = get_piximgvals(cr)
+    add_image(np.arcsinh(pvalues))
+    set_image(["threshold", [0, np.max(np.arcsinh(pvalues)) / 10]])
     set_image(["colormap", "heat"])
     x_min = min_coord(repro_evt,'x'); x_max = max_coord(repro_evt,'x')
     y_min = min_coord(repro_evt,'y'); y_max = max_coord(repro_evt,'y')
@@ -136,8 +138,9 @@ def display_merge(merged_dir,merged_evt):
     cr = read_file(merged_img)
     img = copy_piximgvals(cr)
     set_piximgvals(cr, gsmooth(img, 3))
-    add_image(cr, ["depth", 50, "wcs", "logical"])
-    set_image(["threshold", [0,max_cts/5]])
+    pvalues = get_piximgvals(cr)
+    add_image(np.arcsinh(pvalues))
+    set_image(["threshold", [0, np.max(np.arcsinh(pvalues)) / 10]])
     set_image(["colormap", "heat"])
     x_min = min_coord(merged_evt,'x'); x_max = max_coord(merged_evt,'x')
     y_min = min_coord(merged_evt,'y'); y_max = max_coord(merged_evt,'y')

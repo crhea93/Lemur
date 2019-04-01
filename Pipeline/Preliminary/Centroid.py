@@ -59,7 +59,7 @@ def merge_region_pick(merged_evt):
     img = copy_piximgvals(cr)
     set_piximgvals(cr, gsmooth(img, 3))
     add_image(cr, ["depth", 50, "wcs", "logical"])
-    set_image(["threshold", [0,max_cts/25]])
+    set_image(["threshold", [0,max_cts/50]])
     set_image(["colormap", "heat"])
     x_min = min_coord(merged_evt+".fits",'x'); x_max = max_coord(merged_evt+".fits",'x')
     y_min = min_coord(merged_evt+".fits",'y'); y_max = max_coord(merged_evt+".fits",'y')

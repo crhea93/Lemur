@@ -6,7 +6,7 @@ Calculate all additional parameters:
 - Cooling time
 '''
 import numpy as np
-from Misc.LSCalc import ls_calc, ds_calc
+from LSCalc import ls_calc, ds_calc
 class annulus:
     def __init__(self,r_in,r_out,temp,temp_min,temp_max,abund,abund_min,abund_max,norm,norm_min,norm_max,flux):
         self.r_in = r_in
@@ -47,7 +47,7 @@ class annulus:
     def calc_tcool(self):
         for i in range(3):
             t_sec = (5/2)*((1.91*self.dens[i]*self.temp_ergs[i]*self.vol)/self.lum)
-            self.t_cool.append(t_sec*3.17098e-8*1e-9) #year -> Gigayears
+            self.t_cool.append(t_sec*3.17098e-8)
 
 
 def PostProcess(regions,annuli_data,Temperatures,Temp_min,Temp_max,Abundances,Ab_min,Ab_max,Norms,Norm_min,Norm_max,Fluxes,redshift):

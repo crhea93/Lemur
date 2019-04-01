@@ -15,5 +15,5 @@ def merge_objects(Obsids,output_name,clean='yes'):
     for obsid in Obsids:
         id_string += obsid+"/repro/acisf"+obsid+"_repro_evt2_uncontam.fits,"
         id_hyphen += obsid+"-"
-    os.system("merge_obs '"+id_string+"' "+output_name+"/ clobber=yes cleanup="+clean )
+    os.system("merge_obs '"+id_string+"' "+output_name+"/ clobber=yes verbose=0 cleanup="+clean )
     return None

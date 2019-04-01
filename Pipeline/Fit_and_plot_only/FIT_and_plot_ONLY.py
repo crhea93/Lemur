@@ -22,7 +22,7 @@ OUTPUTS:
 '''
 #from astropy.io import fits
 import os
-import glob
+import sys
 import subprocess
 from sherpa.optmethods import LevMar
 from sherpa.stats import LeastSq
@@ -33,6 +33,8 @@ from sherpa.astro.ui import *
 from pychips.all import *
 from sherpa.fit import *
 from sherpa.all import *
+from Profiles import all_profiles
+from Post_Process import PostProcess
 #TURN OFF ON-SCREEN OUTPUT FROM SHERPA
 import logging
 logger = logging.getLogger("sherpa")
@@ -41,14 +43,45 @@ logger.setLevel(logging.ERROR)
 from sherpa_contrib.xspec.xsconvolve import load_xscflux
 load_xscflux("cflux")
 #------------------------------INPUTS------------------------------------------#
+total_ann_num = 10
+
+
 energy_min = 0.5
 energy_max = 7.0
-energy_flux_min = 0.1
+energy_flux_min = 0.01
 energy_flux_max = 100.00
 grouping = 10
 statistic = 'chi2gehrels'
 optimization = 'levmar'
 #------------------------------------------------------------------------------#
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+def read_input_file(input_file,expected_length):
+    inputs = {}
+    with open(input_file) as f:
+        for line in f:
+            if '=' in line:
+                inputs[line.split("=")[0].strip().lower()] = line.split("=")[1].strip()
+            else: pass
+        if len(inputs) != expected_length:
+            print("Please recheck the input file since some parameter is missing...")
+            print("Exiting program...")
+            exit()
+        else:
+            print("Successfully read in input file")
+            for key,val in inputs.items():
+                if is_number(val) == True and key != 'dir_list':
+                    inputs[key] = float(val)
+                if key == 'dir_list':
+                    #Obtain individual obsids from list
+                    obsids = [inputs['dir_list'].split(',')[i].strip() for i in range(len(inputs['dir_list'].split(',')))]
+                    inputs['dir_list'] = obsids
+        return inputs
+
 def set_log_sherpa():
     p = get_data_plot_prefs()
     p["xlog"] = True
@@ -96,21 +129,21 @@ def obsid_set(src_model_dict,bkg_model_dict,obsid, obs_count,redshift,nH_val,Tem
 
 #Get ready for flux calculations
 def flux_prep(src_model_dict,bkg_model_dict,obsid,obs_count):
-    #freeze(get_model_component('bkgApec'+str(obs_count)).norm)
-    #freeze(get_model_component('brem'+str(obs_count)).norm)
     src_model_dict[obsid] = get_model_component('abs1')*cflux(get_model_component('apec'+str(obs_count)))
     bkg_model_dict[obsid] = get_model_component('bkgApec' + str(obs_count)) + get_model_component('abs1') * get_model_component(
         'brem' + str(obs_count))
     set_source(obs_count, src_model_dict[obsid])  # set model to source
     set_bkg_model(obs_count, bkg_model_dict[obsid])
-    freeze(get_model_component('apec' + str(obs_count)).kT)
-    freeze(get_model_component('apec' + str(obs_count)).Abundanc)
+    freeze(get_model_component('apec'+str(obs_count)).kT)
+    freeze(get_model_component('apec'+str(obs_count)).Abundanc)
+    #freeze(get_model_component('bkgApec'+str(obs_count)).norm)
+    #freeze(get_model_component('brem'+str(obs_count)).norm)
     # Change bkg model component values
-    get_model_component('bkgApec' + str(obs_count)).kT = 0.18
+    '''get_model_component('bkgApec' + str(obs_count)).kT = 0.18
     freeze(get_model_component('bkgApec' + str(obs_count)).kT)
     get_model_component('brem' + str(obs_count)).kT = 40.0
-    freeze(get_model_component('brem' + str(obs_count)).kT)
-
+    freeze(get_model_component('brem' + str(obs_count)).kT)'''
+    #print(get_model())
     return None
 
 #FitXSPEC
@@ -127,12 +160,12 @@ def FitXSPEC(spectrum_files,background_files,redshift,n_H,Temp_guess,spec_count,
     #FIX HEADER
     set_stat(statistic)
     set_method(optimization)
-    #ignore(0,energy_min)
-    #ignore(energy_max,)
+    ignore(0,energy_min)
+    ignore(energy_max,)
     #group_counts(1,grouping)
     #---------------Set source with background------------#
-    cflux.Emin = energy_min
-    cflux.Emax = energy_max
+    cflux.emin = energy_flux_min
+    cflux.emax = energy_flux_max
     src_model_dict = {}; bkg_model_dict = {}
     obs_count = 1
     for spec_pha in spectrum_files:
@@ -141,17 +174,12 @@ def FitXSPEC(spectrum_files,background_files,redshift,n_H,Temp_guess,spec_count,
     for ob_num in range(obs_count-1):
         group_counts(ob_num+1,grouping)
         notice_id(ob_num+1, energy_min, energy_max)
-    fit()#outfile=os.getcwd()+'/Fits/%s.out'%spec_count,clobber=True)
-    f = get_fit_results()
-    with open(os.getcwd() + '/Fits/Params/%s.out'%spec_count, 'w+') as res_out:
-        res_out.write(str(f))
-    set_log_sherpa()
+    fit()
     plot("fit")
-    print_window(os.getcwd() + "/Fits/Spectra/%s.png" % spec_count, ['clobber', 'yes'])
+    print_window(os.getcwd() + "/Fits/%s.ps" % spec_count, ['clobber', 'yes'])
     set_covar_opt("sigma",sigma_covar)
+    #covar(mekal1.kT,mekal1.Abundanc,mekal1.norm)
     covar(get_model_component('apec1').kT,get_model_component('apec1').Abundanc,get_model_component('apec1').norm)
-    with open(os.getcwd()+'/Fits/Params/%s_err.out'%spec_count,'w+') as res_out:
-        res_out.write(str(get_covar_results()))
     #----------Calculate min/max values---------#
     mins = list(get_covar_results().parmins)
     maxes = list(get_covar_results().parmaxes)
@@ -172,24 +200,17 @@ def FitXSPEC(spectrum_files,background_files,redshift,n_H,Temp_guess,spec_count,
     Norm = apec1.norm.val;
     Norm_min = mins[2];
     Norm_max = maxes[2]
-
+    f = get_fit_results()
+    reduced_chi_sq = f.rstat
     #---------Set up Flux Calculation----------#
     freeze(get_model_component('apec1').kT);freeze(get_model_component('apec1').Abundanc);
     obs_count = 1
     for spec_pha in spectrum_files:
         flux_prep(src_model_dict,bkg_model_dict, spec_pha, obs_count)
         obs_count += 1
-    set_method('neldermead')
-    fit()#outfile=os.getcwd()+'/Fits/%s_flux.out'%spec_count,clobber=True)
-    set_log_sherpa()
-    plot("fit")
-    print_window(os.getcwd() + "/Fits/Spectra/%s_flux.png" % spec_count, ['clobber', 'yes'])
 
+    fit()
     Flux = cflux.lg10Flux.val
-    f = get_fit_results()
-    with open(os.getcwd()+'/Fits/Params/%s_flux.out'%spec_count,'w+') as res_out:
-        res_out.write(str(f))
-    reduced_chi_sq = f.rstat
     reset(get_model()); reset(get_bkg_model())
     reset(get_source());
     delete_data()
@@ -207,25 +228,14 @@ def FitXSPEC(spectrum_files,background_files,redshift,n_H,Temp_guess,spec_count,
 #       redshift = redshift of object
 #       n_H = Hydrogen Equivalent Column Density
 #       Temp_guess = Guess for Temperature value
-def PrimeFitting(home_dir,merge_dir,dir,file_name,output_file,annuli_data,num_files,redshift,n_H,Temp_guess,sigma_covar):
-    os.chdir(home_dir+'/'+merge_dir)
-    #Time to make a few results folders and make sure they are clean
+def PrimeFitting(home_dir,dir,file_name,output_file,annuli_data,num_files,redshift,n_H,Temp_guess,sigma_covar):
+    os.chdir(home_dir+'/'+dir[0])
     if not os.path.exists(os.getcwd()+'/Fits'):
         os.makedirs(os.getcwd()+'/Fits')
-    if os.path.exists(os.getcwd()+'/Fits/Spectra'):
-        for f in glob.glob(os.getcwd()+'/Fits/Spectra'):
-            os.remove(f)
-    if not os.path.exists(os.getcwd()+'/Fits/Spectra'):
-        os.makedirs(os.getcwd()+'/Fits/Spectra')
-    if os.path.exists(os.getcwd()+'/Fits/Params'):
-        for f in glob.glob(os.getcwd()+'/Fits/Params'):
-            os.remove(f)
-    if not os.path.exists(os.getcwd()+'/Fits/Params'):
-        os.makedirs(os.getcwd()+'/Fits/Params')
     if os.path.isfile(file_name) == True:
         os.remove(file_name) #remove it
 
-    file_to_write = open(home_dir+'/'+merge_dir+"/Fits/"+output_file+".csv",'w+')
+    file_to_write = open(home_dir+'/'+dir[0]+"/Fits/"+output_file+".csv",'w+')
     file_to_write.write("Region,Temperature,Temp_min,Temp_max,Abundance,Ab_min,Ab_max,Norm,Norm_min,Norm_max,Flux,ReducedChiSquare \n")
     Temperatures = []; Temp_mins = []; Temp_maxes = []
     Abundances = []; Ab_mins = []; Ab_maxes = []
@@ -255,3 +265,25 @@ def PrimeFitting(home_dir,merge_dir,dir,file_name,output_file,annuli_data,num_fi
         file_to_write.write(str(Flux)+','+str(reduced_chi_sq)+'\n')
     file_to_write.close()
     return Temperatures, Temp_mins, Temp_maxes, Abundances, Ab_mins, Ab_maxes, Norms, Norm_mins, Norm_maxes, Fluxes
+
+def ann_data_calc(dir_loc,total_ann_num):
+    annuli_data = {}
+    for ann_ in range(total_ann_num):
+        lines = []
+        ann_val = ann_*2
+        with open(dir_loc+'/Annulus_'+str(ann_+1)+'.reg') as ann_f:
+            lines = ann_f.readlines()
+        if ann_ == 0:
+            annuli_data[ann_val] = float(lines[2].split(',')[-1].split(')')[0])
+        else:
+            annuli_data[ann_val-1] = float(lines[2].split(',')[-1].split(')')[0])
+            annuli_data[ann_val] = float(lines[2].split(',')[-2])
+    return annuli_data
+def main():
+    inputs = read_input_file(sys.argv[1],float(sys.argv[2]))
+    annuli_data = ann_data_calc(inputs['home_dir']+'/'+inputs['dir_list'][0]+'/repro/Annuli',total_ann_num)
+    Temperatures, Temp_min, Temp_max, Abundances, Ab_min, Ab_max, Norms, Norm_min, Norm_max, Fluxes = PrimeFitting(inputs['home_dir'],inputs['dir_list'],'repro/Annuli/Annulus','temperatures',list(annuli_data.values()),total_ann_num,inputs['redshift'],inputs['n_h'],inputs['temp_guess'],inputs['sigma'])
+    Annuli = PostProcess(annuli_data.keys(), list(annuli_data.values()), Temperatures, Temp_min, Temp_max,
+                             Abundances, Ab_min, Ab_max, Norms, Norm_min, Norm_max, Fluxes, inputs['redshift'])
+    all_profiles(inputs['home_dir']+'/'+inputs['dir_list'][0]+'/Fits',inputs['home_dir']+'/'+inputs['dir_list'][0]+'/Fits',inputs['redshift'])
+main()
