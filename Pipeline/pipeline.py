@@ -127,7 +127,7 @@ def main():
         #We must clean each observation first :)
         print("Beginning cleaning process for each individual obsid...")
         for obsid_ in inputs['dir_list']: #left as a list to keep input deck the same and sample :)
-            '''main_out = open(inputs['home_dir'] + "/" + obsid_ + "/decisions.txt", 'w+')
+            main_out = open(inputs['home_dir'] + "/" + obsid_ + "/decisions.txt", 'w+')
             os.chdir(inputs['home_dir'] + '/' + obsid_ + '/Background')
             print("We are on obsid %s"%obsid_)
             main_out.write('Obsid %s'%obsid_)
@@ -140,9 +140,6 @@ def main():
             msg = "Which CCD should be used for Background Flare Extraction?"
             bkg_ccd = gui.buttonbox(msg, choices=ccds[obsid_])
             main_out.write("The background CCD chosen is CCD#%s\n"%bkg_ccd)
-            #msg = "Which CCD should be used for Source Centroid Extraction?"
-            #src_ccd = gui.buttonbox(msg, choices=ccds[obsid_])
-            #main_out.write("The source CCD chosen is CCD#%s\n"%src_ccd)
             plt.close() #don't forget to close
             print("    We can now create a lightcurve for the background...")
             bkg_clean_srcs(bkg_ccd)
@@ -157,7 +154,7 @@ def main():
             create_clean_img_merge(filenames)
             print("    Running Background Subtraction...")
             run_bkg_sub(filenames['evt2_repro_uncontam'], filenames['evt_uncontam_img'], obsid_, filenames)
-            main_out.close()'''
+            main_out.close()
         print("Beginning Merged Calculations...")
         print("    Merging obsids...")
         '''filenames,temp = get_filenames()
@@ -172,17 +169,17 @@ def main():
         os.chdir(inputs['home_dir']+'/'+inputs['merge_name'])
         print("    Choosing extent of source and contaminating point sources")
         main_out = open(os.getcwd() + "/decisions.txt", 'w+')
-        #edge_x,edge_y = display_merge(inputs['home_dir']+'/'+inputs['merge_name'],'merged_evt.fits')
-        edge_x,edge_y = 3937.56,4017.19
+        edge_x,edge_y = display_merge(inputs['home_dir']+'/'+inputs['merge_name'],'merged_evt.fits')
+        #edge_x,edge_y = 3937.56,4017.19
         main_out.write('The edge point is chosen to be %.2f,%.2f \n' % (edge_x, edge_y))
         os.chdir(inputs['home_dir']+'/'+inputs['merge_name'])
         print("    Calculating centroid position")
-        #cen_x,cen_y = merged_centroid('merged_evt')
-        cen_x,cen_y = 4093.00,3978.00
+        cen_x,cen_y = merged_centroid('merged_evt')
+        #cen_x,cen_y = 4093.00,3978.00
         main_out.write('The center point is chosen to be %.2f,%.2f \n' % (float(cen_x), float(cen_y)))
         print("    Creating annuli...")
         annuli_data,max_rad,cen_ra,cen_dec = create_annuli(main_out,inputs['home_dir']+'/'+inputs['merge_name']+'/merged_evt',[cen_x,cen_y],[edge_x,edge_y],int(inputs['num_ann_guess']),int(inputs['threshold']))
-        #create_src_img(inputs['home_dir']+'/'+inputs['merge_name']+'/merged_evt.img',[cen_x,cen_y],[edge_x,edge_y])
+        create_src_img(inputs['home_dir']+'/'+inputs['merge_name']+'/merged_evt.img',[cen_x,cen_y],[edge_x,edge_y])
     #---------------------------------Spectral Extraction------------------------------------------#
     main_out.write("The centroid's coordinates in ra/dec are: ra=%s dec=%s \n"%(str(cen_ra),str(cen_dec)))
     main_out.write("The radius of interest extends to %.2f arcsec \n"%max_rad)
@@ -191,13 +188,13 @@ def main():
     total_ann_num = len(annuli_data.keys())
     print("    We have a total of %i annuli..."%total_ann_num)
     if inputs['debug'].lower() == 'false':
-        '''if inputs['merge'].lower() == 'true': #Move annuli data to each obsid
+        if inputs['merge'].lower() == 'true': #Move annuli data to each obsid
             annuli_obs(inputs['home_dir'],inputs['dir_list'],cen_ra,cen_dec)
         spec_create(inputs['home_dir'],inputs['dir_list'],total_ann_num,list(annuli_data.values()))
         for obsid_ in inputs['dir_list']:
             prefix = inputs['home_dir']+'/'+obsid_+'/repro/Annuli/Annulus_'
             deproj_final(prefix,'.pi',1,total_ann_num,0,prefix,'.deproj')
-        os.chdir(inputs['home_dir'])'''
+        os.chdir(inputs['home_dir'])
         Temperatures, Temp_min, Temp_max, Abundances, Ab_min, Ab_max, Norms, Norm_min, Norm_max, Fluxes = PrimeFitting(inputs['home_dir'],inputs['merge_name'],inputs['dir_list'],'repro/Annuli/Annulus','temperatures',list(annuli_data.values()),total_ann_num,inputs['redshift'],inputs['n_h'],inputs['temp_guess'],inputs['sigma'])
     if inputs['debug'].lower() == 'true':
         temperature_data = pd.read_csv(inputs['home_dir']+'/'+obsid_+'/repro/Fits/temperatures.csv')
