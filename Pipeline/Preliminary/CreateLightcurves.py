@@ -1,5 +1,5 @@
 '''
-Python script to create lightcurves
+Python script to create lightcurves from the background
 '''
 import os
 from ciao_contrib.runtool import *
@@ -8,6 +8,9 @@ from pychips.hlui import *
 from pycrates import *
 from lightcurves import *
 def bkg_clean_srcs(bkg_ccd):
+    '''
+    Remove any pt sources from the background CCD
+    '''
     vtpdetect.punlearn()
     vtpdetect.infile = 'ccd'+bkg_ccd+'.fits'
     vtpdetect.outfile = 'ccd'+bkg_ccd+'_src.fits'
@@ -25,6 +28,9 @@ def bkg_clean_srcs(bkg_ccd):
 
 
 def bkg_lightcurve(bkg_ccd):
+    '''
+    Create and plot background lightcurve. Then create good-time-interval file
+    '''
     #Create Lightcurve
     dmextract.punlearn()
     dmextract.infile = 'ccd'+bkg_ccd+'_bkg.fits[bin time=::200]'

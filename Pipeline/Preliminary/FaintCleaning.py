@@ -31,6 +31,16 @@ output_dir = 'repro'
 
 
 def FaintCleaning(chandra_dir,OBSID,ccd_bkg,source_ra,source_dec,ccds):
+	'''
+	Reprocess data for a faint and diffuse object
+	PARAMETERS:
+		chandra_dir - path to chandra directory
+		OBSID - OBSID of interest
+		ccd_bkg - number of background ccd
+		source_ra - right ascension of source
+		source_dec - declination of source
+		ccds - list of all ccd numbers
+	'''
 	base_dir = chandra_dir+'/'+OBSID
 	os.chdir(base_dir)
 	filenames,biases = get_filenames()

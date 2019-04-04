@@ -11,6 +11,12 @@ background_dir = 'Background'
 #-----------------------------------------#
 
 def split_ccds(chandra_dir,dir_to_split):
+    '''
+    Split CCDs and plot with appropriate labels
+    PARAMETERS:
+        chandra_dir - directory containing observations
+        dir_to_split - list of OBSIDs 
+    '''
     ccds_dict = {}
     for dir in dir_to_split:
         os.chdir(chandra_dir)

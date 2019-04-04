@@ -68,6 +68,17 @@ def isFloat(string):
 
 #Dynamically set source for OBSID
 def obsid_set(src_model_dict,bkg_model_dict,obsid, obs_count,redshift,nH_val,Temp_guess):
+    '''
+    Dynamically set source and background model for obsid
+    PARAMETERS:
+        src_model_dict - dictionary of source models for each obsid
+        bkg_model_dict - dictionary of background models for each obsid
+        obsid - current Chandra observation ID
+        obs_count - current number of Chandra observation ID out of all IDs
+        redshift - cluster redshift value
+        nH_val - Column density value in the direction of the cluster
+        Temp_guess - Initial temperature guess for region
+    '''
     load_pha(obs_count,obsid) #Read in
     if obs_count == 1:
         src_model_dict[obsid] = xsphabs('abs'+str(obs_count)) * xsapec('apec'+str(obs_count)) #set model and name
@@ -96,6 +107,14 @@ def obsid_set(src_model_dict,bkg_model_dict,obsid, obs_count,redshift,nH_val,Tem
 
 #Get ready for flux calculations
 def flux_prep(src_model_dict,bkg_model_dict,obsid,obs_count):
+    '''
+    Dynamically set source and background model for obsid for FLUX calculation
+    PARAMETERS:
+        src_model_dict - dictionary of source models for each obsid
+        bkg_model_dict - dictionary of background models for each obsid
+        obsid - current Chandra observation ID
+        obs_count - current number of Chandra observation ID out of all IDs
+    '''
     #freeze(get_model_component('bkgApec'+str(obs_count)).norm)
     #freeze(get_model_component('brem'+str(obs_count)).norm)
     src_model_dict[obsid] = get_model_component('abs1')*cflux(get_model_component('apec'+str(obs_count)))
@@ -113,23 +132,24 @@ def flux_prep(src_model_dict,bkg_model_dict,obsid,obs_count):
 
     return None
 
-#FitXSPEC
-# Fit spectra
-#   parameters:
-#       spectrum_file = Name of combined spectra File
-#       background_file = Name of associated background file
-#       arf_file = Name of associated arf file
-#       resp_file = Name of associated rmf file
-#       redshift = redshift of object
-#       n_H = Hydrogen Equivalent Column Density
-#       Temp_guess = Guess for Temperature value
+
 def FitXSPEC(spectrum_files,background_files,redshift,n_H,Temp_guess,spec_count,sigma_covar):
+    '''
+    Fit spectra
+    PARAMETERS:
+        spectrum_file - Name of combined spectra File
+        background_file - Name of associated background file
+        arf_file - Name of associated arf file
+        resp_file - Name of associated rmf file
+        redshift - redshift of object
+        n_H - Hydrogen Equivalent Column Density
+        Temp_guess - Guess for Temperature value
+        spec_count - current spectra/annulus number
+        sigma_covar - error estimate confidence level
+    '''
     #FIX HEADER
     set_stat(statistic)
     set_method(optimization)
-    #ignore(0,energy_min)
-    #ignore(energy_max,)
-    #group_counts(1,grouping)
     #---------------Set source with background------------#
     cflux.Emin = energy_min
     cflux.Emax = energy_max
@@ -162,7 +182,7 @@ def FitXSPEC(spectrum_files,background_files,redshift,n_H,Temp_guess,spec_count,
             maxes[val] = 0.0
         else:
             pass
-
+    #Get important values
     Temperature = apec1.kT.val;
     Temp_min = mins[0];
     Temp_max = maxes[0]
@@ -172,19 +192,18 @@ def FitXSPEC(spectrum_files,background_files,redshift,n_H,Temp_guess,spec_count,
     Norm = apec1.norm.val;
     Norm_min = mins[2];
     Norm_max = maxes[2]
-
     #---------Set up Flux Calculation----------#
     freeze(get_model_component('apec1').kT);freeze(get_model_component('apec1').Abundanc);
     obs_count = 1
     for spec_pha in spectrum_files:
         flux_prep(src_model_dict,bkg_model_dict, spec_pha, obs_count)
         obs_count += 1
+    #switch to more robust fitting method
     set_method('neldermead')
     fit()#outfile=os.getcwd()+'/Fits/%s_flux.out'%spec_count,clobber=True)
     set_log_sherpa()
     plot("fit")
     print_window(os.getcwd() + "/Fits/Spectra/%s_flux.png" % spec_count, ['clobber', 'yes'])
-
     Flux = cflux.lg10Flux.val
     f = get_fit_results()
     with open(os.getcwd()+'/Fits/Params/%s_flux.out'%spec_count,'w+') as res_out:
@@ -197,17 +216,21 @@ def FitXSPEC(spectrum_files,background_files,redshift,n_H,Temp_guess,spec_count,
     #Make sure all error bounds are values
     return Temperature,Temp_min,Temp_max,Abundance,Ab_min,Ab_max,Norm,Norm_min,Norm_max,Flux,reduced_chi_sq
 
-#PrimeFitting
-# Step through spectra to fit
-#   parameters:
-#       dir = main Directory
-#       file_name = FIlename of PI/PHA spectrum
-#       output_file = Filename for output containing temperature information
-#       num_files = number of bins
-#       redshift = redshift of object
-#       n_H = Hydrogen Equivalent Column Density
-#       Temp_guess = Guess for Temperature value
+
 def PrimeFitting(home_dir,merge_dir,dir,file_name,output_file,annuli_data,num_files,redshift,n_H,Temp_guess,sigma_covar):
+    '''
+    Step through spectra to fit
+    PARAMETERS:
+        dir - main Directory
+        file_name - FIlename of PI/PHA spectrum
+        output_file - Filename for output containing temperature information
+        num_files - number of bins
+        redshift - redshift of object
+        n_H - Hydrogen Equivalent Column Density
+        Temp_guess - Guess for Temperature value
+        spec_count - current spectra/annulus number
+        sigma_covar - error estimate confidence level
+    '''
     os.chdir(home_dir+'/'+merge_dir)
     #Time to make a few results folders and make sure they are clean
     if not os.path.exists(os.getcwd()+'/Fits'):
@@ -224,13 +247,14 @@ def PrimeFitting(home_dir,merge_dir,dir,file_name,output_file,annuli_data,num_fi
         os.makedirs(os.getcwd()+'/Fits/Params')
     if os.path.isfile(file_name) == True:
         os.remove(file_name) #remove it
-
+    #Create main output
     file_to_write = open(home_dir+'/'+merge_dir+"/Fits/"+output_file+".csv",'w+')
     file_to_write.write("Region,Temperature,Temp_min,Temp_max,Abundance,Ab_min,Ab_max,Norm,Norm_min,Norm_max,Flux,ReducedChiSquare \n")
     Temperatures = []; Temp_mins = []; Temp_maxes = []
     Abundances = []; Ab_mins = []; Ab_maxes = []
     Norms = []; Norm_mins = []; Norm_maxes = []
     Fluxes = []
+    #Fit spectra to each annulus
     for i in range(num_files):
         print("      Fitting model to spectrum number "+str(i+1))
         spectrum_files = []

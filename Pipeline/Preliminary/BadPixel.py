@@ -1,6 +1,19 @@
+'''
+Apply badpixel correction to event file
+'''
+
+
 from ciao_contrib.runtool import *
 
 def BadPixel(base_dir,output_dir,OBSID,filenames,biases):
+    '''
+    Apply badpixel correction to event file
+    base_dir - home directory of observation
+    output_dir - location of reprocessed data
+    OBSID - Chandra observation ID
+    filenames - dictionary of filenames
+    biases - number of bias files
+    '''
     #Make parameter list
     par_file = OBSID+"_obs.par"
     dmmakepar.punlearn()

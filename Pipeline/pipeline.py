@@ -144,9 +144,9 @@ def main():
             print("    We can now create a lightcurve for the background...")
             bkg_clean_srcs(bkg_ccd)
             bkg_lightcurve(bkg_ccd)
-            cen_x,cen_y = basic_centroid_guess(src_ccd)# currently not actually used
+            #cen_x,cen_y = basic_centroid_guess(src_ccd)# currently not actually used
             print("    We need to clean our diffuse emission...")
-            filenames = FaintCleaning(inputs['home_dir'],obsid_,bkg_ccd,cen_x,cen_y,ccds[obsid_])
+            filenames = FaintCleaning(inputs['home_dir'],obsid_,bkg_ccd,0,0,ccds[obsid_])
             #We have to create bkg-subtracted images for each obsid because we need them for our merged image!
             print("    We will now choose the extent of the source and any point sources on the src ccd...")
             os.chdir(inputs['home_dir'] + '/' + obsid_ + '/repro')

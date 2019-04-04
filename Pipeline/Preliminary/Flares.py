@@ -1,7 +1,19 @@
+'''
+Search for flares in data before reprocessing
+'''
+
 import os
 from ciao_contrib.runtool import *
 
 def Flares(flare_gti,base_dir,output_dir,filenames):
+    '''
+    Search for flares in data before reprocessing
+    PARAMETERS:
+        flare_gti - background flare gti file
+        base_dir - chandra observation directory
+        output_dir - name of reprocessed-data directory
+        filenames - dictionary of files
+    '''
     os.chdir(os.getcwd()+'/Background')
     #Determine Goodtime intervals
     evt1_name = filenames['evt1'].split('.')[0]

@@ -3,6 +3,9 @@ Small script to collect all relavent file names
 '''
 import os
 def get_filenames():
+    '''
+    Collect all relevant files for reduction/analysis and place into a dictionary
+    '''
     filenames = dict()
     biases = []
     for file in os.listdir(os.getcwd()+'/primary'):

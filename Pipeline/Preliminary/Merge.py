@@ -10,6 +10,13 @@ from ciao_contrib.runtool import *
 
 
 def merge_objects(Obsids,output_name,clean='yes'):
+    '''
+    Merge background subtracted event files for photometric analysis
+    PARAMETERS:
+        Obsids - list of observation ids to merge
+        output_name - name of output directory
+        clean - clean up temporary files (default 'yes')
+    '''
     id_string = ''
     id_hyphen = ''
     for obsid in Obsids:
