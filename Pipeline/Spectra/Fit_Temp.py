@@ -22,6 +22,7 @@ OUTPUTS:
 '''
 #from astropy.io import fits
 import os
+import shutil
 import glob
 import subprocess
 from sherpa.optmethods import LevMar
@@ -44,7 +45,7 @@ load_xscflux("cflux")
 energy_min = 0.5
 energy_max = 7.0
 energy_flux_min = 0.1
-energy_flux_max = 100.00
+energy_flux_max = 50.00
 grouping = 10
 statistic = 'chi2gehrels'
 optimization = 'levmar'
@@ -151,8 +152,8 @@ def FitXSPEC(spectrum_files,background_files,redshift,n_H,Temp_guess,spec_count,
     set_stat(statistic)
     set_method(optimization)
     #---------------Set source with background------------#
-    cflux.Emin = energy_min
-    cflux.Emax = energy_max
+    cflux.Emin = energy_flux_min
+    cflux.Emax = energy_flux_max
     src_model_dict = {}; bkg_model_dict = {}
     obs_count = 1
     for spec_pha in spectrum_files:
@@ -200,6 +201,7 @@ def FitXSPEC(spectrum_files,background_files,redshift,n_H,Temp_guess,spec_count,
         obs_count += 1
     #switch to more robust fitting method
     set_method('neldermead')
+    cflux.lg10Flux.val = -13.5 #initial guess
     fit()#outfile=os.getcwd()+'/Fits/%s_flux.out'%spec_count,clobber=True)
     set_log_sherpa()
     plot("fit")
@@ -209,9 +211,9 @@ def FitXSPEC(spectrum_files,background_files,redshift,n_H,Temp_guess,spec_count,
     with open(os.getcwd()+'/Fits/Params/%s_flux.out'%spec_count,'w+') as res_out:
         res_out.write(str(f))
     reduced_chi_sq = f.rstat
-    reset(get_model()); reset(get_bkg_model())
+    '''reset(get_model()); reset(get_bkg_model())
     reset(get_source());
-    delete_data()
+    delete_data()'''
     clean()
     #Make sure all error bounds are values
     return Temperature,Temp_min,Temp_max,Abundance,Ab_min,Ab_max,Norm,Norm_min,Norm_max,Flux,reduced_chi_sq
@@ -236,15 +238,17 @@ def PrimeFitting(home_dir,merge_dir,dir,file_name,output_file,annuli_data,num_fi
     if not os.path.exists(os.getcwd()+'/Fits'):
         os.makedirs(os.getcwd()+'/Fits')
     if os.path.exists(os.getcwd()+'/Fits/Spectra'):
-        for f in glob.glob(os.getcwd()+'/Fits/Spectra'):
-            os.remove(f)
+        shutil.rmtree(os.getcwd()+'/Fits/Spectra')
     if not os.path.exists(os.getcwd()+'/Fits/Spectra'):
         os.makedirs(os.getcwd()+'/Fits/Spectra')
     if os.path.exists(os.getcwd()+'/Fits/Params'):
-        for f in glob.glob(os.getcwd()+'/Fits/Params'):
-            os.remove(f)
+        shutil.rmtree(os.getcwd()+'/Fits/Params')
     if not os.path.exists(os.getcwd()+'/Fits/Params'):
         os.makedirs(os.getcwd()+'/Fits/Params')
+    if os.path.exists(os.getcwd()+'/Fits/Plots'):
+        shutil.rmtree(os.getcwd()+'/Fits/Plots')
+    if not os.path.exists(os.getcwd()+'/Fits/Plots'):
+        os.makedirs(os.getcwd()+'/Fits/Plots')
     if os.path.isfile(file_name) == True:
         os.remove(file_name) #remove it
     #Create main output
@@ -268,7 +272,6 @@ def PrimeFitting(home_dir,merge_dir,dir,file_name,output_file,annuli_data,num_fi
         for directory in dir:
             spectrum_files.append(home_dir+'/'+directory+'/'+file_name+"_"+str(i+1)+".pi")
             background_files.append(home_dir+'/'+directory+'/'+file_name+"_"+str(i+1)+"_bkg.pi")
-            #resp_file = file_name+"_"+str(i)+".rmf"
         Temperature,Temp_min,Temp_max,Abundance,Ab_min,Ab_max,Norm,Norm_min,Norm_max,Flux,reduced_chi_sq = FitXSPEC(spectrum_files,background_files,redshift,n_H,Temp_guess,i+1,sigma_covar)
         Temperatures.append(Temperature); Abundances.append(Abundance); Norms.append(Norm); Fluxes.append(Flux)
         Temp_mins.append(Temp_min);Ab_mins.append(Ab_min);Norm_mins.append(Norm_min)

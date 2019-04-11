@@ -72,7 +72,7 @@ class annulus:
         '''
         for i in range(3):
             t_sec = (5/2)*((1.91*self.dens[i]*self.temp_ergs[i]*self.vol)/self.lum)
-            self.t_cool.append(t_sec*3.17098e-8*1e-9) #year -> Gigayears
+            self.t_cool.append(t_sec*(1/3.15e16)) #sec -> Gigayears
 
 
 def PostProcess(regions,annuli_data,Temperatures,Temp_min,Temp_max,Abundances,Ab_min,Ab_max,Norms,Norm_min,Norm_max,Fluxes,redshift):

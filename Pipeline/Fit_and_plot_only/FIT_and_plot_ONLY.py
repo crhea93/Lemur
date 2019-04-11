@@ -49,7 +49,7 @@ total_ann_num = 10
 energy_min = 0.5
 energy_max = 7.0
 energy_flux_min = 0.01
-energy_flux_max = 100.00
+energy_flux_max = 50.00
 grouping = 10
 statistic = 'chi2gehrels'
 optimization = 'levmar'
@@ -211,9 +211,9 @@ def FitXSPEC(spectrum_files,background_files,redshift,n_H,Temp_guess,spec_count,
 
     fit()
     Flux = cflux.lg10Flux.val
-    reset(get_model()); reset(get_bkg_model())
-    reset(get_source());
-    delete_data()
+    #reset(get_model()); reset(get_bkg_model())
+    #reset(get_source());
+    #delete_data()
     clean()
     #Make sure all error bounds are values
     return Temperature,Temp_min,Temp_max,Abundance,Ab_min,Ab_max,Norm,Norm_min,Norm_max,Flux,reduced_chi_sq

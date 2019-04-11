@@ -1,5 +1,5 @@
 #INPUT FILE: All lines starting with # will not be read
-home_dir = /home/carterrhea/Documents/Test
+home_dir = /home/carterrhea/Documents/Test/Abell133
 dir_list = 2203,9897
 num_ann_guess = 50
 threshold = 5000
