@@ -97,7 +97,7 @@ def display_entire(home_dir,OBSID,repro_evt):
     set_piximgvals(cr, gsmooth(img, 3)) #smooth
     pvalues = get_piximgvals(cr)
     add_image(np.arcsinh(pvalues)) #scale
-    set_image(["threshold", [0, np.max(np.arcsinh(pvalues)) / 10]])
+    set_image(["threshold", [0, np.max(np.arcsinh(pvalues))]])
     set_image(["colormap", "heat"])
     x_min = min_coord(repro_evt,'x'); x_max = max_coord(repro_evt,'x')
     y_min = min_coord(repro_evt,'y'); y_max = max_coord(repro_evt,'y')
@@ -170,7 +170,7 @@ def display_merge(merged_dir,merged_evt):
     set_piximgvals(cr, gsmooth(img, 3)) #smooth
     pvalues = get_piximgvals(cr)
     add_image(np.arcsinh(pvalues)) #scale
-    set_image(["threshold", [0, np.max(np.arcsinh(pvalues)) / 10]])
+    set_image(["threshold", [0, np.max(np.arcsinh(pvalues))]])
     set_image(["colormap", "heat"])
     x_min = min_coord(merged_evt,'x'); x_max = max_coord(merged_evt,'x')
     y_min = min_coord(merged_evt,'y'); y_max = max_coord(merged_evt,'y')

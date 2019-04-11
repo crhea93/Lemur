@@ -98,6 +98,7 @@ def annuli_obs(home_dir,obsids,cen_ra,cen_dec):
                 filedata = filedata.replace(y_merg,str(y))
                 with open(new_loc+'/'+file,'w') as text_file:
                     text_file.write(filedata)
+
         #Copy the bkg.reg file too
         shutil.copyfile(os.getcwd()+'/bkg.reg',home_dir+'/'+obsid+'/repro/bkg.reg')
 
@@ -151,6 +152,8 @@ def create_annuli(main_out,evt2,centrd,edge,num_ann,threshold):
     annuli_data = dict()
     inner_ann = 0
     max_rad = np.sqrt((float(centrd[0])-float(edge[0]))**2+(float(centrd[1])-float(edge[1]))**2)
+    none_enough = True #Did we create a single annulus??
+    region = None # Simply initializing
     for step in range(num_ann-1):
         #Try to make a new annulus
         new_rad = (step+1)*max_rad/num_ann
@@ -161,6 +164,10 @@ def create_annuli(main_out,evt2,centrd,edge,num_ann,threshold):
             annuli_data[annuli_num] = new_rad
             annuli_num += 1
             write_reg(region,annuli_num,reg_all)
+            none_enough = False
+    if none_enough == True:
+        #we stil havent made a single annulus! So let's just make one at the max distance
+        write_reg(region,annuli_num+1,reg_all)
     reg_all.close()
     main_out.write("We have a total of %i annuli" % annuli_num)
     return annuli_data,max_rad,cen_ra,cen_dec
@@ -201,7 +208,7 @@ def create_src_img(repro_img,centrd,edge):
     set_piximgvals(cr, gsmooth(img, 3))
     pvalues = get_piximgvals(cr)
     add_image(np.arcsinh(pvalues))
-    set_image(["threshold", [0, np.max(np.arcsinh(pvalues))/10]])
+    set_image(["threshold", [0, np.max(np.arcsinh(pvalues))]])
     set_image(["colormap", "heat"])
     scale_factor = 10
     limits(float(centrd[0])-scale_factor*max_rad, float(centrd[0])+scale_factor*max_rad,float(centrd[1])-scale_factor*max_rad,float(centrd[1])+scale_factor*max_rad)

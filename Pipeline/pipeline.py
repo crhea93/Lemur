@@ -116,7 +116,7 @@ def main():
                 filenames['evt2_repro_uncontam'] = filenames['evt2_repro'].split('.')[0]+'_uncontam.fits'
                 filenames['evt_bkgsub_img'] = obsid_+'_blank_particle_bkgsub.img'
                 filenames['evt_uncontam_img'] = 'evt_uncontam.img'
-            #Clean up data
+            #Clean up data'''
             os.chdir(inputs['home_dir']+'/'+obsid_+'/repro')
             print("    Creating Annuli...")
             annuli_data,max_rad,cen_ra,cen_dec = create_annuli(main_out,filenames['evt_bkgsub_img'],[cen_x,cen_y],[edge_x,edge_y],int(inputs['num_ann_guess']),int(inputs['threshold']))
@@ -165,7 +165,7 @@ def main():
         os.chdir(inputs['home_dir'])
         if not os.path.exists(inputs['home_dir']+'/'+inputs['merge_name']):
             os.makedirs(inputs['home_dir']+'/'+inputs['merge_name'])
-        #merge_objects(inputs['dir_list'], inputs['merge_name'], clean='yes')
+        merge_objects(inputs['dir_list'], inputs['merge_name'], clean='yes')
         os.chdir(inputs['home_dir']+'/'+inputs['merge_name'])
         print("    Choosing extent of source and contaminating point sources")
         main_out = open(os.getcwd() + "/decisions.txt", 'w+')
@@ -205,7 +205,7 @@ def main():
     print("Postprocessing and creating plots...")
     Annuli = PostProcess(annuli_data.keys(), list(annuli_data.values()), Temperatures, Temp_min, Temp_max,
                              Abundances, Ab_min, Ab_max, Norms, Norm_min, Norm_max, Fluxes, inputs['redshift'])
-    all_profiles(inputs['home_dir']+'/'+inputs['merge_name']+'/Fits',inputs['home_dir']+'/'+inputs['merge_name']+'/Fits',inputs['redshift'])
+    all_profiles(inputs['home_dir']+'/'+inputs['merge_name']+'/Fits',inputs['home_dir']+'/'+inputs['merge_name']+'/Fits/Plots',inputs['redshift'])
     main_out.close()
     return None
 main()
