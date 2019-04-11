@@ -1,5 +1,5 @@
 '''
-Python script to create lightcurves
+Python script to create lightcurves from the background
 '''
 import os
 from ciao_contrib.runtool import *
@@ -8,6 +8,9 @@ from pychips.hlui import *
 from pycrates import *
 from lightcurves import *
 def bkg_clean_srcs(bkg_ccd):
+    '''
+    Remove any pt sources from the background CCD
+    '''
     vtpdetect.punlearn()
     vtpdetect.infile = 'ccd'+bkg_ccd+'.fits'
     vtpdetect.outfile = 'ccd'+bkg_ccd+'_src.fits'
@@ -25,14 +28,19 @@ def bkg_clean_srcs(bkg_ccd):
 
 
 def bkg_lightcurve(bkg_ccd):
+    '''
+    Create and plot background lightcurve. Then create good-time-interval file
+    '''
     #Create Lightcurve
     dmextract.punlearn()
     dmextract.infile = 'ccd'+bkg_ccd+'_bkg.fits[bin time=::200]'
     dmextract.outfile = 'ccd'+bkg_ccd+'_bkg.lc'
     dmextract.opt = 'ltc1'
     dmextract.clobber = True
+    dmextract.verbose = 0
     dmextract()
     #Plot Lightcurve using CHIPS
+    add_window()
     make_figure('ccd'+bkg_ccd+'_bkg.lc[cols dt, count_rate]')
     set_curve(["symbol.style", "none"])
     set_plot_title("Light Curve")
@@ -43,8 +51,7 @@ def bkg_lightcurve(bkg_ccd):
     clear()
     add_window()
     #Clip image
-    lc_sigma_clip('ccd'+bkg_ccd+'_bkg.lc','ccd'+bkg_ccd+'_bkg_clean.gti',sigma=10,pattern="none")
+    lc_sigma_clip('ccd'+bkg_ccd+'_bkg.lc','ccd'+bkg_ccd+'_bkg_clean.gti',sigma=3,pattern="none",verbose=0)
     print_window('ccd'+bkg_ccd+'_bkg_cleanedLC.pdf')
     clear()
-    add_window()
     return None

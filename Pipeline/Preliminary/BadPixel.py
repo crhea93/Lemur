@@ -1,6 +1,19 @@
+'''
+Apply badpixel correction to event file
+'''
+
+
 from ciao_contrib.runtool import *
 
-def BadPixel(base_dir,output_dir,OBSID,filenames,num_of_biases):
+def BadPixel(base_dir,output_dir,OBSID,filenames,biases):
+    '''
+    Apply badpixel correction to event file
+    base_dir - home directory of observation
+    output_dir - location of reprocessed data
+    OBSID - Chandra observation ID
+    filenames - dictionary of filenames
+    biases - number of bias files
+    '''
     #Make parameter list
     par_file = OBSID+"_obs.par"
     dmmakepar.punlearn()
@@ -11,8 +24,8 @@ def BadPixel(base_dir,output_dir,OBSID,filenames,num_of_biases):
     #Create bias list
     lis_file = base_dir+'/'+output_dir+'/bias.lis'
     with open(lis_file,'w+') as lis:
-        for i in range(num_of_biases):
-            lis.write(filenames[str(i+1)+'_bias0']+'\n')
+        for i in biases:
+            lis.write(filenames[str(i)+'_bias0']+'\n')
 
     #Now create initial badpix file
     bpix_file1 = 'acisf'+OBSID+'_abb1_bpix.fits'
