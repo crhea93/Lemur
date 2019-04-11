@@ -6,6 +6,13 @@ from ciao_contrib.runtool import *
 
 
 def spec_extract(evt_file,src_reg,bkg_reg):
+    '''
+    Standard spectral extration from CIAO
+    PARAMETERS:
+        evt_file - event file name
+        src_reg - source region file name
+        bkg_reg - background region file name
+    '''
     specextract.punlearn()
     specextract.infile = evt_file+'[sky=region('+src_reg+'.reg)]'
     specextract.outroot = src_reg+'_'
@@ -15,6 +22,14 @@ def spec_extract(evt_file,src_reg,bkg_reg):
     return None
 
 def spec_create(home_dir,obsids,num_ann,ann_values):
+    '''
+    Create spectra for each observation using annuli region files
+    PARAMETERS:
+        home_dir - Primary Chandra data directory
+        obsids - list of Chandra observation IDs
+        num_ann - Total number of annuli
+        ann_values - outer annulus region needed for deprojection
+    '''
     for obsid in obsids:
         print("    We are creating spectra for obsid %s"%obsid)
         os.chdir(home_dir+'/'+obsid+'/repro')
