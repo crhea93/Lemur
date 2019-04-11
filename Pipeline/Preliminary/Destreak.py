@@ -1,6 +1,12 @@
+'''
+    Remove streaks from reprocessed file
+'''
 from ciao_contrib.runtool import *
 
 def Destreak(base_dir,output_dir,filenames):
+    '''
+    Remove streaks from reprocessed file
+    '''
     evt1_name = filenames['evt1_deflared'].split('.')[0].split("/")[-1]
     destreak.punlearn()
     destreak.infile = filenames['evt1_deflared']
