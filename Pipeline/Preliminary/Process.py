@@ -3,6 +3,9 @@ Apply processing and GTI and finish cleaning
 '''
 from ciao_contrib.runtool import *
 def Process(filenames,OBSID):
+    '''
+    Process event file with cleaned information to finish reprocessing 
+    '''
     #Process event
     acis_process_events.punlearn()
     acis_process_events.infile = filenames['evt1_dstrk']
