@@ -11,11 +11,12 @@ where # is the number of values in the input file
 INPUT PARAMETERS:
     home_dir -- Directory containing Chandra Data (e.g. '/home/user/Documents/Chandra')
     dir_list -- List of OBSIDS (e.g. ['15173'])
-    debug -- If set to True then we are using OBSID 15173 (Abell 85). Normally set to False :)
+    debug -- If set to True then we are using OBSID 15173 (Abell 85 or Abell 133). Normally set to False :)
 
 
-VERSIONS:
-v0.0.1 - 01/11/19
+VERSIONS (and submission date):
+v0 - 01/11/19 - basic pipeline for single observations
+v1 - 04/11/19 - fully functioning pipeline for single/multiple observations
 
 For suggestions/comments/errata please contact:
 Carter Rhea
@@ -68,17 +69,9 @@ def main():
                 os.chdir(os.getcwd() + '/' + obsid_ + '/Background')
                 print("    Now let us pick our src and background ccd...")
                 #Lets take a look at each ccd and pick our background and src ccds
-                display_ccds(ccds,obsid_)
-                plt.imshow(mpimg.imread('ccds.png')) #the next few lines are just a bunch of minor decisions and pop-ups
-                plt.ion()
-                plt.show()
-                msg = "Which CCD should be used for Background Flare Extraction?"
-                bkg_ccd = gui.buttonbox(msg, choices=ccds[obsid_])
+                bkg_ccd, src_ccd = display_ccds(ccds,obsid_)
                 main_out.write("The background CCD chosen is CCD#%s\n"%bkg_ccd)
-                msg = "Which CCD should be used for Source Centroid Extraction?"
-                src_ccd = gui.buttonbox(msg, choices=ccds[obsid_])
                 main_out.write("The source CCD chosen is CCD#%s\n"%src_ccd)
-                plt.close() #don't forget to close
                 print("    We can now create a lightcurve for the background...")
                 bkg_clean_srcs(bkg_ccd)
                 bkg_lightcurve(bkg_ccd)
@@ -88,15 +81,12 @@ def main():
                 os.chdir(inputs['home_dir']+'/'+obsid_)
                 print("    We will now choose the extent of the source and any point sources on the src ccd...")
                 #Here we calculate three things: Extent of diffuse emission, BKG region, Contaminating Pt Srcs
-                edge_x,edge_y = display_entire(inputs['home_dir'],obsid_,filenames['evt2_repro'])
-                #print(edge_x,edge_y)'''
-                #edge_x, edge_y = 4253.430527931717, 3812.8298364769335
+                edge_x,edge_y,agn_ = display_entire(inputs['home_dir'],obsid_,filenames['evt2_repro'])
                 main_out.write('The edge point is chosen to be %.2f,%.2f'%(edge_x,edge_y))
                 os.chdir(inputs['home_dir']+'/'+obsid_+'/Background')
                 print("    We will now calculate the centroid...")
                 #Just a quick calculation of the centroid based off the pixel with the most counts in a region of choice (deteremined in this step by the user)
                 cen_x, cen_y = basic_centroid(src_ccd)
-                #cen_x,cen_y = 4228, 3854
                 main_out.write("The centroid's X,Y physical coordinates are: %s,%s"%(str(cen_x),str(cen_y)))
                 #We can now get a pretty picture with all of our information and run the background subtraction
                 os.chdir(inputs['home_dir']+'/'+obsid_+'/repro')
@@ -105,7 +95,7 @@ def main():
                 print("    Running Background Subtraction...")
                 run_bkg_sub(filenames['evt2_repro_uncontam'],filenames['evt_uncontam_img'],obsid_,filenames)
                 #exp_corr(filenames) #exposure correct bkg sub image and update
-            if inputs['debug'].lower() == 'true':
+            if inputs['debug'].lower() == 'true': #Abell 85
                 bkg_ccd = '3'
                 src_ccd = '0'
                 cen_x,cen_y = 3810, 4378
@@ -116,7 +106,7 @@ def main():
                 filenames['evt2_repro_uncontam'] = filenames['evt2_repro'].split('.')[0]+'_uncontam.fits'
                 filenames['evt_bkgsub_img'] = obsid_+'_blank_particle_bkgsub.img'
                 filenames['evt_uncontam_img'] = 'evt_uncontam.img'
-            #Clean up data'''
+            #Clean up data
             os.chdir(inputs['home_dir']+'/'+obsid_+'/repro')
             print("    Creating Annuli...")
             annuli_data,max_rad,cen_ra,cen_dec = create_annuli(main_out,filenames['evt_bkgsub_img'],[cen_x,cen_y],[edge_x,edge_y],int(inputs['num_ann_guess']),int(inputs['threshold']))
@@ -131,16 +121,10 @@ def main():
             os.chdir(inputs['home_dir'] + '/' + obsid_ + '/Background')
             print("We are on obsid %s"%obsid_)
             main_out.write('Obsid %s'%obsid_)
-            print("    Now let us pick our src and background ccd...")
+            print("    Now let us pick our background ccd...")
             #Lets take a look at each ccd and pick our background and src ccds
-            display_ccds(ccds,obsid_)
-            plt.imshow(mpimg.imread('ccds.png')) #the next few lines are just a bunch of minor decisions and pop-ups
-            plt.ion()
-            plt.show()
-            msg = "Which CCD should be used for Background Flare Extraction?"
-            bkg_ccd = gui.buttonbox(msg, choices=ccds[obsid_])
+            bkg_ccd = display_ccds(ccds,obsid_,Merge=True)
             main_out.write("The background CCD chosen is CCD#%s\n"%bkg_ccd)
-            plt.close() #don't forget to close
             print("    We can now create a lightcurve for the background...")
             bkg_clean_srcs(bkg_ccd)
             bkg_lightcurve(bkg_ccd)
@@ -155,31 +139,38 @@ def main():
             print("    Running Background Subtraction...")
             run_bkg_sub(filenames['evt2_repro_uncontam'], filenames['evt_uncontam_img'], obsid_, filenames)
             main_out.close()
-        print("Beginning Merged Calculations...")
-        print("    Merging obsids...")
-        '''filenames,temp = get_filenames()
-        filenames['evt2_repro'] = os.getcwd()+'/repro/acisf'+obsid_+'_repro_evt2.fits'
-        filenames['evt2_repro_uncontam'] = filenames['evt2_repro'].split('.')[0]+'_uncontam.fits'
-        filenames['evt_bkgsub_img'] = obsid_+'_blank_particle_bkgsub.img'
-        filenames['evt_uncontam_img'] = 'evt_uncontam.img'''
-        os.chdir(inputs['home_dir'])
-        if not os.path.exists(inputs['home_dir']+'/'+inputs['merge_name']):
-            os.makedirs(inputs['home_dir']+'/'+inputs['merge_name'])
-        merge_objects(inputs['dir_list'], inputs['merge_name'], clean='yes')
-        os.chdir(inputs['home_dir']+'/'+inputs['merge_name'])
-        print("    Choosing extent of source and contaminating point sources")
-        main_out = open(os.getcwd() + "/decisions.txt", 'w+')
-        edge_x,edge_y = display_merge(inputs['home_dir']+'/'+inputs['merge_name'],'merged_evt.fits')
-        #edge_x,edge_y = 3937.56,4017.19
-        main_out.write('The edge point is chosen to be %.2f,%.2f \n' % (edge_x, edge_y))
-        os.chdir(inputs['home_dir']+'/'+inputs['merge_name'])
-        print("    Calculating centroid position")
-        cen_x,cen_y = merged_centroid('merged_evt')
-        #cen_x,cen_y = 4093.00,3978.00
-        main_out.write('The center point is chosen to be %.2f,%.2f \n' % (float(cen_x), float(cen_y)))
-        print("    Creating annuli...")
-        annuli_data,max_rad,cen_ra,cen_dec = create_annuli(main_out,inputs['home_dir']+'/'+inputs['merge_name']+'/merged_evt',[cen_x,cen_y],[edge_x,edge_y],int(inputs['num_ann_guess']),int(inputs['threshold']))
-        create_src_img(inputs['home_dir']+'/'+inputs['merge_name']+'/merged_evt.img',[cen_x,cen_y],[edge_x,edge_y])
+        if inputs['debug'].lower() == 'false':
+            print("Beginning Merged Calculations...")
+            print("    Merging obsids...")
+            os.chdir(inputs['home_dir'])
+            if not os.path.exists(inputs['home_dir']+'/'+inputs['name']):
+                os.makedirs(inputs['home_dir']+'/'+inputs['name'])
+            merge_objects(inputs['dir_list'], inputs['name'], clean='yes')
+            os.chdir(inputs['home_dir']+'/'+inputs['name'])
+            print("    Choosing extent of source and contaminating point sources")
+            main_out = open(os.getcwd() + "/decisions.txt", 'w+')
+            edge_x,edge_y,agn_ = display_merge(inputs['home_dir']+'/'+inputs['name'],'merged_evt.fits')
+            main_out.write('The edge point is chosen to be %.2f,%.2f \n' % (edge_x, edge_y))
+            os.chdir(inputs['home_dir']+'/'+inputs['name'])
+            print("    Calculating centroid position")
+            cen_x,cen_y = merged_centroid('merged_evt')
+            main_out.write('The center point is chosen to be %.2f,%.2f \n' % (float(cen_x), float(cen_y)))
+            print("    Creating annuli...")
+        if inputs['debug'].lower() == 'true': #Abell 133
+            agn_ = False
+            main_out = open(os.getcwd() + "/decisions.txt", 'w+')
+            os.chdir(inputs['home_dir']+'/'+inputs['dir_list'][0]) #Doesnt matter which since we only want merged info
+            filenames,temp = get_filenames()
+            filenames['evt2_repro'] = os.getcwd()+'/repro/acisf'+obsid_+'_repro_evt2.fits'
+            filenames['evt2_repro_uncontam'] = filenames['evt2_repro'].split('.')[0]+'_uncontam.fits'
+            filenames['evt_bkgsub_img'] = obsid_+'_blank_particle_bkgsub.img'
+            filenames['evt_uncontam_img'] = 'evt_uncontam.img'
+            cen_x,cen_y = 4154.00,4001.00
+            edge_x,edge_y = 4209.13,4081.13
+            main_out.write('The edge point is chosen to be %.2f,%.2f \n' % (edge_x, edge_y))
+            main_out.write('The center point is chosen to be %.2f,%.2f \n' % (float(cen_x), float(cen_y)))
+        annuli_data,max_rad,cen_ra,cen_dec = create_annuli(main_out,inputs['home_dir']+'/'+inputs['name']+'/merged_evt',[cen_x,cen_y],[edge_x,edge_y],int(inputs['num_ann_guess']),int(inputs['threshold']))
+        create_src_img(inputs['home_dir']+'/'+inputs['name']+'/merged_evt.img',[cen_x,cen_y],[edge_x,edge_y])
     #---------------------------------Spectral Extraction------------------------------------------#
     main_out.write("The centroid's coordinates in ra/dec are: ra=%s dec=%s \n"%(str(cen_ra),str(cen_dec)))
     main_out.write("The radius of interest extends to %.2f arcsec \n"%max_rad)
@@ -187,25 +178,17 @@ def main():
     print("Beginning Spectra Extraction...")
     total_ann_num = len(annuli_data.keys())
     print("    We have a total of %i annuli..."%total_ann_num)
-    if inputs['debug'].lower() == 'false':
-        if inputs['merge'].lower() == 'true': #Move annuli data to each obsid
-            annuli_obs(inputs['home_dir'],inputs['dir_list'],cen_ra,cen_dec)
-        spec_create(inputs['home_dir'],inputs['dir_list'],total_ann_num,list(annuli_data.values()))
-        for obsid_ in inputs['dir_list']:
-            prefix = inputs['home_dir']+'/'+obsid_+'/repro/Annuli/Annulus_'
-            deproj_final(prefix,'.pi',1,total_ann_num,0,prefix,'.deproj')
-        os.chdir(inputs['home_dir'])
-        Temperatures, Temp_min, Temp_max, Abundances, Ab_min, Ab_max, Norms, Norm_min, Norm_max, Fluxes = PrimeFitting(inputs['home_dir'],inputs['merge_name'],inputs['dir_list'],'repro/Annuli/Annulus','temperatures',list(annuli_data.values()),total_ann_num,inputs['redshift'],inputs['n_h'],inputs['temp_guess'],inputs['sigma'])
-    if inputs['debug'].lower() == 'true':
-        temperature_data = pd.read_csv(inputs['home_dir']+'/'+obsid_+'/repro/Fits/temperatures.csv')
-        Temperatures = temperature_data['Temperature']; Temp_min = temperature_data['Temp_min']; Temp_max = temperature_data['Temp_max']
-        Abundances = temperature_data['Abundance']; Ab_min = temperature_data['Ab_min']; Ab_max = temperature_data['Ab_max']
-        Norms = temperature_data['Norm']; Norm_min = temperature_data['Norm_min']; Norm_max = temperature_data['Norm_max']
-        Fluxes = temperature_data['Flux']
+    if inputs['merge'].lower() == 'true': #Move annuli data to each obsid
+        annuli_obs(inputs['home_dir'],inputs['dir_list'],cen_ra,cen_dec)
+    spec_create(inputs['home_dir'],inputs['dir_list'],total_ann_num,list(annuli_data.values()))
+    for obsid_ in inputs['dir_list']:
+        prefix = inputs['home_dir']+'/'+obsid_+'/repro/Annuli/Annulus_'
+        deproj_final(prefix,'.pi',1,total_ann_num,0,prefix,'.deproj')
+    os.chdir(inputs['home_dir'])
+    Annuli_ = PrimeFitting(inputs['home_dir'],inputs['name'],inputs['dir_list'],'repro/Annuli/Annulus','temperatures',list(annuli_data.values()),total_ann_num,inputs['redshift'],inputs['n_h'],inputs['temp_guess'],inputs['sigma'],agn_)
     print("Postprocessing and creating plots...")
-    Annuli = PostProcess(annuli_data.keys(), list(annuli_data.values()), Temperatures, Temp_min, Temp_max,
-                             Abundances, Ab_min, Ab_max, Norms, Norm_min, Norm_max, Fluxes, inputs['redshift'])
-    all_profiles(inputs['home_dir']+'/'+inputs['merge_name']+'/Fits',inputs['home_dir']+'/'+inputs['merge_name']+'/Fits/Plots',inputs['redshift'])
+    PostProcess(Annuli_,inputs['redshift'],inputs['home_dir']+'/'+inputs['name']+'/Fits')
+    all_profiles(inputs['home_dir']+'/'+inputs['name']+'/Fits',inputs['home_dir']+'/'+inputs['name']+'/Fits/Plots',inputs['redshift'])
     main_out.close()
     return None
 main()

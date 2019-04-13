@@ -169,7 +169,7 @@ def create_annuli(main_out,evt2,centrd,edge,num_ann,threshold):
         #we stil havent made a single annulus! So let's just make one at the max distance
         write_reg(region,annuli_num+1,reg_all)
     reg_all.close()
-    main_out.write("We have a total of %i annuli" % annuli_num)
+    main_out.write("We have a total of %i annuli \n" % annuli_num)
     return annuli_data,max_rad,cen_ra,cen_dec
 
 
