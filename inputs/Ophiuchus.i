@@ -1,14 +1,17 @@
 #INPUT FILE: All lines starting with # will not be read
+#-----Directory Info-----#
 home_dir = /home/carterrhea/Desktop/Annabelle/Ophiuchus
-dir_list = 3200,16645,16142,16143,16464,16626,16627,16633,16634,16635
+dir_list = 3200,16645
+name = Ophiuchus
+#-----Parameter info-----#
 num_ann_guess = 50
 threshold = 5000
 sigma = 1.64
-merge = True
-merge_name = Ophiuchus
 redshift = 0.0296
 n_H = 0.2
-Temp_Guess = 5.0
-debug = False
+Temp_Guess = 4.0
+#-----Additional Info----#
+merge = True
+debug = true
 
 

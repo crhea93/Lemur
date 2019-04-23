@@ -52,7 +52,7 @@ def FaintCleaning(chandra_dir,OBSID,ccd_bkg,source_ra,source_dec,ccds):
 	#Astrometric(OBSID,filenames,source_ra,source_dec)
 	print("      Appling Background Flare Information...")
 	os.chdir(base_dir)
-	Flares('ccd'+ccd_bkg+'_bkg_clean.gti',base_dir,output_dir,filenames)
+	Flares(ccd_bkg+'_bkg_clean.gti',base_dir,output_dir,filenames)
 	os.chdir(base_dir+'/'+output_dir)
 	print("      Destreaking Event File...")
 	Destreak(base_dir,output_dir,filenames)

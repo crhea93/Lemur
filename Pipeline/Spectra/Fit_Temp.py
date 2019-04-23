@@ -75,7 +75,7 @@ class region_class:
         self.Ab = [Ab_min,Ab,Ab_max]
         self.norm = [norm_min,norm,norm_max]
         self.flux = flux
-        self.agn_act = agn_act
+        self.agn_act = agn_act.active
 #------------------------------------------------------------------------------#
 def set_log_sherpa():
     p = get_data_plot_prefs()
@@ -113,7 +113,7 @@ def obsid_set(src_model_dict,bkg_model_dict,obsid, obs_count,redshift,nH_val,Tem
         if agn == False:
             src_model_dict[obsid] = xsphabs('abs'+str(obs_count)) * xsapec('apec'+str(obs_count)) #set model and name
         if agn == True:
-            src_model_dict[obsid] = xsphabs('abs'+str(obs_count)) * (xsapec('apec'+str(obs_count)+ xszpowerlw('zpwd'+str(obs_count))))
+            src_model_dict[obsid] = xsphabs('abs'+str(obs_count)) * (xsapec('apec'+str(obs_count))+ xszpowerlw('zpwd'+str(obs_count)))
             get_model_component('zpwd' + str(obs_count)).redshift = redshift
         # Change src model component values
         get_model_component('apec' + str(obs_count)).kT = Temp_guess
@@ -126,7 +126,7 @@ def obsid_set(src_model_dict,bkg_model_dict,obsid, obs_count,redshift,nH_val,Tem
         if agn == False:
             src_model_dict[obsid] = get_model_component('abs1') * xsapec('apec' + str(obs_count))
         if agn == True:
-            src_model_dict[obsid] = get_model_component('abs1') * (xsapec('apec'+str(obs_count)+ xszpowerlw('zpwd'+str(obs_count))))
+            src_model_dict[obsid] = get_model_component('abs1') * (xsapec('apec'+str(obs_count))+ xszpowerlw('zpwd'+str(obs_count)))
             get_model_component('zpwd' + str(obs_count)).redshift = redshift
         get_model_component('apec'+str(obs_count)).kT = get_model_component('apec1').kT #link to first kT
         get_model_component('apec' + str(obs_count)).redshift = redshift
@@ -174,7 +174,7 @@ def flux_prep(src_model_dict,bkg_model_dict,obsid,obs_count,agn):
     return None
 
 
-def FitXSPEC(spectrum_files,background_files,Ann_cur, redshift,n_H,Temp_guess,spec_count,sigma_covar,agn=False):
+def FitXSPEC(spectrum_files,background_files,Ann_cur, redshift,n_H,Temp_guess,spec_count,sigma_covar,agn):
     '''
     Fit spectra
     PARAMETERS:
@@ -208,7 +208,8 @@ def FitXSPEC(spectrum_files,background_files,Ann_cur, redshift,n_H,Temp_guess,sp
     with open(os.getcwd() + '/Fits/Params/%s.out'%spec_count, 'w+') as res_out:
         res_out.write(str(f))
     set_log_sherpa()
-    os.makedirs(os.getcwd() + "/Fits/Spectra/Annulus_%s" % spec_count)
+    if not os.path.exists(os.getcwd() + "/Fits/Spectra/Annulus_%s" % spec_count):
+        os.makedirs(os.getcwd() + "/Fits/Spectra/Annulus_%s" % spec_count)
     src_ids = list_data_ids()
     ct = 0
     for id_ in src_ids:
@@ -244,12 +245,15 @@ def FitXSPEC(spectrum_files,background_files,Ann_cur, redshift,n_H,Temp_guess,sp
         covar(get_model_component('apec'+str(id_)).norm)
         mins = list(get_covar_results().parmins)
         maxes = list(get_covar_results().parmaxes)
-        if isFloat(mins) == False:
-            mins = 0.0
-        elif isFloat(maxes) == False:
-            maxes = 0.0
-        Norm_min += mins
-        Norm_max += maxes
+        for val in range(len(mins)):
+            if isFloat(mins[val]) == False:
+                mins[val] = 0.0
+            if isFloat(maxes[val]) == False:
+                maxes[val] = 0.0
+            else:
+                pass
+        Norm_min += mins[0]
+        Norm_max += maxes[0]
     Norm = Norm/len(src_ids)
     Norm_min = Norm_min/len(src_ids)
     Norm_max = Norm_max/len(src_ids)
@@ -332,18 +336,18 @@ def PrimeFitting(home_dir,merge_dir,dir,file_name,output_file,annuli_data,num_fi
             spectrum_files.append(home_dir+'/'+directory+'/'+file_name+"_"+str(i+1)+".pi")
             background_files.append(home_dir+'/'+directory+'/'+file_name+"_"+str(i+1)+"_bkg.pi")
         #check if AGN is active and if it is in the current region
-        if agn_ == True and agn_.radius > float(region_.split('-')[0]):
+        if agn_.active == True and 5*agn_.radius > float(region_.split('-')[0]):
             #now we need to do two fits: one with and one without the AGN
             for i in range(2):
                 Ann_cur = annulus(float(region_.split('-')[0]),float(region_.split('-')[1]))
                 if i == 0: #include AGN
-                    FitXSPEC(spectrum_files,background_files,Ann_cur,redshift,n_H,Temp_guess,i+1,sigma_covar,agn = True)
+                    FitXSPEC(spectrum_files,background_files,Ann_cur,redshift,n_H,Temp_guess,i+1,sigma_covar,True)
                     Annuli_.append(Ann_cur)
                 if i == 1: #dont include AGN
-                    FitXSPEC(spectrum_files,background_files,Ann_cur,redshift,n_H,Temp_guess,i+1,sigma_covar)
+                    FitXSPEC(spectrum_files,background_files,Ann_cur,redshift,n_H,Temp_guess,i+1,sigma_covar,False)
                     Annuli_.append(Ann_cur)
         else:
             Ann_cur = annulus(float(region_.split('-')[0]),float(region_.split('-')[1]))
-            FitXSPEC(spectrum_files,background_files,Ann_cur,redshift,n_H,Temp_guess,i+1,sigma_covar)
+            FitXSPEC(spectrum_files,background_files,Ann_cur,redshift,n_H,Temp_guess,i+1,sigma_covar,False)
             Annuli_.append(Ann_cur)
     return Annuli_

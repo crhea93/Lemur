@@ -32,10 +32,10 @@ class AGN:
         self.x_coord = 0
         self.y_coord = 0
         self.radius = 0
-    def set_AGN(self,center,radius):
+    def set_AGN(self,center_x,center_y,radius):
         self.active = True
-        self.x_coord = center[0]
-        self.y_coord = center[1]
+        self.x_coord = center_x
+        self.y_coord = center_y
         self.radius = radius
 #--------------------------Auxilary Functions--------------------------#
 def max_counts(image):
@@ -69,13 +69,16 @@ def display_ccds(ccd_list,obsid,Merge=False):
     '''
     #add_window(32,32)
     #split(2,int(len(ccd_list[obsid])/2)+1)
-    col_num = int(len(ccd_list[obsid])/2)
+    if len(ccd_list[obsid])%2 == 0:
+        col_num = int(len(ccd_list[obsid])/2)
+    else:
+        col_num = int((len(ccd_list[obsid])+1)/2)
     f, ax = plt.subplots(2,col_num)
     ccd_count = 0
     full_ccd_list = ['ccd'+i for i in ccd_list[obsid]]
     #Go through each ccd in the list
     for ccd in full_ccd_list:
-        if ccd_count < len(full_ccd_list)/2:
+        if ccd_count < col_num:
             rw = 0
         else:
             rw = 1
@@ -89,7 +92,7 @@ def display_ccds(ccd_list,obsid,Merge=False):
         image_data = fits.getdata(ccd+'.img')
         kernel = Gaussian2DKernel(x_stddev=1)
         astropy_conv = convolve(image_data, kernel)
-        ax[rw,ccd_moded].imshow(np.arcsinh(astropy_conv), cmap='gray')
+        ax[rw,ccd_moded].imshow(np.arcsinh(astropy_conv)/25, cmap='gray')
         ax[rw,ccd_moded].set_xlim(min_x,max_x)
         ax[rw,ccd_moded].set_ylim(min_y,max_y)
         ax[rw,ccd_moded].text(min_x,min_y,ccd,fontsize=15,color='white')
@@ -158,7 +161,7 @@ def display_entire(home_dir,OBSID,repro_evt):
     set_piximgvals(cr, gsmooth(img, 3)) #smooth
     pvalues = get_piximgvals(cr)
     add_image(np.arcsinh(pvalues)) #scale
-    set_image(["threshold", [0, np.max(np.arcsinh(pvalues))]])
+    set_image(["threshold", [0, np.max(np.arcsinh(pvalues))/10]])
     set_image(["colormap", "heat"])
     x_min = min_coord(repro_evt,'x'); x_max = max_coord(repro_evt,'x')
     y_min = min_coord(repro_evt,'y'); y_max = max_coord(repro_evt,'y')
@@ -242,7 +245,7 @@ def display_merge(merged_dir,merged_evt):
     set_piximgvals(cr, gsmooth(img, 3)) #smooth
     pvalues = get_piximgvals(cr)
     add_image(np.arcsinh(pvalues)) #scale
-    set_image(["threshold", [0, np.max(np.arcsinh(pvalues))]])
+    set_image(["threshold", [0, np.arcsinh(np.max(pvalues))]])
     set_image(["colormap", "heat"])
     x_min = min_coord(merged_evt,'x'); x_max = max_coord(merged_evt,'x')
     y_min = min_coord(merged_evt,'y'); y_max = max_coord(merged_evt,'y')

@@ -11,7 +11,7 @@ redshift = 0.0558
 n_H = 0.0276
 Temp_Guess = 4.0
 #-----Additional Info----#
-merge = True
+merge = false
 debug = false
 
 
