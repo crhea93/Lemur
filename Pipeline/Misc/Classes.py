@@ -60,9 +60,10 @@ class annulus:
     def calc_vol(self,z):
         '''
         Calculate volume given inner and outer radii
+        Must multiply radii by 0.492 to convert from physical to WCS coordinates
         '''
-        dist_out = ls_calc(z,self.r_out)*3.086e21 #conversion to cm from kpc
-        dist_in = ls_calc(z,self.r_in)*3.086e21 #conversion to cm from kpc
+        dist_out = ls_calc(z,self.r_out*0.492)*3.086e21 #conversion to cm from kpc
+        dist_in = ls_calc(z,self.r_in*0.492)*3.086e21 #conversion to cm from kpc
         self.vol = (4/3)*np.pi*(dist_out**3-dist_in**3)
     def calc_dens(self,z):
         '''

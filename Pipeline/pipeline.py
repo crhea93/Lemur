@@ -28,6 +28,7 @@ import sys
 import easygui as gui
 import pandas as pd
 from shutil import copyfile
+from Misc.move import move_files
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from Preliminary.unzip import unzip
@@ -44,7 +45,7 @@ from Spectra.annuli_create import create_annuli,create_src_img, annuli_obs
 from Spectra.Batch_Spec import spec_create
 from Spectra.Fit_Temp import PrimeFitting
 from Misc.Profiles import all_profiles
-from Preliminary.chips_ccd import display_ccds, display_entire, display_merge
+from Preliminary.chips_ccd import AGN,display_ccds, display_entire, display_merge
 from Preliminary.CreateLightcurves import bkg_clean_srcs, bkg_lightcurve
 #------------------------------------------------------------------------------#
 #------------------------------------PROGRAM-----------------------------------#
@@ -95,20 +96,30 @@ def main():
                 print("    Running Background Subtraction...")
                 run_bkg_sub(filenames['evt2_repro_uncontam'],filenames['evt_uncontam_img'],obsid_,filenames)
                 #exp_corr(filenames) #exposure correct bkg sub image and update
-            if inputs['debug'].lower() == 'true': #Abell 85
+            if inputs['debug'].lower() == 'true': #Abell 85 or ophiuchus
+                agn_ = AGN(True) #Abell85 - False; Ophiuchus -True
+                agn_.set_AGN(4077.05,4253.87,5.43)
                 bkg_ccd = '3'
                 src_ccd = '0'
-                cen_x,cen_y = 3810, 4378
-                edge_x,edge_y = 3702.52166296, 4730.89657697
+                cen_x,cen_y = 3971, 4623 #abell85
+                edge_x,edge_y = 3702.52166296, 4730.89657697 #abell 85
+                #cen_x,cen_y = 4076,4255 #ophiuchus
+                #edge_x,edge_y = 4010,4207 #ophiuchus
+                #cen_x,cen_y = 4172,4475 #random
+                #edge_x,edge_y = 4091.91,4457.37 #random
                 os.chdir(inputs['home_dir']+'/'+obsid_)
                 filenames,temp = get_filenames()
                 filenames['evt2_repro'] = os.getcwd()+'/repro/acisf'+obsid_+'_repro_evt2.fits'
                 filenames['evt2_repro_uncontam'] = filenames['evt2_repro'].split('.')[0]+'_uncontam.fits'
-                filenames['evt_bkgsub_img'] = obsid_+'_blank_particle_bkgsub.img'
-                filenames['evt_uncontam_img'] = 'evt_uncontam.img'
+                filenames['evt_bkgsub_img'] = os.getcwd()+'/repro/'+obsid_+'_blank_particle_bkgsub.img'
+                filenames['evt_uncontam_img'] = os.getcwd()+'/repro/'+'evt_uncontam.img'
             #Clean up data
             os.chdir(inputs['home_dir']+'/'+obsid_+'/repro')
+            if not os.path.exists(inputs['home_dir']+'/'+inputs['name']):
+                os.makedirs(inputs['home_dir']+'/'+inputs['name'])
+            move_files(inputs['home_dir']+'/'+inputs['name'],filenames)#move needed files to merged folder
             print("    Creating Annuli...")
+            os.chdir(inputs['home_dir']+'/'+inputs['name'])
             annuli_data,max_rad,cen_ra,cen_dec = create_annuli(main_out,filenames['evt_bkgsub_img'],[cen_x,cen_y],[edge_x,edge_y],int(inputs['num_ann_guess']),int(inputs['threshold']))
             create_src_img(filenames['evt_bkgsub_img'],[cen_x,cen_y],[edge_x,edge_y])
     #--------------------------------Multiple Obsid Scenario--------------------------------------#
@@ -132,13 +143,14 @@ def main():
             print("    We need to clean our diffuse emission...")
             filenames = FaintCleaning(inputs['home_dir'],obsid_,bkg_ccd,0,0,ccds[obsid_])
             #We have to create bkg-subtracted images for each obsid because we need them for our merged image!
-            print("    We will now choose the extent of the source and any point sources on the src ccd...")
+            #print("    We will now choose the extent of the source and any point sources on the src ccd...")
             os.chdir(inputs['home_dir'] + '/' + obsid_ + '/repro')
             print("    Creating Clean Image...")
             create_clean_img_merge(filenames)
             print("    Running Background Subtraction...")
             run_bkg_sub(filenames['evt2_repro_uncontam'], filenames['evt_uncontam_img'], obsid_, filenames)
             main_out.close()
+        main_out = open(os.getcwd() + "/decisions.txt", 'w+')
         if inputs['debug'].lower() == 'false':
             print("Beginning Merged Calculations...")
             print("    Merging obsids...")
@@ -148,7 +160,6 @@ def main():
             merge_objects(inputs['dir_list'], inputs['name'], clean='yes')
             os.chdir(inputs['home_dir']+'/'+inputs['name'])
             print("    Choosing extent of source and contaminating point sources")
-            main_out = open(os.getcwd() + "/decisions.txt", 'w+')
             edge_x,edge_y,agn_ = display_merge(inputs['home_dir']+'/'+inputs['name'],'merged_evt.fits')
             main_out.write('The edge point is chosen to be %.2f,%.2f \n' % (edge_x, edge_y))
             os.chdir(inputs['home_dir']+'/'+inputs['name'])
@@ -157,8 +168,8 @@ def main():
             main_out.write('The center point is chosen to be %.2f,%.2f \n' % (float(cen_x), float(cen_y)))
             print("    Creating annuli...")
         if inputs['debug'].lower() == 'true': #Abell 133
-            agn_ = False
-            main_out = open(os.getcwd() + "/decisions.txt", 'w+')
+            agn_ = AGN(False)
+            #main_out = open(os.getcwd() + "/decisions.txt", 'w+')
             os.chdir(inputs['home_dir']+'/'+inputs['dir_list'][0]) #Doesnt matter which since we only want merged info
             filenames,temp = get_filenames()
             filenames['evt2_repro'] = os.getcwd()+'/repro/acisf'+obsid_+'_repro_evt2.fits'
@@ -178,8 +189,8 @@ def main():
     print("Beginning Spectra Extraction...")
     total_ann_num = len(annuli_data.keys())
     print("    We have a total of %i annuli..."%total_ann_num)
-    if inputs['merge'].lower() == 'true': #Move annuli data to each obsid
-        annuli_obs(inputs['home_dir'],inputs['dir_list'],cen_ra,cen_dec)
+    #if inputs['merge'].lower() == 'true': #Move annuli data to each obsid
+    annuli_obs(inputs['home_dir'],inputs['dir_list'],cen_ra,cen_dec)
     spec_create(inputs['home_dir'],inputs['dir_list'],total_ann_num,list(annuli_data.values()))
     for obsid_ in inputs['dir_list']:
         prefix = inputs['home_dir']+'/'+obsid_+'/repro/Annuli/Annulus_'
