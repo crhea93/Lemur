@@ -38,7 +38,7 @@ def run_bkg_sub(evt_file,image_file,obsid,filenames):
     blanksky_image.clobber = True
     blanksky_image()
     #Add to file names
-    filenames['evt_bkgsub_img'] = obsid+'_blank_particle_bkgsub.img'
+    filenames['evt_bkgsub_img'] = os.getcwd()+'/'+obsid+'_blank_particle_bkgsub.img'
     return None
 
 def create_clean_img(filenames):
@@ -69,7 +69,7 @@ def create_clean_img(filenames):
     dmcopy.clobber = True
     dmcopy()
     #update uncontaminated image
-    filenames['evt_uncontam_img'] = 'evt_uncontam.img'
+    filenames['evt_uncontam_img'] = os.getcwd()+'/'+'evt_uncontam.img'
     return None
 
 def create_clean_img_merge(filenames):

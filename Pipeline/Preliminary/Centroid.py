@@ -38,15 +38,15 @@ def source_region_pick(ccd):
     '''
     add_window(32,32)
     #Just getting important info for plot and plotting
-    max_cts = max_counts('ccd'+ccd+'.img')
-    cr = read_file('ccd'+ccd+".img")
+    max_cts = max_counts(ccd+'.img')
+    cr = read_file(ccd+".img")
     img = copy_piximgvals(cr)
     set_piximgvals(cr, gsmooth(img, 3))
     add_image(cr, ["depth", 50, "wcs", "logical"])
-    set_image(["threshold", [0,max_cts/25]])
+    set_image(["threshold", [0,max_cts]])
     set_image(["colormap", "heat"])
-    x_min = min_coord('ccd'+ccd+".fits",'x'); x_max = max_coord('ccd'+ccd+".fits",'x')
-    y_min = min_coord('ccd'+ccd+".fits",'y'); y_max = max_coord('ccd'+ccd+".fits",'y')
+    x_min = min_coord(ccd+".fits",'x'); x_max = max_coord(ccd+".fits",'x')
+    y_min = min_coord(ccd+".fits",'y'); y_max = max_coord(ccd+".fits",'y')
     limits(x_min,x_max,y_min,y_max)
     #Choose visual centroid
     msg = "Please choose the visual centroid and a small region about the centroid not containing any additional point sources..."
@@ -74,9 +74,10 @@ def merge_region_pick(merged_evt):
     max_cts = max_counts(merged_evt+'.img')
     cr = read_file(merged_evt+".img")
     img = copy_piximgvals(cr)
-    set_piximgvals(cr, gsmooth(img, 3))
-    add_image(cr, ["depth", 50, "wcs", "logical"])
-    set_image(["threshold", [0,max_cts/50]])
+    set_piximgvals(cr, gsmooth(img, 3)) #smooth
+    pvalues = get_piximgvals(cr)
+    add_image(np.arcsinh(pvalues)) #scale
+    set_image(["threshold", [0, np.max(np.arcsinh(pvalues))/25]])
     set_image(["colormap", "heat"])
     x_min = min_coord(merged_evt+".fits",'x'); x_max = max_coord(merged_evt+".fits",'x')
     y_min = min_coord(merged_evt+".fits",'y'); y_max = max_coord(merged_evt+".fits",'y')
@@ -102,7 +103,7 @@ def basic_centroid_guess(ccd_src):
         ccd_src - CCD number that contains source
     '''
     dmstat.punlearn()
-    dmstat.infile = 'ccd'+ccd_src+'.img'
+    dmstat.infile = ccd_src+'.img'
     dmstat.centroid = True
     dmstat()
     #print(dmstat.out_max_loc.split(','))
@@ -117,7 +118,7 @@ def basic_centroid(ccd_src):
     central_coord, radius = source_region_pick(ccd_src)
     #find centroid
     dmstat.punlearn()
-    dmstat.infile = 'ccd'+ccd_src+'.img[sky=circle('+str(central_coord[0][0])+','+str(central_coord[1][0])+','+str(radius)+')]'
+    dmstat.infile = ccd_src+'.img[sky=circle('+str(central_coord[0][0])+','+str(central_coord[1][0])+','+str(radius)+')]'
     dmstat.centroid = True
     dmstat()
     #print(dmstat.out_max_loc.split(','))
