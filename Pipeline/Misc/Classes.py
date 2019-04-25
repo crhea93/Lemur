@@ -2,6 +2,7 @@
 Annulus class definition
 '''
 import numpy as np
+from scipy import interpolate
 from Misc.LSCalc import ls_calc, ds_calc
 
 class annulus:
@@ -91,6 +92,7 @@ class annulus:
         for i in range(3):
             t_sec = (5/2)*((1.91*self.dens[i]*self.temp_ergs[i]*self.vol)/self.lum)
             self.t_cool.append(t_sec*(1/3.15e16)) #sec -> Gigayears
+
     def calc_all(self,redshift):
         '''
         Calculate all additional PARAMETERS
@@ -102,6 +104,7 @@ class annulus:
         self.calc_press()
         self.calc_entropy()
         self.calc_tcool()
+
     def save_data(self,file_to_write,file_min,file_max):
         '''
         save data to csv files

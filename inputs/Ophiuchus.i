@@ -7,11 +7,12 @@ name = Ophiuchus
 num_ann_guess = 50
 threshold = 5000
 sigma = 1.64
-redshift = 0.0296
+redshift = 0.028
 n_H = 0.2
 Temp_Guess = 4.0
 #-----Additional Info----#
 merge = True
-debug = true
-
-
+debug = false
+cleaning = false
+spectra_calc = true
+surface_brightness_calc = true
