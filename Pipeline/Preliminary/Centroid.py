@@ -43,7 +43,7 @@ def source_region_pick(ccd):
     img = copy_piximgvals(cr)
     set_piximgvals(cr, gsmooth(img, 3))
     add_image(cr, ["depth", 50, "wcs", "logical"])
-    set_image(["threshold", [0,max_cts/25]])
+    set_image(["threshold", [0,max_cts]])
     set_image(["colormap", "heat"])
     x_min = min_coord(ccd+".fits",'x'); x_max = max_coord(ccd+".fits",'x')
     y_min = min_coord(ccd+".fits",'y'); y_max = max_coord(ccd+".fits",'y')
@@ -74,9 +74,10 @@ def merge_region_pick(merged_evt):
     max_cts = max_counts(merged_evt+'.img')
     cr = read_file(merged_evt+".img")
     img = copy_piximgvals(cr)
-    set_piximgvals(cr, gsmooth(img, 3))
-    add_image(cr, ["depth", 50, "wcs", "logical"])
-    set_image(["threshold", [0,max_cts/50]])
+    set_piximgvals(cr, gsmooth(img, 3)) #smooth
+    pvalues = get_piximgvals(cr)
+    add_image(np.arcsinh(pvalues)) #scale
+    set_image(["threshold", [0, np.max(np.arcsinh(pvalues))/25]])
     set_image(["colormap", "heat"])
     x_min = min_coord(merged_evt+".fits",'x'); x_max = max_coord(merged_evt+".fits",'x')
     y_min = min_coord(merged_evt+".fits",'y'); y_max = max_coord(merged_evt+".fits",'y')

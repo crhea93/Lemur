@@ -13,5 +13,7 @@ Temp_Guess = 4.0
 #-----Additional Info----#
 merge = false
 debug = false
-
+cleaning = false
+spectra_calc = false
+surface_brightness_calc = true
 

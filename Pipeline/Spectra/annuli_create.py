@@ -136,17 +136,6 @@ def create_annuli(main_out,evt2,centrd,edge,num_ann,threshold):
     reg_all = open('Annuli/reg_all.reg','w+')
     reg_all.write("# Region file format: DS9 version 4.1 \n")
     reg_all.write("physical \n")
-    dmcoords.punlearn()
-    #Get ra/dec
-    if evt2.split('.')[-1] == 'img' or evt2.split('.')[-1] == 'fits':
-        dmcoords.infile = evt2
-    else:
-        dmcoords.infile = evt2+'.fits'  # OBSID+'_broad_thresh.img'
-    dmcoords.option = 'sky'
-    dmcoords.x = centrd[0]
-    dmcoords.y = centrd[1]
-    dmcoords()
-    cen_ra = dmcoords.ra; cen_dec = dmcoords.dec
     #Prepare for annuli creation
     annuli_num = 0
     annuli_data = dict()
@@ -172,7 +161,7 @@ def create_annuli(main_out,evt2,centrd,edge,num_ann,threshold):
         write_reg(region,annuli_num,reg_all)
     reg_all.close()
     main_out.write("We have a total of %i annuli \n" % annuli_num)
-    return annuli_data,max_rad,cen_ra,cen_dec
+    return annuli_data,max_rad
 
 
 def create_annuli_preset(curent_dir,evt2,centrd,max_rad,num_ann,threshold):
