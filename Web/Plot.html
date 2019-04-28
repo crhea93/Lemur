@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+    <title>Plots</title>
+</head>
+<body>
+<p id="connection"></p>
+<p>connect?</p>
+<?php
+$servername = "localhost";
+$username = "carterrhea";
+$password = "ILoveLuci3!";
+
+// Create connection
+$conn = new mysqli($servername, $username, $password);
+
+// Check connection
+if ($conn->connect_error) {
+die("Connection failed: " . $conn->connect_error);
+}
+echo "Connected successfully";
+?>
+<!--<script src="access_db.js"></script>-->
+<!--<script type="text/javascript">document.getElementById("connection").innerHTML = 'connected!'</script>-->
+</body>
+</html>

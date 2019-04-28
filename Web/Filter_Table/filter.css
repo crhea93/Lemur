@@ -1,0 +1,55 @@
+.big_row {
+    display: flex;
+}
+
+.big_column {
+    flex: 50%;
+}
+
+
+.row {
+    display: flex;
+}
+
+.column {
+    flex: 33.33%;
+
+}
+
+#nav{
+    font-family: Ubuntu;
+}
+
+body {
+    background-color: #36304a;
+}
+
+select {
+    width: 15%;
+    padding: 16px 20px;
+    border: none;
+    border-radius: 4px;
+    background-color: #0000FF;
+    color: whitesmoke;
+    position:absolute;
+    top:10%;
+}
+
+#plot {
+    width: 15%;
+    border: none;
+    border-radius: 4px;
+    background-color: #0000FF;
+    color: whitesmoke;
+    position:absolute;
+    top:10%;
+
+}
+
+#plot_result {
+    width: 40%;
+    align-content: center;
+    align-items: center;
+    position:absolute;
+    top:10%;
+}
