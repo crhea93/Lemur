@@ -14,6 +14,9 @@ var full_Table = '<table id="Analysis_summary">'+
 '<tr>'+
 '<td>3</td><td><a href="Web/Testing/Artificial_results/Cluster_pages/lemur.html">lemur</a></td><td>30000</td><td>0.1</td><td>True</td>'+
 '</tr>'+
+'<tr>'+
+'<td>4</td><td><a href="Web/Testing/Artificial_results/Cluster_pages/Test.html">Test</a></td><td>20</td><td>10</td><td>FALSE</td>'+
+'</tr>'+
 '</table>'
 
 document.write(full_Table);
