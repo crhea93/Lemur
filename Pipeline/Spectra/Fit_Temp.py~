@@ -285,8 +285,7 @@ def FitXSPEC(spectrum_files,background_files,Ann_cur, redshift,n_H,Temp_guess,sp
     clean()
     Ann_cur.add_fit_data(Temperature,Temp_min,Temp_max,Abundance,Ab_min,Ab_max,Norm,Norm_min,Norm_max,Flux,reduced_chi_sq,agn)
     #Add to database
-    volum = (4/3)*np.pi*(Ann_cur.r_in**3-Ann_cur.r_out**3)
-    add_fit_db(cluster_name,spec_count,volum,Temperature,Temp_min,Temp_max,Abundance,Ab_min,Ab_max,Norm,Norm_min,Norm_max,Flux,reduced_chi_sq,agn)
+    add_fit_db(clust_name,reg_id,area,temp,temp_min,temp_max,abund,ab_min,ab_max,norm,norm_min,norm_max,flux,redchisq)
     return None
 
 
