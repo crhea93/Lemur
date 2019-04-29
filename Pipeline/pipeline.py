@@ -17,6 +17,7 @@ INPUT PARAMETERS:
 VERSIONS (and submission date):
 v0 - 01/11/19 - basic pipeline for single observations
 v1 - 04/11/19 - fully functioning pipeline for single/multiple observations
+v1.1 - 04/25/19 - Considerably more modular and addition of AGN and surface brightness calculations
 
 For suggestions/comments/errata please contact:
 Carter Rhea
@@ -28,13 +29,14 @@ import sys
 import easygui as gui
 import pandas as pd
 from shutil import copyfile
+import mysql.connector
 from Misc.move import move_files
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from Preliminary.unzip import unzip
 from Misc.Post_Process import PostProcess
 from Misc.filenames import get_filenames
-from Misc.read_input import read_input_file
+from Misc.read_input import read_input_file, read_password
 from Misc.Bkg_sub import run_bkg_sub, create_clean_img, exp_corr, create_clean_img_merge
 from Preliminary.Merge import merge_objects
 from Preliminary.CCD_split import split_ccds
@@ -51,7 +53,16 @@ from SurfaceBrightness.SBProfile import SB_profile
 from ciao_contrib.runtool import *
 from Misc.RaDec import get_RaDec
 from Misc.R_cool import R_cool_calc
+from Database.Add_new import add_cluster_db,add_obsid_db,add_fit_db, add_coord
 #------------------------------------------------------------------------------#
+mydb = mysql.connector.connect(
+  host="localhost",
+  port='3306',
+  user="crhea93",
+  passwd='ILoveLuci3!',
+  database='Lemur_DB'
+)
+mycursor = mydb.cursor()
 #------------------------------------PROGRAM-----------------------------------#
 def main():
     #---------------------------Global Imports--------------------------------#
@@ -61,6 +72,7 @@ def main():
     print("Reading Input File and Running Preliminary Steps...")
     inputs,merge_bool = read_input_file(sys.argv[1])
     os.chdir(inputs['home_dir'])
+    add_cluster_db(mydb,mycursor,inputs['name'],inputs['redshift'])
     #Unzip all relavent files
     unzip(inputs['home_dir'],inputs['dir_list'])
     print("Generating fits and image files for each individual CCD...")
@@ -72,6 +84,7 @@ def main():
     if merge_bool == False:
         print("#-----Single Observation Mode----#")
         for obsid_ in inputs['dir_list']: #left as a list to keep input deck the same and sample :)
+            add_obsid_db(mydb,mycursor,inputs['name'],obsid_)
             main_out_obsid = open(inputs['home_dir'] +"/"+obsid_+ "/decisions.txt", 'w+')
             if inputs['debug'].lower() == 'false':
                 os.chdir(os.getcwd() + '/' + obsid_ + '/Background')
@@ -199,7 +212,7 @@ def main():
             main_out.write('The center point is chosen to be %.2f,%.2f \n' % (float(cen_x), float(cen_y)))
     #Calculate additional needed parameters
     cen_ra,cen_dec = get_RaDec(filenames['evt_uncontam_img'],cen_x,cen_y)
-
+    add_coord(mydb,mycursor,cluster_name,cen_ra,cen_dec)
     #---------------------------------Spectral Extraction------------------------------------------#
     if inputs['spectra_calc'].lower() == 'true':
         print("#-----Spectral Extraction Mode----#")
@@ -223,7 +236,7 @@ def main():
             prefix = inputs['home_dir']+'/'+obsid_+'/repro/Annuli/Annulus_'
             deproj_final(prefix,'.pi',1,total_ann_num,0,prefix,'.deproj')
         os.chdir(inputs['home_dir'])
-        Annuli_ = PrimeFitting(inputs['home_dir'],inputs['name'],inputs['dir_list'],'repro/Annuli/Annulus','temperatures',list(annuli_data.values()),total_ann_num,inputs['redshift'],inputs['n_h'],inputs['temp_guess'],inputs['sigma'],agn_)
+        Annuli_ = PrimeFitting(inputs['home_dir'],inputs['name'],inputs['dir_list'],'repro/Annuli/Annulus','temperatures',list(annuli_data.values()),total_ann_num,inputs['redshift'],inputs['n_h'],inputs['temp_guess'],inputs['sigma'],agn_,inputs['name'])
         print("Postprocessing and creating plots...")
         PostProcess(Annuli_,inputs['redshift'],inputs['home_dir']+'/'+inputs['name']+'/Fits')
         all_profiles(inputs['home_dir']+'/'+inputs['name']+'/Fits',inputs['home_dir']+'/'+inputs['name']+'/Fits/Plots',inputs['redshift'])

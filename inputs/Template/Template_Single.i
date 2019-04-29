@@ -1,6 +1,7 @@
 #INPUT FILE: All lines starting with # will not be read
 #-----Directory Info-----#
 home_dir = /home/carterrhea/Documents/Test/Abell85
+database_password = /home/carterrhea/Documents/db_pass.txt
 dir_list = 904
 name = Abell85
 #-----Parameter info-----#
