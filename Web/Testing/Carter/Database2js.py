@@ -98,6 +98,7 @@ for cluster in clusters:
         #Photometric Plots
         plt_count = 0
         cluster_page.write('<div align="center" id="photo">\n')
+        cluster_page.write('<p>Photometric Data</p>')
         for plot in photo_plots:
             if plt_count%2 == 0:
                 cluster_page.write('  <div class="row">\n')
@@ -113,6 +114,7 @@ for cluster in clusters:
         #Spectroscopic Plots
         plt_count = 0
         cluster_page.write('<div align="center" id="spec">\n')
+        cluster_page.write('<p>Spectroscopic Data</p>')
         for plot in spec_plots:
             if plt_count%2 == 0:
                 cluster_page.write('  <div class="row">\n')
