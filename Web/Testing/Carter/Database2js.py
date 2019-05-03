@@ -6,13 +6,13 @@ outfile = open("Results_table.js",'w')
 
 
 ####### PATH TOWARDS THE CLUSTER PAGES HTML FILES #################
-cluster_pages_path='/home/carterrhea/Documents/Lemur/Web/Testing/Artificial_results/Cluster_pages'
+cluster_pages_path='/home/carterrhea/Documents/X-tra_Archive/Lemur/Web/ClusterPages'
 
 clusters = {}
 cluster_obsid = {}
 try: #Get data from database
     mySQLconnection = mysql.connector.connect(host='localhost',
-                                              database='Lemur_DB',
+                                              database='carterrhea',
                                               user='carterrhea',
                                               password='ILoveLuci3!')
     #cluster info
@@ -72,7 +72,7 @@ for cluster in clusters:
     outfile.write("'")
     for i in range(len(row)):
         if i==0:
-            outfile.write('<td class="column0"><a href="Web/Testing/Artificial_results/Cluster_pages/{}.html" target="_blank">%s</a></td>'.format(row[i]) % row[i])
+            outfile.write('<td class="column0"><a href="Web/Cluster_pages/{}.html" target="_blank">%s</a></td>'.format(row[i]) % row[i])
         else:
             outfile.write('<td class="column0">%s</td>' % row[i])
 

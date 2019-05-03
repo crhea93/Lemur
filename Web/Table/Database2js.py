@@ -6,13 +6,13 @@ outfile = open("Results_table.js",'w')
 
 
 ####### PATH TOWARDS THE CLUSTER PAGES HTML FILES #################
-cluster_pages_path='/home/carterrhea/Documents/Lemur/Web/ClusterPages'
+cluster_pages_path='/home/carterrhea/Documents/X-tra_Archive/Lemur/Web/ClusterPages'
 
 clusters = {}
 cluster_obsid = {}
 try: #Get data from database
     mySQLconnection = mysql.connector.connect(host='localhost',
-                                              database='Lemur_DB',
+                                              database='carterrhea',
                                               user='carterrhea',
                                               password='ILoveLuci3!')
     #cluster info
@@ -81,28 +81,48 @@ for cluster in clusters:
     outfile.write("'</tr>'+\n")
 
     #Make individual page
-    photo_plots = []
-    spec_plots = ['Temperature','Density','Entropy','Pressure','T_Cool']
-
+    images_list = ['bkgsub_exp','bkg_region']
+    photo_plots = ['Single_Beta','Double_Beta']
+    spec_plots = ['Temperature','Density','Entropy','Pressure','T_Cool','Abundance']
+    obsid_images = ['ccds','Lightcurve']
     print(cluster_name)
     with open(cluster_pages_path+'/'+cluster_name+'.html','w+') as cluster_page:
         cluster_page.write('<!DOCTYPE html>\n <html lang="en">\n <head>\n<link rel="stylesheet" type="text/css" href="cluster.css">\n<meta charset="UTF-8">'
                            '    <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Ubuntu" />\n'
                            '<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">'
-                           '\n <title>Title</title>\n </head> \n <body>\n')
+                           '\n <title>'+cluster_name+'</title>\n </head> \n <body>\n')
         cluster_page.write('<h1>'+cluster_name+'</h1> \n')
         cluster_page.write('<div class="w3-center"> \n')
-        cluster_page.write('  <button class="w3-button w3-round-large w3-teal w3-hover-purple"><a href="#Spec">Spectroscopic</a></button> &nbsp; \n')
+        cluster_page.write('  <button class="w3-button w3-round-large w3-teal w3-hover-purple"><a href="#images">Images</a></button> &nbsp; \n')
+        cluster_page.write('  <button class="w3-button w3-round-large w3-teal w3-hover-purple"><a href="#spec">Spectroscopic</a></button> &nbsp; \n')
         cluster_page.write('  <button class="w3-button w3-round-large w3-teal w3-hover-purple"><a href="#photo">Photometric</a></button> \n')
+        cluster_page.write('  <button class="w3-button w3-round-large w3-teal w3-hover-purple"><a href="#obsid_images">Individual Observations</a></button> \n')
         cluster_page.write('</div> \n ')
+        #Images
+        plt_count = 0
+        cluster_page.write('<h2 style="color:white" id="images">Cluster Images</h2>\n')
+        cluster_page.write('<div align="left">\n')
+        for plot in images_list:
+            if plt_count%2 == 0:
+                cluster_page.write('  <div class="row">\n')
+            cluster_page.write('    <div class="column"> \n')
+            cluster_page.write('      <img src="../Cluster_plots/'+cluster_name+'/'+plot+'.png" alt="'+plot+'Profile"> \n')
+            cluster_page.write('    </div> \n')
+            if plt_count%2 == 1:
+                cluster_page.write('  </div> \n')
+            plt_count += 1
+        if plt_count%2 == 1:
+            cluster_page.write('  </div> \n')
+        cluster_page.write('</div>\n')
         #Photometric Plots
         plt_count = 0
-        cluster_page.write('<div align="center" id="photo">\n')
+        cluster_page.write('<h2 style="color:white" id="photo">Photometric Results</h2>\n')
+        cluster_page.write('<div align="left">\n')
         for plot in photo_plots:
             if plt_count%2 == 0:
                 cluster_page.write('  <div class="row">\n')
             cluster_page.write('    <div class="column"> \n')
-            cluster_page.write('      <img src="../Cluster_plots/'+cluster_name+'/'+plot+'_profile.png" alt="'+plot+'Profile" style="width:90%"> \n')
+            cluster_page.write('      <img src="../Cluster_plots/'+cluster_name+'/'+plot+'.png" alt="'+plot+'Profile"> \n')
             cluster_page.write('    </div> \n')
             if plt_count%2 == 1:
                 cluster_page.write('  </div> \n')
@@ -112,18 +132,37 @@ for cluster in clusters:
         cluster_page.write('</div>\n')
         #Spectroscopic Plots
         plt_count = 0
-        cluster_page.write('<div align="center" id="spec">\n')
+        cluster_page.write('<h2 style="color:white" id="spec">Spectroscopic Results</h2>\n')
+        cluster_page.write('<div align="left" id="spec">\n')
         for plot in spec_plots:
             if plt_count%2 == 0:
                 cluster_page.write('  <div class="row">\n')
             cluster_page.write('    <div class="column"> \n')
-            cluster_page.write('      <img src="../Cluster_plots/'+cluster_name+'/'+plot+'_profile.png" alt="'+plot+'Profile" style="width:90%"> \n')
+            cluster_page.write('      <img src="../Cluster_plots/'+cluster_name+'/'+plot+'_profile.png" alt="'+plot+'Profile"> \n')
             cluster_page.write('    </div> \n')
             if plt_count%2 == 1:
                 cluster_page.write('  </div> \n')
             plt_count += 1
         if plt_count%2 == 1:
             cluster_page.write('  </div> \n')
+        cluster_page.write('</div>\n')
+        #OBSID IMAGES
+        plt_count = 0
+        cluster_page.write('<h2 style="color:white" id="obsid">OBSID Images</h2>\n')
+        cluster_page.write('<div align="left">\n')
+        for obsid_ in cluster_obsid[cluster_name]:
+            cluster_page.write('<h3 style="color:white">'+str(obsid_)+'</h3>')
+            for plot in obsid_images:
+                if plt_count%2 == 0:
+                    cluster_page.write('  <div class="row">\n')
+                cluster_page.write('    <div class="column"> \n')
+                cluster_page.write('      <img src="../Cluster_plots/'+cluster_name+'/'+plot+'.png" alt="'+plot+'"> \n')
+                cluster_page.write('    </div> \n')
+                if plt_count%2 == 1:
+                    cluster_page.write('  </div> \n')
+                plt_count += 1
+            if plt_count%2 == 1:
+                cluster_page.write('  </div> \n')
         cluster_page.write('</div>\n')
 # end table
 outfile.write("'</table>'\n\n")

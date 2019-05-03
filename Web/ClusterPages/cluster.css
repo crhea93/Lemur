@@ -5,7 +5,14 @@ body{
     );;
 }
 
-#spec{
+/*#spec{
+  background-image:
+    linear-gradient(
+       45deg,  #c850c0, #4158d0
+    );;
+}
+
+#photo{
   background-image:
     linear-gradient(
        45deg, #4158d0, #c850c0
@@ -15,14 +22,14 @@ body{
 #photo{
   background-image:
     linear-gradient(
-       -45deg, #4158d0, #c850c0
+       45deg, #4158d0, #c850c0
     );;
-}
+}*/
 
 /* 1 image containers (use 25% for four, and 50% for two, etc) */
 .column {
   float: left;
-  width: 50%;
+  width: 40%;
   padding: 5px;
  
 }
@@ -39,12 +46,7 @@ h1{
   text-align:center;
   font-family:Ubuntu;
   font-style:italic;
-  color: White
+  color: white;
 }
 
-.plot{
-  //float:center;
-  //border: 5px solid;
-  //border-image:linear-gradient(45deg, black, black, black) 60;
 
-}
