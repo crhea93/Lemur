@@ -106,7 +106,7 @@ for cluster in clusters:
             if plt_count%2 == 0:
                 cluster_page.write('  <div class="row">\n')
             cluster_page.write('    <div class="column"> \n')
-            cluster_page.write('      <img src="../Cluster_plots/'+cluster_name+'/'+plot+'.png" alt="'+plot+'Profile"> \n')
+            cluster_page.write('      <img src="../Cluster_plots/'+cluster_name+'/'+plot+'.png" alt="'+plot+'Profile" width="100%"> \n')
             cluster_page.write('    </div> \n')
             if plt_count%2 == 1:
                 cluster_page.write('  </div> \n')
@@ -122,7 +122,7 @@ for cluster in clusters:
             if plt_count%2 == 0:
                 cluster_page.write('  <div class="row">\n')
             cluster_page.write('    <div class="column"> \n')
-            cluster_page.write('      <img src="../Cluster_plots/'+cluster_name+'/'+plot+'.png" alt="'+plot+'Profile"> \n')
+            cluster_page.write('      <img src="../Cluster_plots/'+cluster_name+'/'+plot+'.png" alt="'+plot+'Profile" width="100%"> \n')
             cluster_page.write('    </div> \n')
             if plt_count%2 == 1:
                 cluster_page.write('  </div> \n')
@@ -138,7 +138,7 @@ for cluster in clusters:
             if plt_count%2 == 0:
                 cluster_page.write('  <div class="row">\n')
             cluster_page.write('    <div class="column"> \n')
-            cluster_page.write('      <img src="../Cluster_plots/'+cluster_name+'/'+plot+'_profile.png" alt="'+plot+'Profile"> \n')
+            cluster_page.write('      <img src="../Cluster_plots/'+cluster_name+'/'+plot+'_profile.png" alt="'+plot+'Profile" width="100%"> \n')
             cluster_page.write('    </div> \n')
             if plt_count%2 == 1:
                 cluster_page.write('  </div> \n')
@@ -156,7 +156,7 @@ for cluster in clusters:
                 if plt_count%2 == 0:
                     cluster_page.write('  <div class="row">\n')
                 cluster_page.write('    <div class="column"> \n')
-                cluster_page.write('      <img src="../Cluster_plots/'+cluster_name+'/'+plot+'.png" alt="'+plot+'"> \n')
+                cluster_page.write('      <img src="../Cluster_plots/'+cluster_name+'/'+plot+'.png" alt="'+plot+'" width="100%"> \n')
                 cluster_page.write('    </div> \n')
                 if plt_count%2 == 1:
                     cluster_page.write('  </div> \n')
