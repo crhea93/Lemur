@@ -1,0 +1,174 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Ubuntu" />
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <link rel="stylesheet" href="filter.css">
+</head>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+<script type="text/javascript">
+    var test;
+    $(document).ready(function() {
+        $('#button').click(function () {
+            var val1 = $('#Name').val();
+            $.ajax({
+                type: 'POST',
+                url: 'search.php',
+                data: {Name: val1},
+                success: function (response) {
+                    //$('#result').html(response);
+                    test = JSON.parse(response)//JSON.parse(response);
+                    document.getElementById("result").innerHTML = test['redshift'];
+                }
+            });
+        });
+        //document.getElementById("result").innerHTML = test["redshift"];
+    });
+</script>
+
+<script type="text/javascript">
+    var test;
+    $(document).ready(function() {
+        $('#plot').click(function () {
+            var val1 = $('#Value1').val();
+            var val2 = $('#Value2').val();
+            $("#Value1 > [value=" + val1 + "]").attr("selected", "true");
+            $("#Value2 > [value=" + val2 + "]").attr("selected", "true");
+            var name1 = $('#Value1 option:selected').text();
+            var name2 = $('#Value2 option:selected').text();
+            $.ajax({
+                type: 'POST',
+                url: 'value.php',
+                data: {Value1: val1, Value2: val2},
+                success: function (response) {
+                    //$('#result').html(response);
+                    test = JSON.parse(response)//JSON.parse(response);
+                    var trace1 = {
+                        x: test['Value1'],
+                        y: test['Value2'],
+                        mode: 'markers'
+                    };
+                    var data = [trace1];
+                    var layout = {
+                        title: {
+                            text:'Plot Title',
+                            font: {
+                                family: 'Ubuntu, monospace',
+                                size: 24
+                            },
+                            xref: 'paper',
+                            x: 0.5, //center title
+                        },
+                        xaxis: {
+                            title: {
+                                text: name1,
+                                font: {
+                                    family: 'Courier New, monospace',
+                                    size: 18,
+                                    color: '#7f7f7f'
+                                }
+                            },
+                        },
+                        yaxis: {
+                            title: {
+                                text: name2,
+                                font: {
+                                    family: 'Courier New, monospace',
+                                    size: 18,
+                                    color: '#7f7f7f'
+                                }
+                            }
+                        }
+                    };
+                    Plotly.newPlot('plot_result', data, layout, {showSendToCloud: true});
+                }
+            });
+        });
+        //document.getElementById("result").innerHTML = test["redshift"];
+    });
+</script>
+
+
+<script>
+    function showUser(str) {
+        if (str == "") {
+            document.getElementById("txtHint").innerHTML = "";
+            return;
+        } else {
+            if (window.XMLHttpRequest) {
+                // code for IE7+, Firefox, Chrome, Opera, Safari
+                xmlhttp = new XMLHttpRequest();
+            } else {
+                // code for IE6, IE5
+                xmlhttp = new ActiveXObject("Microsoft.XMLHTTP");
+            }
+            xmlhttp.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    document.getElementById("txtHint").innerHTML = this.responseText;
+                }
+            };
+            xmlhttp.open("GET","values.php?q="+str,true);
+            xmlhttp.send();
+        }
+    }
+</script>
+
+
+<body>
+
+<!-- NAVIGATION BAR -->
+<div class="w3-bar w3-blue" id='nav'>
+    <a href="../../index.html" class="w3-bar-item w3-button w3-hover-teal">Home</a>
+    <a href="../Table/index_table.html" class="w3-bar-item w3-button w3-hover-teal">Cluster Table</a>
+    <a href="#" class="w3-bar-item w3-button w3-hover-teal">Plot</a>
+    <a href="#" class="w3-bar-item w3-button w3-hover-teal">About Us</a>
+    <a href="#" class="w3-bar-item w3-button w3-hover-teal">Contact</a>
+</div>
+<!--
+<input type="text" id="Name" placeholder="Enter Cluster Name">
+<button id="button"> Calculate </button>
+<div id="result"></div>
+-->
+<div class="big_row">
+    <div  class="big_column">
+        <div class="row">
+            <div class="column">
+                <form>
+                    <select name="Value1" id="Value1">
+                        <option value="">Select a value:</option>
+                        <option value="ID" label="ID">ID</option>
+                        <option value="redshift" label="Redshift">Redshift</option>
+                        <option value="R_cool_3" label="CR3">Cooling Radius at 3 Gyr</option>
+                        <option value="R_cool_7" label="CR7">Cooling Radius at 7.7 Gyr</option>
+                    </select>
+                </form>
+            </div>
+            <div class="column">
+                <form>
+                    <select name="Value2" id="Value2">
+                        <option value="">Select a value:</option>
+                        <option value="ID" label="ID">ID</option>
+                        <option value="redshift" label="Redshift">Redshift</option>
+                        <option value="R_cool_3" label="CR3">Cooling Radius at 3 Gyr</option>
+                        <option value="R_cool_7" label="CR7">Cooling Radius at 7.7 Gyr</option>
+                    </select>
+                </form>
+            </div>
+            <div class="column">
+                <button id="plot"> Plot </button>
+            </div>
+        </div>
+    </div>
+    <div class="big_column">
+        <div id="plot_result"></div>
+    </div>
+</div>
+</body>
+</html>
+
