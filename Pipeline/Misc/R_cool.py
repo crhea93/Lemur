@@ -34,5 +34,6 @@ def R_cool_calc(data_folder,redshift,main_out):
         R_cool_7 = freduced.roots()[0]
         main_out.write("The Cooling Radius at 7.7 Gyr is %.2fkpc\n"%R_cool_7)
     else:
+        R_cool_7 = 0
         main_out.write("We are unable to calculate the 7.7 Gyr Cooling Radius.")
-    return None
+    return R_cool_3,R_cool_7

@@ -1,6 +1,7 @@
 #INPUT FILE: All lines starting with # will not be read
 #-----Directory Info-----#
 home_dir = /home/carterrhea/Documents/Test/Abell133
+database_password = /home/carterrhea/Documents/db_pass.txt
 dir_list = 2203,9897
 name = Abell133
 #-----Parameter info-----#
@@ -14,6 +15,8 @@ Temp_Guess = 4.0
 merge = True
 debug = false
 cleaning = false
-spectra_calc = false
-surface_brightness_calc = true
+spectra_calc = true
+spec_create = false
+spec_fit = true
+surface_brightness_calc = false
 

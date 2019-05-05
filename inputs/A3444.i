@@ -1,6 +1,7 @@
 #INPUT FILE: All lines starting with # will not be read
 #-----Directory Info-----#
 home_dir = /home/carterrhea/Desktop/Annabelle/A3444
+database_password = /home/carterrhea/Documents/db_pass.txt
 dir_list = 9400
 name = A3444
 #-----Parameter info-----#
@@ -13,5 +14,9 @@ Temp_Guess = 4.0
 #-----Additional Info----#
 merge = false
 debug = false
-
+cleaning = false
+spectra_calc = true
+spec_create = false
+spec_fit = true
+surface_brightness_calc = false
 
