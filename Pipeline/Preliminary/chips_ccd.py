@@ -97,27 +97,10 @@ def display_ccds(ccd_list,obsid,Merge=False):
         ax[rw,ccd_moded].set_ylim(min_y,max_y)
         ax[rw,ccd_moded].text(min_x,min_y,ccd,fontsize=15,color='white')
         ax[rw,ccd_moded].set_axis_off()
-        '''max_cts = max_counts(ccd+'.img')
-        #read and plot data after smoothing
-        cr = read_file(ccd+".img")
-        current_plot("plot"+str(ccd_count))
-        img = copy_piximgvals(cr)
-        set_piximgvals(cr, gsmooth(img, 3))
-        pvalues = get_piximgvals(cr)
-        add_image(np.arcsinh(pvalues))
-        set_image(["threshold", [0, np.max(np.arcsinh(pvalues))]])
-        set_image(["colormap", "heat"])
-        x_min = min_coord(ccd+".fits",'x'); x_max = max_coord(ccd+".fits",'x')
-        y_min = min_coord(ccd+".fits",'y'); y_max = max_coord(ccd+".fits",'y')
-        limits(x_min,x_max,y_min,y_max)
-        add_label(x_min, y_min, ccd, ["size", 18])
-        set_label(["color", "white"])'''
         ccd_count += 1
-        #hide_axis()
-    #hide_axis()
     f.subplots_adjust(hspace=0)
     outfile_name = "ccds.png"
-    plt.savefig(outfile_name)
+    plt.savefig(outfile_name); plt.close()
     plt.imshow(mpimg.imread('ccds.png')); plt.ion(); plt.show()
     msg = "Which CCD should be used for Background Flare Extraction?"
     bkg_ccd = gui.buttonbox(msg, choices=full_ccd_list)
@@ -132,10 +115,7 @@ def display_ccds(ccd_list,obsid,Merge=False):
 
 
 
-
-
-
-def display_entire(home_dir,OBSID,repro_evt):
+def display_entire(home_dir,OBSID,repro_img):
     '''
     Display normal image from reprocessed Chandra data
     PARAMETERS:
@@ -143,29 +123,16 @@ def display_entire(home_dir,OBSID,repro_evt):
         OBSID - current Chandra observation ID
         repro_evt - name of the reprocessed event
     '''
-    os.chdir(home_dir+'/'+OBSID+'/repro')
-    point_srcs = True
-    repro_img = repro_evt.split('.')[0]+'.img'
-    #create image file for reprocessed event
-    dmcopy.punlearn()
-    dmcopy.infile = repro_evt
-    dmcopy.outfile = repro_img
-    dmcopy.option = 'image'
-    dmcopy.clobber = True
-    dmcopy()
     #plot image file
+    point_srcs = True
     add_window(32,32)
-    max_cts = max_counts(repro_img)
     cr = read_file(repro_img)
     img = copy_piximgvals(cr)
     set_piximgvals(cr, gsmooth(img, 3)) #smooth
     pvalues = get_piximgvals(cr)
     add_image(np.arcsinh(pvalues)) #scale
-    set_image(["threshold", [0, np.max(np.arcsinh(pvalues))/10]])
+    set_image(["threshold", [0, np.max(np.arcsinh(pvalues))/5]])
     set_image(["colormap", "heat"])
-    x_min = min_coord(repro_evt,'x'); x_max = max_coord(repro_evt,'x')
-    y_min = min_coord(repro_evt,'y'); y_max = max_coord(repro_evt,'y')
-    limits(x_min,x_max,y_min,y_max)
     #Actively choose diffuse emission
     msg = "Please pick the extent of the diffuse emission..."
     gui.ccbox(msg)
@@ -220,7 +187,7 @@ def display_entire(home_dir,OBSID,repro_evt):
     return coords[0][0],coords[1][0],agn_
 
 
-def display_merge(merged_dir,merged_evt):
+def display_merge(merged_dir,merged_img):
     '''
     Display normal image from reprocessed Chandra data after merge
     PARAMETERS:
@@ -229,17 +196,17 @@ def display_merge(merged_dir,merged_evt):
     '''
     os.chdir(merged_dir)
     point_srcs = True
-    merged_img = merged_evt.split('.')[0]+'.img'
+    '''merged_img = merged_evt.split('.')[0]+'.img'
     #Create merged image
     dmcopy.punlearn()
     dmcopy.infile = merged_evt
     dmcopy.outfile = merged_img
     dmcopy.option = 'image'
     dmcopy.clobber = True
-    dmcopy()
+    dmcopy()'''
     #Plot and such
     add_window(32,32)
-    max_cts = max_counts(merged_img)
+    #max_cts = max_counts(merged_img)
     cr = read_file(merged_img)
     img = copy_piximgvals(cr)
     set_piximgvals(cr, gsmooth(img, 3)) #smooth
@@ -247,9 +214,6 @@ def display_merge(merged_dir,merged_evt):
     add_image(np.arcsinh(pvalues)) #scale
     set_image(["threshold", [0, np.arcsinh(np.max(pvalues))]])
     set_image(["colormap", "heat"])
-    x_min = min_coord(merged_evt,'x'); x_max = max_coord(merged_evt,'x')
-    y_min = min_coord(merged_evt,'y'); y_max = max_coord(merged_evt,'y')
-    limits(x_min,x_max,y_min,y_max)
     #Actively choose diffuse emission
     msg = "Please pick the extent of the diffuse emission..."
     gui.ccbox(msg)

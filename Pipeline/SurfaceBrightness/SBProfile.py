@@ -11,7 +11,7 @@ from SurfaceBrightness.Tools.annuli_create import create_ann
 #--------------------------INPUTS-----------------------------#
 
 def SB_profile(merged_dir,evt_file,exposure_map,bkg_region,ra,dec,z,model_type='single'):
-    Flux = True
+    Flux = False
     #-------------------------------------------------------------#
     if not os.path.exists(merged_dir):
         os.mkdir(merged_dir)
