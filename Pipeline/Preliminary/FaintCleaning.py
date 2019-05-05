@@ -30,25 +30,34 @@ output_dir = 'repro'
 #-----------------------------------------#
 
 
-def FaintCleaning(chandra_dir,OBSID,ccd_bkg,source_ra,source_dec):
+def FaintCleaning(chandra_dir,OBSID,ccd_bkg,source_ra,source_dec,ccds):
+	'''
+	Reprocess data for a faint and diffuse object
+	PARAMETERS:
+		chandra_dir - path to chandra directory
+		OBSID - OBSID of interest
+		ccd_bkg - number of background ccd
+		source_ra - right ascension of source
+		source_dec - declination of source
+		ccds - list of all ccd numbers
+	'''
 	base_dir = chandra_dir+'/'+OBSID
 	os.chdir(base_dir)
-	filenames,num_bias = get_filenames()
+	filenames,biases = get_filenames()
 	#print(filenames)
 	if not os.path.exists(os.getcwd()+'/'+output_dir):
 		os.makedirs(os.getcwd()+'/'+output_dir)
 	os.chdir(base_dir+'/'+output_dir)
 	#print("Appling Astrometric Corrections...")
 	#Astrometric(OBSID,filenames,source_ra,source_dec)
-	print("Appling Background Flare Information...")
+	print("      Appling Background Flare Information...")
 	os.chdir(base_dir)
-	Flares('ccd'+ccd_bkg+'_bkg_clean.gti',base_dir,output_dir,filenames)
+	Flares(ccd_bkg+'_bkg_clean.gti',base_dir,output_dir,filenames)
 	os.chdir(base_dir+'/'+output_dir)
-	print("Destreaking Event File...")
+	print("      Destreaking Event File...")
 	Destreak(base_dir,output_dir,filenames)
-	print("Creating New Badpixel File...")
-	BadPixel(base_dir,output_dir,OBSID,filenames,num_bias)
-	print("Apply GTI and Completing Reprocessing...")
+	print("      Creating New Badpixel File...")
+	BadPixel(base_dir,output_dir,OBSID,filenames,biases)
+	print("      Apply GTI and Completing Reprocessing...")
 	filenames = Process(filenames,OBSID)
-	print()
 	return filenames
