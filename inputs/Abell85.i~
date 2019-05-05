@@ -14,7 +14,7 @@ n_H = 0.0276
 Temp_Guess = 4.0
 #-----Additional Info----#
 merge = false
-debug = true
+debug = false
 cleaning = false
 spectra_calc = true
 spec_create = true
