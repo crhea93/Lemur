@@ -1,0 +1,5 @@
+Number,Cluster Name,T,L,IsmyFavorite
+1,Foo,1000,43,True
+2,bar,4000,20,False
+3,lemur,30000,0.1,True
+4,Test,20,10,FALSE
