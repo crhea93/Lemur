@@ -4,12 +4,12 @@
     <link rel="stylesheet" type="text/css" href="cluster.css">
     <meta charset="UTF-8">    <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Ubuntu" />
     <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
-    <title>Ophiuchus</title>
+    <title>{{ cluster_name }}</title>
 </head>
 
 
 <div class="Page_Header_div">
-    <a id="Title">Ophiuchus</a>
+    <a id="Title">{{ cluster_name }}</a>
 
     <hr>
     <div class="w3-center">
@@ -34,10 +34,10 @@
             </thead>
             <tr>
                 <td>
-                    <img src=../Cluster_plots/Ophiuchus/bkgsub_exp.png alt="bkgsub_expProfile" width="100%">
+                    <img src={{ Exp_Cor_Img_path}} alt="bkgsub_expProfile" width="100%">
                 </td>
                 <td>
-                    <img src=../Cluster_plots/Ophiuchus/bkg_region.png alt="bkg_regionProfile" width="100%">
+                    <img src={{ Back_Cor_Img_path}} alt="bkg_regionProfile" width="100%">
                 </td>
             </tr>
         </table>
@@ -58,10 +58,10 @@
             </thead>
             <tr>
                 <td>
-                    <img src=../Cluster_plots/Ophiuchus/Single_Beta.png alt="Single_BetaProfile" width="100%">
+                    <img src={{ Sing_King_Beto_Surg_path}} alt="Single_BetaProfile" width="100%">
                 </td>
                 <td>
-                    <img src=../Cluster_plots/Ophiuchus/Double_Beta.png alt="Double_BetaProfile" width="100%">
+                    <img src={{ Doub_King_Beto_Surg_path}} alt="Double_BetaProfile" width="100%">
                 </td>
             </tr>
         </table>
@@ -84,10 +84,10 @@
 
             <tr>
                 <td>
-                    <img src=../Cluster_plots/Ophiuchus/Temperature_profile.png alt="TemperatureProfile" width="100%">
+                    <img src={{ Temp_Prof_path}} alt="TemperatureProfile" width="100%">
                 </td>
                 <td>
-                    <img src=../Cluster_plots/Ophiuchus/Density_profile.png alt="DensityProfile" width="100%">
+                    <img src={{ Dens_Prof_path}} alt="DensityProfile" width="100%">
                 </td>
             </tr>
 
@@ -101,10 +101,10 @@
 
             <tr>
                 <td>
-                    <img src=../Cluster_plots/Ophiuchus/Entropy_profile.png alt="EntropyProfile" width="100%">
+                    <img src={{ Entro_Prof_path}} alt="EntropyProfile" width="100%">
                 </td>
                 <td>
-                    <img src=../Cluster_plots/Ophiuchus/Pressure_profile.png alt="PressureProfile" width="100%">
+                    <img src={{ Press_Prof_path }} alt="PressureProfile" width="100%">
                 </td>
             </tr>
 
@@ -119,10 +119,10 @@
 
             <tr>
                 <td>
-                    <img src=../Cluster_plots/Ophiuchus/T_Cool_profile.png alt="T_CoolProfile" width="100%">
+                    <img src={{ Cool_Temp_Prof_path}} alt="T_CoolProfile" width="100%">
                 </td>
                 <td>
-                    <img src=../Cluster_plots/Ophiuchus/Abundance_profile.png alt="AbundanceProfile" width="100%">
+                    <img src={{ Abund_Prof_path }} alt="AbundanceProfile" width="100%">
                 </td>
             </tr>
 
@@ -144,11 +144,12 @@
             </thead>
             <tr>
                 <td>
-                    <img src=../Cluster_plots/Ophiuchus/ccds.png alt="ccds" width="100%">
+                    <img src={{ CCD_Img_path }} alt="ccds" width="100%">
                 </td>
                 <td>
-                    <img src=../Cluster_plots/Ophiuchus/Lightcurve.png alt="Lightcurve" width="100%">
+                    <img src={{ Backg_Flare_path }} alt="Lightcurve" width="100%">
                 </td>
             </tr>
         </table>
     </div>
+
