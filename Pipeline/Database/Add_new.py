@@ -49,29 +49,27 @@ def add_coord(mydb,mycursor,cluster_name,ra,dec):
     :return: none
     '''
 
-    #Check if cluster is already in table
-    mycursor.execute(
-        "SELECT COUNT(*) FROM Clusters Where Name = %s",
-        (cluster_name,)
-    )
-    (number_of_rows,) = mycursor.fetchone()
-    # gets the number of rows affected by the command executed
-    mycursor.nextset()
-    if number_of_rows == 0:
-        # if the cluster doesnt yet exist
-        # Lets get the number of clusters current in set
-        mycursor.execute("SELECT COUNT(*) FROM Clusters")
-        (number_of_rows_curr,) = mycursor.fetchone()
-        sql = "INSERT INTO Clusters (ra,dec) VALUES (%s,%s)"
-        val = (ra,dec)
-        mycursor.execute(sql, val)
-        print("Added cluster coordinates to database")
-    else:
-        #Cluster exists
-        sql = "UPDATE Clusters SET ra=%s,dec=%s WHERE Name = %s"
-        val = (ra, dec, cluster_name)
-        mycursor.execute(sql, val)
-        print("Updated cluster coordinates in database")
+    sql = "UPDATE Clusters SET RightAsc= %s, Declination=%s WHERE Name = %s"
+    val = (str(ra), str(dec), cluster_name)
+    mycursor.execute(sql, val)
+    print("Updated cluster coordinates in database")
+    mydb.commit()
+    return None
+
+def add_r_cool(mydb,mycursor,cluster_name,R_cool_3,R_cool_7):
+    '''
+    Add information to cluster table
+    :param mydb: my database name
+    :param mycursor: cursor name
+    :param cluster_name: name of cluster
+    :param R_cool_3: Cooling radius at 3 Gyr
+    :param R_cool_7: Cooling radius at 7.7 Gyr
+    :return: none
+    '''
+    sql = "UPDATE Clusters SET R_cool_3= %s, R_cool_7=%s WHERE Name = %s"
+    val = (str(round(R_cool_3,2)), str(round(R_cool_7,2)), cluster_name)
+    mycursor.execute(sql, val)
+    print("Updated cluster coordinates in database")
     mydb.commit()
     return None
 
@@ -104,7 +102,7 @@ def add_obsid_db(mydb,mycursor,cluster_name,obsid):
     mydb.commit()
     return None
 
-def add_fit_db(clust_name,reg_id,area,temp,temp_min,temp_max,abund,ab_min,ab_max,norm,norm_min,norm_max,flux,redchisq):
+def add_fit_db(mydb,mycursor,clust_name,reg_id,area,temp,temp_min,temp_max,abund,ab_min,ab_max,norm,norm_min,norm_max,flux,redchisq,agn_):
     '''
     Add fit parameters to database containing regions for each cluster
     :param clust_name: name of cluster
@@ -121,6 +119,7 @@ def add_fit_db(clust_name,reg_id,area,temp,temp_min,temp_max,abund,ab_min,ab_max
     :param norm_max: upper error value for normalization
     :param flux: flux value from fit
     :param redchisq: reduced chi square value from fit
+    :param agn_: is an AGN present in this region
     '''
     #Get ID for cluster from Clusters table
     mycursor.execute("SELECT ID FROM Clusters WHERE Name = %s",(clust_name,))
@@ -133,14 +132,13 @@ def add_fit_db(clust_name,reg_id,area,temp,temp_min,temp_max,abund,ab_min,ab_max
     mycursor.nextset()
     if number_of_rows == 0:
         # if the cluster doesnt yet exist
-        sql = "INSERT INTO Region (Area,Temp,Temp_min,Temp_max,Abundance,Ab_min,Ab_max,Norm,Norm_min,Norm_max,Flux,ReducedChiSquare) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) WHERE idCluster = %s AND idRegion = %s"
-        val = (area,temp,temp_min,temp_max,abund,ab_min,ab_max,norm,norm_min,norm_max,flux,redchisq,id,reg_id)
+        sql = "INSERT INTO Region (idCluster,idRegion,Area,Temp,Temp_min,Temp_max,Abundance,Ab_min,Ab_max,Norm,Norm_min,Norm_max,Flux,ReducedChiSquare,AGN) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+        val = (id,int(reg_id),area,temp,temp_min,temp_max,abund,ab_min,ab_max,norm,norm_min,norm_max,flux,redchisq,agn_)
         mycursor.execute(sql, val)
     else:
         #Cluster exists
-        sql = "UPDATE Clusters SET Area=%s,Temp=%s,Temp_min=%s,Temp_max=%s,Abundance=%s,Ab_min=%s,Ab_max=%s,Norm=%s,Norm_min=%s,Norm_max=%s,Flux=%s,ReducedChiSquare=%s WHERE idCluster = %s AND idRegion = %s"
-        val = (area,temp,temp_min,temp_max,abund,ab_min,ab_max,norm,norm_min,norm_max,flux,redchisq,id,reg_id)
+        sql = "UPDATE Region SET Area=%s,Temp=%s,Temp_min=%s,Temp_max=%s,Abundance=%s,Ab_min=%s,Ab_max=%s,Norm=%s,Norm_min=%s,Norm_max=%s,Flux=%s,ReducedChiSquare=%s,AGN=%s WHERE idCluster = %s AND idRegion = %s"
+        val = (area,temp,temp_min,temp_max,abund,ab_min,ab_max,norm,norm_min,norm_max,flux,redchisq,agn_,id,int(reg_id))
         mycursor.execute(sql, val)
-        print("Updated cluster")
     mydb.commit()
     return None

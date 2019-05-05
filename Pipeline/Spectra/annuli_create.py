@@ -4,13 +4,16 @@ Create annuli from background subtracted image containing a minimum number of co
 import os
 import shutil
 from pycrates import *
-from pychips.all import *
 import numpy as np
+
 from ciao_contrib.smooth import *
 from ciao_contrib.runtool import *
 from crates_contrib.utils import *
-
-
+from astropy.io import fits
+from astropy.table import Table
+from astropy.wcs import WCS
+from astropy.convolution import Gaussian2DKernel, convolve
+import matplotlib.pyplot as plt
 def max_counts(image):
     '''Maximum counts in image'''
     dmstat.punlearn()
@@ -43,8 +46,16 @@ def check_counts(evt2,region):
     '''
     dmextract.punlearn()
     #make sure we are reading the right format
-    if evt2.split('.')[-1] == 'img' or evt2.split('.')[-1] == 'fits':
+    if evt2.split('.')[-1] == 'img':
         dmextract.infile = evt2.split('.')[0]+".img[bin sky="+region+"]"
+    elif evt2.split('.')[-1] == 'fits':
+        '''dmcopy.punlearn()
+        dmcopy.infile = evt2
+        dmcopy.outfile = evt2.split('.')[0]+".img"
+        dmcopy.option = "IMAGE"
+        dmcopy.clobber = True
+        dmcopy()'''
+        dmextract.infile = evt2.split('.')[0]+".fits[bin sky="+region+"]"
     else:
         dmextract.infile = evt2+'.img'+"[bin sky="+region+"]"  # OBSID+'_broad_thresh.img'
     dmextract.outfile = 'temp.fits'
@@ -58,12 +69,13 @@ def check_counts(evt2,region):
     return float(counts)
 
 
-def annuli_obs(home_dir,obsids,cen_ra,cen_dec):
+def annuli_obs(home_dir,obsids,exp_corr,cen_ra,cen_dec,merge_bool):
     '''
     Create annuli for an observation
     PARAMETERS:
         home_dir - directory of Chandra data
         obsids - list of observation IDS
+        exp_corr - name of exposure corrected file
         cen_ra - ra for X-ray centroid
         cen_dec - dec for X-ray centroid
     '''
@@ -99,9 +111,54 @@ def annuli_obs(home_dir,obsids,cen_ra,cen_dec):
                 with open(new_loc+'/'+file,'w') as text_file:
                     text_file.write(filedata)
 
-        #Copy the bkg.reg file too
-        shutil.copyfile(os.getcwd()+'/bkg.reg',home_dir+'/'+obsid+'/repro/bkg.reg')
+        #Copy the additional files too
+        if merge_bool == False:
+            add_files = ['bkg.reg']
+            with open(home_dir+'/'+obsid+'/repro/'+'pt_srcs.reg','r') as text_file:
+                filedata = text_file.readlines()
+                if len(filedata) > 2: #only add pt_src to change coordinates if there are pt sources!
+                    add_files.append('pt_srcs.reg')
+                    add_files.append('AGN.reg')
+            for file_add in add_files:
+                shutil.copyfile(os.getcwd()+'/'+file_add,home_dir+'/'+obsid+'/repro/'+file_add)
+                move_reg(home_dir,obsid,exp_corr,home_dir+'/'+obsid+'/repro',file_add)
 
+    return None
+
+def move_reg(home_dir,obsid,exp_sub,new_loc,file):
+    # We first need to get the logical coordinates from our file
+    with open(new_loc+'/'+file,'r') as text_file:
+        filedata = text_file.read()
+    with open(new_loc + '/' + file, 'r') as text_file:
+        file_line_data = text_file.readlines()
+    cen_x = str(file_line_data[2].split('(')[1].split(',')[0])
+    cen_y = str(file_line_data[2].split('(')[1].split(',')[1])
+    evt2 = home_dir+'/'+obsid+'/repro/acisf'+obsid+'_repro_evt2_uncontam'
+    #calculate raédec from physical units of the exposure corrected image
+    dmcoords.punlearn()
+    dmcoords.infile = exp_sub  # OBSID+'_broad_thresh.img'
+    dmcoords.option = 'logical'
+    dmcoords.logicalx = cen_x
+    dmcoords.logicaly = cen_y
+    dmcoords()
+    ra = dmcoords.ra
+    dec = dmcoords.dec
+    #calculate image units from ra/dec of the exposure corrected image to the
+    # fits file for spectral extraction
+    dmcoords.punlearn()
+    dmcoords.infile = evt2+'.fits'  # OBSID+'_broad_thresh.img'
+    dmcoords.option = 'cel'
+    dmcoords.ra = ra
+    dmcoords.dec = dec
+    dmcoords()
+    x = dmcoords.x
+    y = dmcoords.y
+    #Update x and y coordinates for specific obsid
+    filedata = filedata.replace(cen_x,str(x))
+    filedata = filedata.replace(cen_y,str(y))
+    #Write new file
+    with open(new_loc+'/'+file,'w') as text_file:
+        text_file.write(filedata)
     return None
 
 def write_reg(region,num,reg_all):
@@ -137,10 +194,28 @@ def create_annuli(main_out,evt2,centrd,edge,num_ann,threshold):
     reg_all.write("# Region file format: DS9 version 4.1 \n")
     reg_all.write("physical \n")
     #Prepare for annuli creation
+    #get centroid points
+    dmcoords.punlearn()
+    dmcoords.infile = evt2
+    dmcoords.option = 'cel'
+    dmcoords.ra = centrd[0]
+    dmcoords.dec = centrd[1]
+    dmcoords()
+    cen_x = dmcoords.x
+    cen_y = dmcoords.y
+    #get edge points
+    dmcoords.punlearn()
+    dmcoords.infile = evt2
+    dmcoords.option = 'cel'
+    dmcoords.ra = edge[0]
+    dmcoords.dec = edge[1]
+    dmcoords()
+    edge_x = dmcoords.x
+    edge_y = dmcoords.y
     annuli_num = 0
     annuli_data = dict()
     inner_ann = 0
-    max_rad = np.sqrt((float(centrd[0])-float(edge[0]))**2+(float(centrd[1])-float(edge[1]))**2)
+    max_rad = np.sqrt((float(cen_x)-float(edge_x))**2+(float(cen_y)-float(edge_y))**2)
     none_enough = True #Did we create a single annulus??
     region = None # Simply initializing
     for step in range(num_ann-1):
@@ -148,7 +223,7 @@ def create_annuli(main_out,evt2,centrd,edge,num_ann,threshold):
         new_rad = (step+1)*max_rad/num_ann
         region = 'annulus(%s,%s,%f,%f)'%(centrd[0],centrd[1],inner_ann,new_rad)
         # Make sure there are enough counts in annulus. If not then extend annulus
-        if check_counts(evt2+'.fits',region) > threshold:
+        if check_counts(evt2,region) > threshold:
             inner_ann = new_rad
             annuli_data[annuli_num] = new_rad
             annuli_num += 1
@@ -191,22 +266,84 @@ def create_src_img(repro_img,centrd,edge):
     '''
     Create nice background subtracted image with the centroid marked
     '''
-    #Be sure that repro_img is the exposure corrected bkg-subtracted one!
-    max_rad = np.sqrt((float(centrd[0]) - float(edge[0])) ** 2 + (float(centrd[1]) - float(edge[1])) ** 2)
-    add_window(32, 32)
-    cr = read_file(repro_img)
-    img = copy_piximgvals(cr)
-    set_piximgvals(cr, gsmooth(img, 3))
-    pvalues = get_piximgvals(cr)
-    add_image(np.arcsinh(pvalues))
-    set_image(["threshold", [0, np.max(np.arcsinh(pvalues))]])
-    set_image(["colormap", "heat"])
-    scale_factor = 10
-    limits(float(centrd[0])-scale_factor*max_rad, float(centrd[0])+scale_factor*max_rad,float(centrd[1])-scale_factor*max_rad,float(centrd[1])+scale_factor*max_rad)
-    add_region(50,float(centrd[0]),float(centrd[1]),max_rad)
-    attrs = {'coordsys': PLOT_NORM}
-    attrs['opacity'] = 0.0
-    attrs['edge.color'] = 'green'
-    print_window(os.getcwd() + '/bkgsub_exp.png', ['clobber', 'yes'])
-    clear()
+    #Change ra dec to physical coordinates for center
+    dmcoords.punlearn()
+    dmcoords.infile = repro_img#OBSID+'_broad_thresh.img'
+    dmcoords.option = 'cel'
+    dmcoords.celfmt = 'hms'
+    dmcoords.ra = centrd[0]
+    dmcoords.dec = centrd[1]
+    dmcoords()
+    cen_x = dmcoords.logicalx
+    cen_y = dmcoords.logicaly
+    #Same for edge
+    dmcoords.punlearn()
+    dmcoords.infile = repro_img#OBSID+'_broad_thresh.img'
+    dmcoords.option = 'cel'
+    dmcoords.celfmt = 'hms'
+    dmcoords.ra = edge[0]
+    dmcoords.dec = edge[1]
+    dmcoords()
+    edge_x = dmcoords.logicalx
+    edge_y = dmcoords.logicaly
+    #Be sure that repro_img is the exposure corrected one!
+    hdu = fits.open(repro_img)[0]
+    wcs = WCS(hdu.header)
+    max_rad = np.sqrt((float(cen_x) - float(edge_x)) ** 2 + (float(cen_y) - float(edge_y)) ** 2)
+    ax = plt.subplot(projection=wcs)
+    #f.add_subplot(111, projection=wcs)
+    image_data = fits.getdata(repro_img)
+    kernel = Gaussian2DKernel(x_stddev=3)
+    astropy_conv = convolve(image_data, kernel)
+    #get background info
+    ax.imshow(np.arcsinh(astropy_conv), cmap='gist_heat',vmin=0,vmax=np.max(np.arcsinh(astropy_conv))/10)
+    circle = plt.Circle((cen_x, cen_y), max_rad, color='green', fill=False)
+    ax.add_artist(circle)
+    scale = 5
+    #ax.set_xlim(cen_x-scale*max_rad,cen_x+scale*max_rad)
+    #ax.set_ylim(cen_y-scale*max_rad,cen_y+scale*max_rad)
+    #ax.set_axis_off()
+    plt.title("Exposure Corrected Image")
+    plt.xlabel('RA J2000')
+    plt.ylabel("DEC J2000")
+    plt.savefig('bkgsub_exp.png',bbox_inches='tight')
+    return None
+
+def create_src_img_merge(repro_img,centrd,edge):
+    '''
+    Create nice background subtracted image with the centroid marked
+    '''
+    #Change ra dec to physical coordinates for center
+    dmcoords.punlearn()
+    dmcoords.infile = repro_img#OBSID+'_broad_thresh.img'
+    dmcoords.option = 'sky'
+    dmcoords.x = centrd[0]
+    dmcoords.y = centrd[1]
+    dmcoords()
+    cen_x = dmcoords.logicalx
+    cen_y = dmcoords.logicaly
+    #edge is already in logical system
+    edge_x = edge[0]
+    edge_y = edge[1]
+    #Be sure that repro_img is the exposure corrected one!
+    hdu = fits.open(repro_img)[0]
+    wcs = WCS(hdu.header)
+    max_rad = np.sqrt((float(cen_x) - float(edge_x)) ** 2 + (float(cen_y) - float(edge_y)) ** 2)
+    ax = plt.subplot(projection=wcs)
+    #f.add_subplot(111, projection=wcs)
+    image_data = fits.getdata(repro_img)
+    kernel = Gaussian2DKernel(x_stddev=3)
+    astropy_conv = convolve(image_data, kernel)
+    #get background info
+    ax.imshow(np.arcsinh(astropy_conv), cmap='gist_heat',vmin=0,vmax=np.max(np.arcsinh(astropy_conv))/10)
+    circle = plt.Circle((cen_x, cen_y), max_rad, color='green', fill=False)
+    ax.add_artist(circle)
+    scale = 5
+    #ax.set_xlim(cen_x-scale*max_rad,cen_x+scale*max_rad)
+    #ax.set_ylim(cen_y-scale*max_rad,cen_y+scale*max_rad)
+    #ax.set_axis_off()
+    plt.title("Exposure Corrected Image")
+    plt.xlabel('RA J2000')
+    plt.ylabel("DEC J2000")
+    plt.savefig('bkgsub_exp.png',bbox_inches='tight')
     return None

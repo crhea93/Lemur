@@ -2,6 +2,7 @@
 #-----Directory Info-----#
 home_dir = /home/carterrhea/Documents/Test/Abell133
 database_password = /home/carterrhea/Documents/db_pass.txt
+web_dir = /home/carterrhea/Documents/X-tra_Archive/Lemur/Web/Cluster_plots
 dir_list = 2203,9897
 name = Abell133
 #-----Parameter info-----#
@@ -14,7 +15,9 @@ Temp_Guess = 4.0
 #-----Additional Info----#
 merge = True
 debug = true
-cleaning = false
+cleaning = true
 spectra_calc = false
+spec_create = false
+spec_fit = false
 surface_brightness_calc = true
 
