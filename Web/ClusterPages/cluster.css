@@ -1,9 +1,49 @@
 body{
-  background-image:
-    linear-gradient(
-       45deg, #4158d0, #c850c0
-    );;
+  margin-top: 0px;
+  margin-bottom: 0px;
+  margin-left: 0px;
+  margin-right: 0px;
+  padding: 0;
+  color: black;
+  font-size: 10pt;
+  font-family: "Trebuchet MS", sans-serif;
+  background-color: #4e7ac0;
 }
+
+
+.Page_Header_div{
+  height: auto;
+  background: #36304a;
+  padding: 0px;
+  padding-bottom: 25px;
+  margin: 0;
+  align-content: center;
+  text-align: center;
+  margin-bottom: 0px;
+  padding-top:10px;
+  vertical-align: middle;
+}
+
+#Title {
+  color: white;
+  font-size: 50px;
+  font-family:Ubuntu;
+  font-style:bold;
+}
+
+
+
+
+
+.FigureHeaders{
+  text-align: center;
+  margin-top: 20px;
+}
+
+
+
+
+
 
 /*#spec{
   background-image:
@@ -45,8 +85,112 @@ body{
 h1{
   text-align:center;
   font-family:Ubuntu;
-  font-style:italic;
+  font-style:bold;
   color: white;
 }
 
 
+
+/*//////////////////////////////////////////////////////////////////
+[ Table ]*/
+
+.limiter {
+  width: 95%;
+  margin: 0 auto;
+}
+
+.container-table100 {
+  width: 95%;
+  min-height: 100vh;
+  background: #c850c0;
+  background: -webkit-linear-gradient(45deg, #4158d0, #c850c0);
+  background: -o-linear-gradient(45deg, #4158d0, #c850c0);
+  background: -moz-linear-gradient(45deg, #4158d0, #c850c0);
+  background: linear-gradient(45deg, #4158d0, #c850c0);
+
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -moz-box;
+  display: -ms-flexbox;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding: 33px 30px;
+}
+
+.wrap-table100 {
+  width: 95%;
+  margin-left:auto;
+  margin-right:auto;
+  margin-bottom:30px;
+  margin-top:20px;
+  //width: 1170px;
+}
+
+table {
+  border-spacing: 1;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 10px;
+  overflow: hidden;
+  width: 100%;
+  margin: 0 auto;
+  position: relative;
+}
+table * {
+  position: relative;
+}
+table td, table th {
+  padding-left: 8px;
+}
+table thead tr {
+  height: 60px;
+  background: #36304a;
+}
+
+table tbody tr {
+  height: 50px;
+}
+table tbody tr:last-child {
+  border: 0;
+}
+table td, table th {
+  text-align: center;
+  color: white;
+}
+table td.l, table th.l {
+  text-align: right;
+}
+table td.c, table th.c {
+  text-align: center;
+}
+table td.r, table th.r {
+  text-align: center;
+}
+
+
+.table100-head th{
+  font-family: OpenSans-Regular;
+  font-size: 25px;
+  color: white;
+  line-height: 1.2;
+  font-weight: unset;
+}
+
+tbody tr:nth-child(even) {
+  background-color: white;
+}
+
+tbody tr {
+  font-family: OpenSans-Regular;
+  font-size: 15px;
+  color: #808080;
+  line-height: 1.2;
+  font-weight: unset;
+}
+
+.column1 {
+  width: 260px;
+  padding-left: 40px;
+}
