@@ -56,3 +56,5 @@ docs/_build/
 
 # PyBuilder
 target/
+
+Pipeline/Fit_and_plot_only/\.nfs00000000c00fe883000150df
