@@ -94,4 +94,5 @@ def profile(data_folder,output_folder,redshift,property,units):
     ax.yaxis.label.set_fontsize(12)
     ax.xaxis.label.set_fontsize(12)
     plt.legend()
+    plt.tight_layout()
     plt.savefig(output_folder+"/"+property+"_profile.png")

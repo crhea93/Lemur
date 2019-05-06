@@ -1,6 +1,8 @@
 #INPUT FILE: All lines starting with # will not be read
 #-----Directory Info-----#
 home_dir = /home/carterrhea/Documents/Test/Ophiuchus
+database_password = /home/carterrhea/Documents/db_pass.txt
+web_dir = /home/carterrhea/Documents/X-tra_Archive/Lemur/Web/Cluster_plots
 dir_list = 3200
 name = Ophiuchus
 #-----Parameter info-----#
@@ -12,6 +14,10 @@ n_H = .36
 Temp_Guess = 4.0
 #-----Additional Info----#
 merge = false
-debug = true
-
+debug = false
+cleaning = false
+spectra_calc = false
+spec_create = false
+spec_fit = false
+surface_brightness_calc = true
 
