@@ -35,6 +35,7 @@ from pychips.all import *
 from sherpa.fit import *
 from sherpa.all import *
 from Misc.Classes import annulus
+from Database.Add_new import add_fit_db
 #TURN OFF ON-SCREEN OUTPUT FROM SHERPA
 import logging
 logger = logging.getLogger("sherpa")
@@ -174,7 +175,7 @@ def flux_prep(src_model_dict,bkg_model_dict,obsid,obs_count,agn):
     return None
 
 
-def FitXSPEC(spectrum_files,background_files,Ann_cur, redshift,n_H,Temp_guess,spec_count,sigma_covar,agn):
+def FitXSPEC(mydb,mycursor,spectrum_files,background_files,Ann_cur, redshift,n_H,Temp_guess,spec_count,sigma_covar,agn,cluster_name):
     '''
     Fit spectra
     PARAMETERS:
@@ -283,10 +284,13 @@ def FitXSPEC(spectrum_files,background_files,Ann_cur, redshift,n_H,Temp_guess,sp
     delete_data()'''
     clean()
     Ann_cur.add_fit_data(Temperature,Temp_min,Temp_max,Abundance,Ab_min,Ab_max,Norm,Norm_min,Norm_max,Flux,reduced_chi_sq,agn)
+    #Add to database
+    volum = (4/3)*np.pi*(Ann_cur.r_in**3-Ann_cur.r_out**3)
+    add_fit_db(mydb,mycursor,cluster_name,str(spec_count),volum,str(Temperature),str(Temp_min),str(Temp_max),str(Abundance),str(Ab_min),str(Ab_max),str(Norm),str(Norm_min),str(Norm_max),str(Flux),str(reduced_chi_sq),agn)
     return None
 
 
-def PrimeFitting(home_dir,merge_dir,dir,file_name,output_file,annuli_data,num_files,redshift,n_H,Temp_guess,sigma_covar,agn_):
+def PrimeFitting(mydb,mycursor,home_dir,merge_dir,dir,file_name,output_file,annuli_data,num_files,redshift,n_H,Temp_guess,sigma_covar,agn_,cluster_name):
     '''
     Step through spectra to fit
     PARAMETERS:
@@ -341,13 +345,13 @@ def PrimeFitting(home_dir,merge_dir,dir,file_name,output_file,annuli_data,num_fi
             for i in range(2):
                 Ann_cur = annulus(float(region_.split('-')[0]),float(region_.split('-')[1]))
                 if i == 0: #include AGN
-                    FitXSPEC(spectrum_files,background_files,Ann_cur,redshift,n_H,Temp_guess,i+1,sigma_covar,True)
+                    FitXSPEC(mydb,mycursor,spectrum_files,background_files,Ann_cur,redshift,n_H,Temp_guess,i+1,sigma_covar,True,cluster_name)
                     Annuli_.append(Ann_cur)
                 if i == 1: #dont include AGN
-                    FitXSPEC(spectrum_files,background_files,Ann_cur,redshift,n_H,Temp_guess,i+1,sigma_covar,False)
+                    FitXSPEC(mydb,mycursor,spectrum_files,background_files,Ann_cur,redshift,n_H,Temp_guess,i+1,sigma_covar,False,cluster_name)
                     Annuli_.append(Ann_cur)
         else:
             Ann_cur = annulus(float(region_.split('-')[0]),float(region_.split('-')[1]))
-            FitXSPEC(spectrum_files,background_files,Ann_cur,redshift,n_H,Temp_guess,i+1,sigma_covar,False)
+            FitXSPEC(mydb,mycursor,spectrum_files,background_files,Ann_cur,redshift,n_H,Temp_guess,i+1,sigma_covar,False,cluster_name)
             Annuli_.append(Ann_cur)
     return Annuli_

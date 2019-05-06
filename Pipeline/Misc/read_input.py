@@ -38,3 +38,18 @@ def read_input_file(input_file):
     if inputs['merge'].lower() == 'true':
         merge_bool = True
     return inputs,merge_bool
+
+def read_password(input_file):
+    '''
+    read in password for database
+    PARAMETERS:
+        input_file - location of file with password
+    '''
+    pword = ''
+    with open(input_file) as f:
+        #Read file
+        for line in f:
+            if 'database_password' in line: #Only read lines with '='
+                pword= line.split("=")[1].strip()
+            else: pass
+    return pword
