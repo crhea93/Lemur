@@ -4,9 +4,9 @@
 
 
 $servername = "localhost";
-$username = "carterrhea";
+$username = "carterrhea";#"id9499302_carterrhea";
 $password = "ILoveLuci3!";
-$dbname = "Lemur_DB";
+$dbname = "Lemur_DB";#"id9499302_lemur_db";
 
 // Create connection
 $conn = new mysqli($servername, $username, $password, $dbname);

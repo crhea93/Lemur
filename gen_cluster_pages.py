@@ -13,8 +13,8 @@ cluster_obsid = {}
 try: #Get data from database
     mySQLconnection = mysql.connector.connect(host='localhost',
                                               database='Lemur_DB',
-                                              user='christian',
-                                              password='creative')
+                                              user='carterrhea',
+                                              password='ILoveLuci3!')
     #cluster info
     sql_select_Query = "select * from Clusters"
     cursor = mySQLconnection .cursor()
@@ -67,7 +67,24 @@ env = Environment( loader = FileSystemLoader(templates_dir) )
 template = env.get_template('Cluster_page_template.html') #name of template html file
 
 for cluster_name in list_of_cluster_names: #loop over all clusters
-
+    #Get obsid info and add to js file
+    with open(out_html_page_path+'/js/'+cluster_name+'_obsid.js','w+') as outfile:
+        outfile.write("var Obsids = ")
+        plt_count = 0
+        for obsid_ in cluster_obsid[cluster_name]:
+            outfile.write("'<h2 style="+'"color:white"'+' class="FigureHeaders">'+str(obsid_)+"</h2>'+\n")
+            outfile.write("'<div class="+'"wrap-table100"'+">'+\n")
+            outfile.write("' <div class="+'"table100"'+">'+\n")
+            outfile.write("'  <table>   <thead>'+\n")
+            outfile.write("'   <tr class="+'"table100-head"'+">'+\n")
+            outfile.write("'   <th>CCD IMAGE</th>'+\n")
+            outfile.write("'   <th>Background Flare</th>'+\n")
+            outfile.write("'   </tr>   </thead>  <tr>'+\n")
+            outfile.write("'   <td>     <img src=../Cluster_plots/"+cluster_name+"/ccds.png alt="+'"ccds"'+' width="100%">   '+" </td>'+\n")
+            outfile.write("'   <td>     <img src=../Cluster_plots/"+cluster_name+"/Lightcurve.png alt="+'"LightCurve"'+' width="100%">  '+"  </td>'+\n")
+            outfile.write("'   </tr>   </table>  </div> </div>'+\n")
+        outfile.write("''\n")
+        outfile.write("document.write(Obsids);")
     out_html_page_name = '{}.html'.format(cluster_name) #name of pagefile created
 
     filename = os.path.join(root, out_html_page_path, out_html_page_name) #path+name of cluster page html file
@@ -84,6 +101,10 @@ for cluster_name in list_of_cluster_names: #loop over all clusters
         Press_Prof_path = "../Cluster_plots/{}/Pressure_profile.png".format(cluster_name),
         Cool_Temp_Prof_path ="../Cluster_plots/{}/T_Cool_profile.png".format(cluster_name),
         Abund_Prof_path ="../Cluster_plots/{}/Abundance_profile.png".format(cluster_name),
-        CCD_Img_path ="../Cluster_plots/{}/ccds.png".format(cluster_name),
-        Backg_Flare_path = "../Cluster_plots/{}/Lightcurve.png".format(cluster_name)
+        #CCD_Img_path ="../Cluster_plots/{}/ccds.png".format(cluster_name),
+        #Backg_Flare_path = "../Cluster_plots/{}/Lightcurve.png".format(cluster_name),
+        cluster_name_obsid_js = "js/{}_obsid.js".format(cluster_name)
             ))
+        #Now to write a js file for the variable size obsid files
+
+        #Now add to template

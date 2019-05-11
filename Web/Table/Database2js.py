@@ -12,7 +12,7 @@ clusters = {}
 cluster_obsid = {}
 try: #Get data from database
     mySQLconnection = mysql.connector.connect(host='localhost',
-                                              database='carterrhea',
+                                              database='Lemur_DB',
                                               user='carterrhea',
                                               password='ILoveLuci3!')
     #cluster info
@@ -54,7 +54,7 @@ outfile.write('<table id="Analysis_summary">');outfile.write("'+\n")
 # column headers
 outfile.write("'<thead>'+\n"+"'")
 outfile.write('<tr class="table100-head">'+"'"+'+\n')
-for field_name in field_names[1:]:
+for field_name in field_names[1:]: #Skip ID -> not necessary here
     outfile.write("'<th>"+field_name+"</th>'+\n")
 outfile.write("'<th>Obsids</th>'+\n")
 outfile.write("'</tr>'"+'+\n')
@@ -79,7 +79,7 @@ for cluster in clusters:
     outfile.write('<td class="column0">%s</td>' %(obsids[:-1]))
     outfile.write("'+\n")
     outfile.write("'</tr>'+\n")
-
+    '''
     #Make individual page
     images_list = ['bkgsub_exp','bkg_region']
     photo_plots = ['Single_Beta','Double_Beta']
@@ -164,7 +164,7 @@ for cluster in clusters:
             if plt_count%2 == 1:
                 cluster_page.write('  </div> \n')
         cluster_page.write('</div>\n')
-# end table
+# end table'''
 outfile.write("'</table>'\n\n")
 
 # JS write

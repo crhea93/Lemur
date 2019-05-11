@@ -23,7 +23,7 @@
                 data: {Name: val1},
                 success: function (response) {
                     //$('#result').html(response);
-                    test = JSON.parse(response)//JSON.parse(response);
+                    //test = JSON.parse(response)//JSON.parse(response);
                     document.getElementById("result").innerHTML = test['redshift'];
                 }
             });
@@ -42,22 +42,35 @@
             $("#Value2 > [value=" + val2 + "]").attr("selected", "true");
             var name1 = $('#Value1 option:selected').text();
             var name2 = $('#Value2 option:selected').text();
+
             $.ajax({
                 type: 'POST',
                 url: 'value.php',
                 data: {Value1: val1, Value2: val2},
                 success: function (response) {
-                    //$('#result').html(response);
+                    //$('#plot_result').html(response);
                     test = JSON.parse(response)//JSON.parse(response);
+                    var x_max = Math.max(...test['Value1']);
+                    var y_max = Math.max(...test['Value2']);
                     var trace1 = {
                         x: test['Value1'],
                         y: test['Value2'],
+                        error_x: {
+                            type: 'data',
+                            array: test['err1'],
+                            visible: true
+                        },
+                        error_y: {
+                            type: 'data',
+                            array: test['err2'],
+                            visible: true
+                        },
                         mode: 'markers'
                     };
                     var data = [trace1];
                     var layout = {
                         title: {
-                            text:'Plot Title',
+                            //text:'Plot Title',
                             font: {
                                 family: 'Ubuntu, monospace',
                                 size: 24
@@ -69,21 +82,23 @@
                             title: {
                                 text: name1,
                                 font: {
-                                    family: 'Courier New, monospace',
+                                    family: 'Ubuntu, monospace',
                                     size: 18,
                                     color: '#7f7f7f'
                                 }
                             },
+                            range: [0,1.1*x_max]
                         },
                         yaxis: {
                             title: {
                                 text: name2,
                                 font: {
-                                    family: 'Courier New, monospace',
+                                    family: 'Ubuntu, monospace',
                                     size: 18,
                                     color: '#7f7f7f'
                                 }
-                            }
+                            },
+                            range: [0,1.1*y_max]
                         }
                     };
                     Plotly.newPlot('plot_result', data, layout, {showSendToCloud: true});
@@ -126,7 +141,7 @@
 <div class="w3-bar w3-blue" id='nav'>
     <a href="../../index.html" class="w3-bar-item w3-button w3-hover-teal">Home</a>
     <a href="../Table/index_table.html" class="w3-bar-item w3-button w3-hover-teal">Cluster Table</a>
-    <a href="#" class="w3-bar-item w3-button w3-hover-teal">Plot</a>
+    <a href="#" class="w3-bar-item w3-button w3-hover-teal">Cluster Plots</a>
     <a href="#" class="w3-bar-item w3-button w3-hover-teal">About Us</a>
     <a href="#" class="w3-bar-item w3-button w3-hover-teal">Contact</a>
 </div>
@@ -140,35 +155,62 @@
         <div class="row">
             <div class="column">
                 <form>
-                    <select name="Value1" id="Value1">
+                    <select class="w3-container w3-blue" name="Value1" id="Value1">
                         <option value="">Select a value:</option>
                         <option value="ID" label="ID">ID</option>
                         <option value="redshift" label="Redshift">Redshift</option>
-                        <option value="R_cool_3" label="CR3">Cooling Radius at 3 Gyr</option>
-                        <option value="R_cool_7" label="CR7">Cooling Radius at 7.7 Gyr</option>
+                        <option value="R_cool_3" label="Cooling Radius at 3 Gyr">Cooling Radius at 3 Gyr</option>
+                        <option value="R_cool_7" label="Cooling Radius at 7.7 Gyr">Cooling Radius at 7.7 Gyr</option>
+                        <option value="csb_ct" label="CSB Count Rate">CSB Count Rate</option>
+                        <option value="csb_pho" label="CSB Photon Flux">CSB Photon Flux</option>
+                        <option value="csb_flux" label="CSB Energy Flux">CSB Energy Flux</option>
                     </select>
                 </form>
             </div>
             <div class="column">
                 <form>
-                    <select name="Value2" id="Value2">
+                    <select  class="w3-container w3-blue" name="Value2" id="Value2">
                         <option value="">Select a value:</option>
                         <option value="ID" label="ID">ID</option>
                         <option value="redshift" label="Redshift">Redshift</option>
-                        <option value="R_cool_3" label="CR3">Cooling Radius at 3 Gyr</option>
-                        <option value="R_cool_7" label="CR7">Cooling Radius at 7.7 Gyr</option>
+                        <option value="R_cool_3" label="Cooling Radius at 3 Gyr">Cooling Radius at 3 Gyr</option>
+                        <option value="R_cool_7" label="Cooling Radius at 7.7 Gyr">Cooling Radius at 7.7 Gyr</option>
+                        <option value="csb_ct" label="CSB Count Rate">CSB Count Rate</option>
+                        <option value="csb_pho" label="CSB Photon Flux">CSB Photon Flux</option>
+                        <option value="csb_flux" label="CSB Energy Flux">CSB Energy Flux</option>
                     </select>
                 </form>
             </div>
             <div class="column">
-                <button id="plot"> Plot </button>
+                <button class="w3-container w3-blue" id="plot"> Plot </button>
             </div>
+
         </div>
+        <!--
+        <div class="row" id="radiobutton">
+            <div class="column">
+                <input type="radio" name="Error" value="Error" checked> Error<br>
+                <input type="radio" name="NoError" value="NoError"> No Error
+            </div>
+        </div>-->
     </div>
+
     <div class="big_column">
-        <div id="plot_result"></div>
+                <div class="table100">
+                    <table>
+                        <thead>
+                        <tr class="table100-head">
+                            <th>Cluster Parameter Plots</th>
+                        </tr>
+                        </thead>
+                        <tr>
+                            <td>
+                                <div id="plot_result"></div>
+                            </td>
+                        </tr>
+                    </table>
+            </div>
     </div>
 </div>
 </body>
 </html>
-

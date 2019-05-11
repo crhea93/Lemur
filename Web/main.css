@@ -3,9 +3,7 @@ body{
     linear-gradient(
        45deg, #4158d0, #4158d0
     );;
-  font-family: Ubuntu;
 }
-
 
 .Titles{
   color: white;
@@ -18,7 +16,6 @@ body{
 
 .mu-title-area {
   align-content: center;
-  font-family: Ubuntu;
 }
 
 .mu-register-area {
@@ -30,7 +27,6 @@ body{
 
 .mu-register-area .mu-title,
 .mu-register-area p {
-  font-family: Ubuntu;
   color: #fff;
 }
 
@@ -59,12 +55,10 @@ body{
 
 
 .mu-register-form select.form-message option{
-  font-family: Ubuntu;
   color: #333;
 
 }
 .mu-register-form .form-message::-webkit-input-placeholder {
-  font-family: Ubuntu;
   color: #fff;
   font-size: 15px;
 }
@@ -79,14 +73,12 @@ body{
 }
 
 .mu-register-form .form-message:-ms-input-placeholder {
-  font-family: Ubuntu;
   color: #fff;
   font-size: 15px;
 }
 
 
 .mu-register-form .form-control {
-  font-family: Ubuntu;
   height: 50px;
   color: #fff;
   background-color: transparent;
@@ -97,11 +89,9 @@ body{
 }
 
 .mu-register-form select.form-control option{
-  font-family: Ubuntu;
   color: #333;
 }
 .mu-register-form .form-control::-webkit-input-placeholder {
-  font-family: Ubuntu;
   color: #fff;
   font-size: 15px;
 }
@@ -117,7 +107,6 @@ body{
 }
 
 .mu-register-form .form-control:-ms-input-placeholder {
-  font-family: Ubuntu;
   color: #fff;
   font-size: 15px;
 }
@@ -145,72 +134,8 @@ body{
   border: 2px solid #ff871c;
   background-color: #ff871c;
 }
-
-.mu-send-msg-btn {
-  color: #555;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 1px;
-  text-align: center;
-  padding: 14px 24px;
-  margin-top: 10px;
-  -webkit-transition: all 0.5s;
-  transition: all 0.5s;
-  width: 250px;
-  color: #fff;
-  border-radius: 5px;
-}
-
-.mu-send-msg-btn:hover,
-.mu-send-msg-btn:focus {
-  background-color: #fff;
-}
-
-.mu-register-form .button-default::after,
-.mu-register-form .button-default > span {
-  padding: 12px 40px;
-}
-
-#form-messages {
-  margin-bottom: 10px;
-  background-color: #fff;
-}
-
-
-.success {
-  padding: 1em;
-  margin-bottom: 0.75rem;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
-  color: #468847;
-  background-color: #dff0d8;
-  border: 1px solid #d6e9c6;
-  -webkit-border-radius: 4px;
-  -moz-border-radius: 4px;
-  border-radius: 4px;
-}
-
-.error {
-  padding: 1em;
-  margin-bottom: 0.75rem;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
-  color: #b94a48;
-  background-color: #f2dede;
-  border: 1px solid rgba(185, 74, 72, 0.3);
-  -webkit-border-radius: 4px;
-  -moz-border-radius: 4px;
-  border-radius: 4px;
-}
-
-
-
-/* Hide Submit form if too small (i.e. on mobile)*/
-@media screen and (max-width: 600px) {
-  .mu-register {
-    visibility: hidden;
-    clear: both;
-    float: left;
-    margin: 10px auto 5px 20px;
-    width: 28%;
-    display: none;
-  }
+.mu-reg-submit-btn:hover,
+.mu-reg-submit-btn:focus {
+  background-color: #ff871c;
+  border: 2px solid #ff871c;
 }
