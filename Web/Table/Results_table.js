@@ -7,17 +7,22 @@ var full_Table = '<table id="Analysis_summary">'+
 '<th>Declination</th>'+
 '<th>R_cool_3</th>'+
 '<th>R_cool_7</th>'+
+'<th>csb_ct</th>'+
+'<th>csb_pho</th>'+
 '<th>Obsids</th>'+
 '</tr>'+
 '</thead>'+
 '<tr>'+
-'<td class="column0"><a href="../ClusterPages/Abell85.html" target="_blank">Abell85</a></td><td class="column0">0.0558</td><td class="column0">00:41:50.232</td><td class="column0">-09:18:09.29</td><td class="column0">65.03</td><td class="column0">125.33</td><td class="column0">904</td>'+
+'<td class="column0"><a href="../ClusterPages/Abell85.html" target="_blank">Abell85</a></td><td class="column0">0.0558</td><td class="column0">00:41:50.232</td><td class="column0">-09:18:09.29</td><td class="column0">65.03</td><td class="column0">125.33</td><td class="column0">0.114</td><td class="column0">0.106</td><td class="column0">904</td>'+
 '</tr>'+
 '<tr>'+
-'<td class="column0"><a href="../ClusterPages/Abell133.html" target="_blank">Abell133</a></td><td class="column0">0.0566</td><td class="column0">01:02:41.957</td><td class="column0">-21:52:54.95</td><td class="column0">57.14</td><td class="column0">110.05</td><td class="column0">2203,9897</td>'+
+'<td class="column0"><a href="../ClusterPages/Abell133.html" target="_blank">Abell133</a></td><td class="column0">0.0566</td><td class="column0">01:02:41.957</td><td class="column0">-21:52:54.95</td><td class="column0">57.14</td><td class="column0">110.05</td><td class="column0">0.231</td><td class="column0">0.233</td><td class="column0">2203,9897</td>'+
 '</tr>'+
 '<tr>'+
-'<td class="column0"><a href="../ClusterPages/Ophiuchus.html" target="_blank">Ophiuchus</a></td><td class="column0">0.028</td><td class="column0">17:12:27.624</td><td class="column0">-23:22:07.23</td><td class="column0">43.37</td><td class="column0">116.98</td><td class="column0">3275</td>'+
+'<td class="column0"><a href="../ClusterPages/Ophiuchus.html" target="_blank">Ophiuchus</a></td><td class="column0">0.028</td><td class="column0">17:12:27.624</td><td class="column0">-23:22:07.23</td><td class="column0">43.37</td><td class="column0">116.98</td><td class="column0">None</td><td class="column0">None</td><td class="column0">3275</td>'+
+'</tr>'+
+'<tr>'+
+'<td class="column0"><a href="../ClusterPages/A1413.html" target="_blank">A1413</a></td><td class="column0">0.143</td><td class="column0">11:55:17.332</td><td class="column0">+23:24:28.44</td><td class="column0">None</td><td class="column0">None</td><td class="column0">0.046</td><td class="column0">0.046</td><td class="column0"></td>'+
 '</tr>'+
 '</table>'
 

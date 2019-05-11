@@ -7,17 +7,20 @@
     <link rel="stylesheet" type="text/css" href="main.css">
     <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Ubuntu" />
     <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet">
+    <link href="bootstrap.min.css" rel="stylesheet">
     <title>Lemur</title>
 </head>
 
 
 
 <body>
+<script type="text/javascript" src="app.js"></script>
   <!-- NAVIGATION BAR -->
   <div class="w3-bar w3-blue" id='nav'>
       <a href="#" class="w3-bar-item w3-button w3-hover-teal">Home</a>
       <a href="Web/Table/index_table.html" class="w3-bar-item w3-button w3-hover-teal">Cluster Table</a>
-      <a href="Web/Filter_Table/filter_index.html" class="w3-bar-item w3-button w3-hover-teal">Plot</a>
+      <a href="Web/Filter_Table/filter_index.html" class="w3-bar-item w3-button w3-hover-teal">Cluster Plots</a>
       <a href="#" class="w3-bar-item w3-button w3-hover-teal">About Us</a>
       <a href="#" class="w3-bar-item w3-button w3-hover-teal">Contact</a>
   </div>
@@ -27,7 +30,57 @@
 <!--<h3 id="Table_Header">Table</h3>
 <script src="./Web/Testing/Artificial_results/Results_table.js"></script> -->
 
+  <section id="mu-register">
+      <div class="container">
+          <div class="row">
+              <div class="col-md-12">
+                  <div class="mu-register-area">
 
+                      <div class="mu-title-area">
+                          <h2 class="mu-title" align="center"><b>Comments Form</b></h2>
+                      </div>
+
+                      <div class="mu-register-content">
+                          <div id="form-messages"><p></p></div>
+                          <form id="ajax-contact" method="post" action="mailer.php" class="mu-register-form">
+
+                              <div class="row">
+                                  <div class="col-md-6">
+                                      <div class="form-group">
+                                          <input type="text" class="form-control" placeholder="Your Full Name" id="name" name="name" required="">
+                                      </div>
+                                  </div>
+
+                                  <div class="col-md-6">
+                                      <div class="form-group">
+                                          <input type="email" class="form-control" placeholder="Enter Your Email" id="email" name="email" required="">
+                                      </div>
+                                  </div>
+                                  <!--</div>-->
+                              </div>
+                                  <!--<div class="row">-->
+                              <div class="row">
+                                  <div class="col-md-12">
+                                      <div class="form-group">
+                                          <textarea class="form-message" rows="5" cols="60" placeholder="If you have any comments, suggestions, or requests please include them here..." id="message" name="message"></textarea><label for="message"></label>
+                                      </div>
+                                  </div>
+                                  <!--</div>-->
+                              </div>
+
+                              <div class="row">
+                                  <div class="col-md-12">
+                                      <button type="submit" class="mu-send-msg-btn">SUBMIT</button>
+                                  </div>
+                              </div>
+                          </form>
+                      </div>
+
+                  </div>
+              </div>
+          </div>
+      </div>
+  </section>
 
 
 </body>
