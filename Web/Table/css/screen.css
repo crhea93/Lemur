@@ -50,6 +50,7 @@ content: "R_cool_7"
 table tbody tr td:nth-child(7):before {
 content: "Obsid"
 }
+}
 @media (max-width: 576px) { 
  .container-table100 { 
  padding-left: 15px; 
