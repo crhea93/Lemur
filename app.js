@@ -12,7 +12,7 @@ $(function() {
 		e.preventDefault();
 		$(formMessages).text('Your Responses Have Been Recorded and the Email Will Be Sent Shortly');
 		// Serialize the form data.
-		$(formMessages).addClass('success')
+		$(formMessages).addClass('success');
 		var formData = $(form).serialize();
 
 		// Submit the form using AJAX.

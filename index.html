@@ -9,23 +9,46 @@
     <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
     <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet">
     <link href="bootstrap.min.css" rel="stylesheet">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lobster">
     <title>Lemur</title>
 </head>
 
 
 
 <body>
-<script type="text/javascript" src="app.js"></script>
+
+
   <!-- NAVIGATION BAR -->
   <div class="w3-bar w3-blue" id='nav'>
       <a href="#" class="w3-bar-item w3-button w3-hover-teal">Home</a>
       <a href="Web/Table/index_table.html" class="w3-bar-item w3-button w3-hover-teal">Cluster Table</a>
       <a href="Web/Filter_Table/filter_index.html" class="w3-bar-item w3-button w3-hover-teal">Cluster Plots</a>
-      <a href="#" class="w3-bar-item w3-button w3-hover-teal">About Us</a>
-      <a href="#" class="w3-bar-item w3-button w3-hover-teal">Contact</a>
+      <a href="Web/AboutUs/About_us.html" class="w3-bar-item w3-button w3-hover-teal">About Us</a>
   </div>
   <h1 class="Titles" align="center"> X-ray Galaxy Cluster Archive </h1>
   <h3 class="Titles" align="center"> À l'Université de Montréal </h3>
+  <div class="primary_text">
+      <p>Welcome to the X-ray Galaxy Cluster Archive à l'Université de Montréal! The archive was built out of several graduate students' desire
+      to have a coherent and comprehensive data archive dedicated the X-ray Galaxy Clusters. While the primary purpose of the archive was initially to
+      categorize clusters into cool-core vs. non cool-core, we hope it will enable further investigation into cluster properties and allow for
+      statistical studies of clusters.
+      </p><br>
+      <p>
+          On the <a href="Web/Table/index_table.html">Cluster Table</a> page, you can find a searchable collection of clusters along with
+          pertinent information on each including parameters such as the cooling radius and coefficient of surface brightness.
+          If you visit the <a href="Web/Filter_Table/filter_index.html">Cluster Plots</a> page, you will be able to create plots using the
+          calculated cluster parameters and download the datatable as a csv file.
+      </p>
+      <div id="counter">
+          <div class="col-md-12" align="center">
+              <div class="counter ">
+                  <h2 class="desc"><b>Total Clusters Added</b></h2>
+                  <h2 class="title"><b><span class="counter-value" data-duration="2000"  id="count_result"></span></b></h2>
+              </div><!-- counter -->
+          </div>
+      </div>
+  </div>
 
 <!--<h3 id="Table_Header">Table</h3>
 <script src="./Web/Testing/Artificial_results/Results_table.js"></script> -->
@@ -37,11 +60,11 @@
                   <div class="mu-register-area">
 
                       <div class="mu-title-area">
-                          <h2 class="mu-title" align="center"><b>Comments Form</b></h2>
+                          <h1 class="mu-title" align="center"><b>Comments Form</b></h1>
                       </div>
 
                       <div class="mu-register-content">
-                          <div id="form-messages"><p></p></div>
+                          <div id="form-messages"></div>
                           <form id="ajax-contact" method="post" action="mailer.php" class="mu-register-form">
 
                               <div class="row">
@@ -70,7 +93,7 @@
 
                               <div class="row">
                                   <div class="col-md-12">
-                                      <button type="submit" class="mu-send-msg-btn">SUBMIT</button>
+                                      <button type="submit" class="mu-send-msg-btn">SUBMIT</button> <br>&nbsp<br>
                                   </div>
                               </div>
                           </form>
@@ -82,6 +105,12 @@
       </div>
   </section>
 
+
+
+
+
+<script type="text/javascript" src="count.js"></script>
+<script src="common-js/scripts.js"></script>
 
 </body>
 </html>

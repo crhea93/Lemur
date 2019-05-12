@@ -42,7 +42,7 @@
         $recipient = "carterrhea93@gmail.com";
 
         // Set the email subject.
-        $subject = "Meeting";//"$subject_email";
+        $subject = "X-tra Galaxy Cluster Archive";//"$subject_email";
 
         // Build the email content.
         $email_content = "Name: $name\n";
@@ -51,7 +51,6 @@
 
         // Build the email headers.
         //$email_headers = "From: $name <$email>";
-
         // Send the email.
         if (mail($recipient, $subject, $email_content)) {
             // Set a 200 (okay) response code.

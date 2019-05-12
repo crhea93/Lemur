@@ -6,7 +6,11 @@ body{
   font-family: Ubuntu;
 }
 
-
+html, body {
+  margin: 0;
+  height: 100%;
+  font-family: Ubuntu;
+}
 .Titles{
   color: white;
   font-family:Ubuntu;
@@ -16,15 +20,47 @@ body{
   font-family: Ubuntu;
 }
 
+
+
 .mu-title-area {
   align-content: center;
   font-family: Ubuntu;
 }
 
+.primary_text {
+  font-family: Ubuntu;
+  font-size: large;
+  text-align: justify;
+  padding-top: 2%;
+  padding-left: 10%;
+  padding-right: 10%;
+  color: floralwhite;
+}
+
+.primary_text a {
+  color: #3ce668;
+}
+.primary_text a:hover{
+  color: #3ce668;
+}
+
+
+
+/* COUNTER SECTION */
+
+.counter{ position: relative; }
+
+.counter .title{ color: #3ce668; text-align: center}
+
+.counter .desc{ color: #3ce668;position: relative; bottom: 4px; text-align: center}
+
+
+
+/* SUBMIT area */
 .mu-register-area {
   display: inline;
   float: left;
-  padding: 150px 0;
+  //padding: 150px 0;
   width: 100%;
 }
 
@@ -39,8 +75,8 @@ body{
   float: left;
   width: 100%;
   text-align: center;
-  padding: 0 200px;
-  margin-top: 50px;
+  //padding: 0 200px;
+  //margin-top: 50px;
 }
 
 .mu-register-form .form-group {
@@ -133,6 +169,7 @@ body{
   -o-transition: all 0.5s;
   transition: all 0.5s;
   width: 50%;
+
 }
 
 .mu-send-msg-btn,
@@ -142,8 +179,8 @@ body{
   -webkit-border-radius: 4px;
   -moz-border-radius: 4px;
   border-radius: 4px;
-  border: 2px solid #ff871c;
-  background-color: #ff871c;
+  border: 2px solid #3ce668;
+  background-color: #3ce668;
 }
 
 .mu-send-msg-btn {
@@ -204,13 +241,8 @@ body{
 
 
 /* Hide Submit form if too small (i.e. on mobile)*/
-@media screen and (max-width: 600px) {
-  .mu-register {
-    visibility: hidden;
-    clear: both;
-    float: left;
-    margin: 10px auto 5px 20px;
-    width: 28%;
+@media screen and (max-width: 800px) {
+  .mu-register-area {
     display: none;
   }
 }
