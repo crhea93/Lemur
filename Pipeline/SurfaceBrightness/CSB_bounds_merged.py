@@ -20,14 +20,8 @@ OUTPUTS:
 import os
 import numpy as np
 from math import ceil
+from Database.Add_new import add_csb
 #------------------INPUTS------------------------------------------------------#
-chandra_dir = '/home/carterrhea/Documents/Data'
-merge_dir = 'Merged/Bin1/Soft/SBCalc'
-output_dir = chandra_dir+'/'+merge_dir
-region1 = '40kpc_soft'
-region2 = '400kpc_soft'
-quantities_to_calc = ['NC','NCR','NPF','NEFB']
-csb_name = 'soft_merged_csb'
 #------------------------------------------------------------------------------#
 
 def isfloat(value):
@@ -42,7 +36,7 @@ def div_with_err(val1,val2):
         return value
     except ZeroDivisionError:
         return 1e2
-def calc_bounds(region1,region2,quantity_to_calc,fout):
+def calc_bounds(mydb,mycursor,cluster_id,region1,region2,cluster_name):
     with open('aprates_'+region1+'.par') as f:
         data = []
         count = 0
@@ -65,88 +59,52 @@ def calc_bounds(region1,region2,quantity_to_calc,fout):
                 else:
                     data2.append(val)
             count += 1
-    if quantity_to_calc == 'NC':
-        val_1 = float(data[0])
-        lower_1 = float(data[1])
-        upper_1 = float(data[2])
-        val_2 = float(data2[0])
-        lower_2 = float(data2[1])
-        upper_2 = float(data2[2])
-        csb_val = div_with_err(val_1,val_2)
-        csb_lower = div_with_err(lower_1,upper_2)
-        csb_upper = div_with_err(upper_1,lower_2)
-        #print("Net Counts Concentration is calculated at %.2E with an lower bound of %.2E and an upper bound of %.2E"%(csb_val,csb_lower,csb_upper))
-        fout.write("Net Counts,%.3f,%.3f,%.3f "%(ceil(csb_val*1000)/1000,ceil(csb_lower*1000)/1000,ceil(csb_upper*1000)/1000))
-        fout.write("\n")
 
-    if quantity_to_calc == 'NCR':
-        val_1 = float(data[7])
-        lower_1 = float(data[8])
-        upper_1 = float(data[9])
-        val_2 = float(data2[7])
-        lower_2 = float(data2[8])
-        upper_2 = float(data2[9])
-        csb_val = div_with_err(val_1,val_2)
-        csb_lower = div_with_err(lower_1,upper_2)
-        csb_upper = div_with_err(upper_1,lower_2)
-        #print("Net Count Rate Concentration is calculated at %.2E with an lower bound of %.2E and an upper bound of %.2E"%(csb_val,csb_lower,csb_upper))
-        fout.write("Net Count Rate,%.3f,%.3f,%.3f "%(ceil(csb_val*1000)/1000,ceil(csb_lower*1000)/1000,ceil(csb_upper*1000)/1000))
-        fout.write('\n')
-
-    if quantity_to_calc == 'NPF':
-        val_1 = float(data[14])
-        lower_1 = float(data[15])
-        upper_1 = float(data[16])
-        val_2 = float(data2[14])
-        lower_2 = float(data2[15])
-        upper_2 = float(data2[16])
-        csb_val = div_with_err(val_1,val_2)
-        csb_lower = div_with_err(lower_1,upper_2)
-        csb_upper = div_with_err(upper_1,lower_2)
-        #print("Net Photon Flux Concentration is calculated at %.2E with an lower bound of %.2E and an upper bound of %.2E"%(csb_val,csb_lower,csb_upper))
-        fout.write("Net Photon Flux,%.3f,%.3f,%.3f "%(ceil(csb_val*1000)/1000,ceil(csb_lower*1000)/1000,ceil(csb_upper*1000)/1000))
-        fout.write('\n')
-
-    if quantity_to_calc == 'NEFA':
-        val_1 = float(data[21])
-        lower_1 = float(data[22])
-        upper_1 = float(data[23])
-        val_2 = float(data2[21])
-        lower_2 = float(data2[22])
-        upper_2 = float(data2[23])
-        csb_val = div_with_err(val_1,val_2)
-        csb_lower = div_with_err(lower_1,upper_2)
-        csb_upper = div_with_err(upper_1,lower_2)
-        #print("Net Energy Flux Concentration is calculated at %.2E with an lower bound of %.2E and an upper bound of %.2E"%(csb_val,csb_lower,csb_upper))
-        fout.write("Net Energy Flux,%.3f,%.3f,%.3f "%(ceil(csb_val*1000)/1000,ceil(csb_lower*1000)/1000,ceil(csb_upper*1000)/1000))
-        fout.write('\n')
-
-    if  quantity_to_calc == 'NEFB':
-        val_1 = float(data[28])
-        src_val_1 = float(data[7])
-        src_rates_lower_1 = float(data[8])
-        src_rates_upper_1 = float(data[9])
-        lower_1 = val_1*(src_rates_lower_1/src_val_1)
-        upper_1 = val_1*(src_rates_upper_1/src_val_1)
-        val_2 = float(data2[28])
-        src_val_2 = float(data2[7])
-        src_rates_lower_2 = float(data2[8])
-        src_rates_upper_2 = float(data2[9])
-        lower_2 = val_2*(src_rates_lower_2/src_val_2)
-        upper_2 = val_2*(src_rates_upper_2/src_val_2)
-        csb_val = div_with_err(val_1,val_2)
-        csb_lower = div_with_err(lower_1,upper_2)
-        csb_upper = div_with_err(upper_1,lower_2)
-        #print("Net Energy Flux Concentration is calculated at %.2E with an lower bound of %.2E and an upper bound of %.2E"%(csb_val,csb_lower,csb_upper))
-        fout.write("Net Energy Flux,%.3f,%.3f,%.3f "%(ceil(csb_val*1000)/1000,ceil(csb_lower*1000)/1000,ceil(csb_upper*1000)/1000))
-        fout.write('\n')
-
-
+    #Calculate count rate
+    val_1 = float(data[7])
+    lower_1 = float(data[8])
+    upper_1 = float(data[9])
+    val_2 = float(data2[7])
+    lower_2 = float(data2[8])
+    upper_2 = float(data2[9])
+    csb_val = div_with_err(val_1,val_2)
+    csb_lower = div_with_err(lower_1,upper_2)
+    csb_upper = div_with_err(upper_1,lower_2)
+    csb_ct = ceil(csb_val*1000)/1000
+    csb_ct_l = ceil(csb_lower*1000)/1000
+    csb_ct_u = ceil(csb_upper*1000)/1000
+    #Calculate net photon rate
+    val_1 = float(data[14])
+    lower_1 = float(data[15])
+    upper_1 = float(data[16])
+    val_2 = float(data2[14])
+    lower_2 = float(data2[15])
+    upper_2 = float(data2[16])
+    csb_val = div_with_err(val_1,val_2)
+    csb_lower = div_with_err(lower_1,upper_2)
+    csb_upper = div_with_err(upper_1,lower_2)
+    csb_pho = ceil(csb_val*1000)/1000
+    csb_pho_l = ceil(csb_lower*1000)/1000
+    csb_pho_u = ceil(csb_upper*1000)/1000
+    #Calculate net energy rate
+    val_1 = float(data[21])
+    lower_1 = float(data[22])
+    upper_1 = float(data[23])
+    val_2 = float(data2[21])
+    lower_2 = float(data2[22])
+    upper_2 = float(data2[23])
+    csb_val = div_with_err(val_1,val_2)
+    csb_lower = div_with_err(lower_1,upper_2)
+    csb_upper = div_with_err(upper_1,lower_2)
+    csb_flux = ceil(csb_val*1000)/1000
+    csb_flux_l = ceil(csb_lower*1000)/1000
+    csb_flux_u = ceil(csb_upper*1000)/1000
+    print(csb_ct,csb_pho,csb_flux)
+    add_csb(mydb,mycursor,cluster_id,cluster_name,csb_ct,csb_ct_l,csb_ct_u,csb_pho,csb_pho_l,csb_pho_u,csb_flux,csb_flux_l,csb_flux_u)
     return None
 
-os.chdir(chandra_dir+'/'+merge_dir)
-fout = open(output_dir+'/'+csb_name+'.csv','w+')
-fout.write('Brightness,Value,lowerbound,upperbound \n')
-for quantity_to_calc in quantities_to_calc:
-    calc_bounds(region1,region2,quantity_to_calc,fout)
-fout.close()
+def calculate_bounds(mydb,mycursor,cluster_id,directory,cluster_name):
+    os.chdir(directory)
+    calc_bounds(mydb,mycursor,cluster_id,'40kpc','400kpc',cluster_name)
+    return None
+#calculate_bounds('/home/carterrhea/Documents/Test/Abell133/Abell133/SurfaceBrightness')

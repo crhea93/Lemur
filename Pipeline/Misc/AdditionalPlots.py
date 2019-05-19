@@ -7,10 +7,11 @@ import os
 import numpy as np
 from astropy.io import fits
 from astropy.table import Table
-from astropy.convolution import Gaussian2DKernel, convolve
 import matplotlib.pyplot as plt
+from ciao_contrib.runtool import *
+from astropy.convolution import Gaussian2DKernel, convolve
 #------------------------------------------------------------#
-def bkg_image(directory,image,bkg_reg):
+def bkg_image(directory,image,bkg_reg,filenames):
     '''
     Create an image of the chosen background region
     param: directory - main directory to save image
@@ -39,3 +40,4 @@ def bkg_image(directory,image,bkg_reg):
     ax.set_ylim(bkg_cntr[1]-scale*bkg_rad,bkg_cntr[1]+scale*bkg_rad)
     ax.set_axis_off()
     plt.savefig(directory+'/bkg_region.png',bbox_inches='tight')
+    filenames['bkg_cel'] = 'bkg_cel.reg'
