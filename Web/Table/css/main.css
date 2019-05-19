@@ -9,6 +9,51 @@
   src: url('../fonts/OpenSans/OpenSans-Regular.ttf'); 
 }
 
+/*//////////////////////////////////////////////////////////////////
+[ Scroll bar ]*/
+.js-pscroll {
+  position: relative;
+  overflow: hidden;
+}
+
+
+.table100 .ps__rail-x {
+  z-index: 1010;
+  height: 6px;
+  background-color: transparent;
+  opacity: 1 !important;
+  bottom: 10px;
+}
+
+.table100 .ps__rail-x::before {
+  content: "";
+  display: block;
+  position: absolute;
+  background-color: #e6e6e6;
+  height: 100%;
+  width: calc(100% - 30px);
+  left: 15px;
+  top: 0px;
+}
+
+.table100 .ps__rail-x .ps__thumb-x {
+  height: 100%;
+  bottom: 0;
+  background-color: transparent;
+  opacity: 1 !important;
+}
+
+.table100 .ps__rail-x .ps__thumb-x::before {
+  content: "";
+  display: block;
+  position: absolute;
+  background-color: #b3b3b3;
+  height: 100%;
+  width: calc(100% - 30px);
+  top: 0;
+  left: 15px;
+}
+
 
 
 /*//////////////////////////////////////////////////////////////////
@@ -26,6 +71,7 @@ body, html {
 
 /* ------------------------------------ */
 a {
+    color: blue;
 	margin: 0px;
 	transition: all 0.4s;
 	-webkit-transition: all 0.4s;
@@ -87,10 +133,13 @@ iframe {
 
 
 /*//////////////////////////////////////////////////////////////////
-[ Utiliti ]*/
+[ Navigator ]*/
 
-
-
+#nav input[type=text] {
+  float: right;
+  margin-right: 16px;
+  font-size: 14px;
+}
 
 
 
@@ -123,7 +172,7 @@ iframe {
 }
 
 .wrap-table100 {
-  width: 1170px;
+  width: 100%;
 }
 
 table {
@@ -147,7 +196,7 @@ table thead tr {
   background: #36304a;
 }
 table tbody tr {
-  height: 50px;
+  //height: 50px;
 }
 table tbody tr:last-child {
   border: 0;
@@ -163,6 +212,26 @@ table td.c, table th.c {
 }
 table td.r, table th.r {
   text-align: center;
+}
+
+th, td {
+  font-weight: unset;
+  padding-right: 10px;
+}
+
+
+
+
+
+.column2 {
+  width: 225px;
+  height: 50px;
+}
+.column2 a{
+  font-weight: bold;
+  color:#02B875;
+  width: 225px;
+  height: 50px;
 }
 
 
@@ -192,106 +261,87 @@ tbody tr:hover {
   cursor: pointer;
 }
 
-.column1 {
-  width: 260px;
-  padding-left: 40px;
+
+
+
+
+
+/*==================================================================
+[ Fix col ]*/
+.table100 {
+  width: 100%;
+  position: relative;
+  border-radius: 10px;
 }
 
-.column2 {
-  width: 160px;
+.table100-firstcol {
+  background-color: #fff;
+  position: absolute;
+  z-index: 1000;
+  width: 310px;
+  //top: 0;
+  //left: 0;
+  border-radius: 10px;
 }
 
-.column3 {
-  width: 245px;
+.table100-firstcol table {
+  background-color: #fff;
 }
 
-.column4 {
-  width: 110px;
-  text-align: right;
+.wrap-table100-nextcols {
+  width: 100%;
+  overflow: auto;
+  padding-left: 310px;
+  padding-bottom: 28px;
 }
 
-.column5 {
-  width: 170px;
-  text-align: right;
+.table100-nextcols table{
+  table-layout: fixed;
 }
 
-.column6 {
-  width: 222px;
-  text-align: right;
-  padding-right: 62px;
+.shadow-table100-firstcol {
+  box-shadow: 8px 0px 10px 0px rgba(0, 0, 0, 0.05);
+  -moz-box-shadow: 8px 0px 10px 0px rgba(0, 0, 0, 0.05);
+  -webkit-box-shadow: 8px 0px 10px 0px rgba(0, 0, 0, 0.05);
+  -o-box-shadow: 8px 0px 10px 0px rgba(0, 0, 0, 0.05);
+  -ms-box-shadow: 8px 0px 10px 0px rgba(0, 0, 0, 0.05);
+}
+
+.table100-firstcol table {
+  background-color: transparent;
+}
+
+/*==================================================================
+[ Ver1 ]*/
+
+.table100.ver1 th {
+  font-family: Ubuntu;
+  font-size: 14px;
+  color: white;
+  line-height: 1.4;
+  text-transform: uppercase;
+
+}
+
+.table100.ver1 td {
+  font-family: Ubuntu;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.table100.ver1 .table100-firstcol td {
+  color: #666666;
+}
+
+.table100.ver1 .table100-nextcols td {
+  color: #999999;
 }
 
 
-@media screen and (max-width: 992px) {
-  table {
-    display: block;
-  }
-  table > *, table tr, table td, table th {
-    display: block;
-  }
-  table thead {
-    display: none;
-  }
-  table tbody tr {
-    height: auto;
-    padding: 37px 0;
-  }
-  table tbody tr td {
-    padding-left: 40% !important;
-    margin-bottom: 24px;
-  }
-  table tbody tr td:last-child {
-    margin-bottom: 0;
-  }
-  table tbody tr td:before {
-    font-family: OpenSans-Regular;
-    font-size: 14px;
-    color: #999999;
-    line-height: 1.2;
-    font-weight: unset;
-    position: absolute;
-    width: 40%;
-    left: 30px;
-    top: 0;
-  }
-  table tbody tr td:nth-child(1):before {
-    content: "Date";
-  }
-  table tbody tr td:nth-child(2):before {
-    content: "Order ID";
-  }
-  table tbody tr td:nth-child(3):before {
-    content: "Name";
-  }
-  table tbody tr td:nth-child(4):before {
-    content: "Price";
-  }
-  table tbody tr td:nth-child(5):before {
-    content: "Quantity";
-  }
-  table tbody tr td:nth-child(6):before {
-    content: "Total";
-  }
-
-  .column4,
-  .column5,
-  .column6 {
-    text-align: left;
-  }
-
-  .column4,
-  .column5,
-  .column6,
-  .column1,
-  .column2,
-  .column3 {
-    width: 100%;
-  }
-
-  tbody tr {
-    font-size: 14px;
-  }
+.table100.ver1 tr {
+  border-bottom: 1px solid #f2f2f2;
 }
+
 
 @media (max-width: 576px) {
   .container-table100 {

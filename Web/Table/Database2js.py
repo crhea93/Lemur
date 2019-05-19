@@ -12,11 +12,11 @@ clusters = {}
 cluster_obsid = {}
 try: #Get data from database
     mySQLconnection = mysql.connector.connect(host='localhost',
-                                              database='carterrhea',
+                                              database='Lemur_DB',
                                               user='carterrhea',
                                               password='ILoveLuci3!')
     #cluster info
-    sql_select_Query = "select * from Clusters"
+    sql_select_Query = "select * from Clusters ORDER BY Name"
     cursor = mySQLconnection .cursor()
     cursor.execute(sql_select_Query)
     num_fields = len(cursor.description)
@@ -49,18 +49,23 @@ finally:
 outfile.write("var full_Table = '")
 
 # begin table
-outfile.write('<table id="Analysis_summary">');outfile.write("'+\n")
+
 
 # column headers
-outfile.write("'<thead>'+\n"+"'")
-outfile.write('<tr class="table100-head">'+"'"+'+\n')
-for field_name in field_names[1:]:
-    outfile.write("'<th>"+field_name+"</th>'+\n")
-outfile.write("'<th>Obsids</th>'+\n")
-outfile.write("'</tr>'"+'+\n')
-outfile.write("'</thead>'+\n")
-# column data
+fields_mapping = {'Name':'Cluster Name', 'redshift':'Redshift', 'RightAsc': 'Right Ascension', 'Declination':'Declination', 'R_cool_3':'Cooling Radius at 3 Gyr', 'R_cool_7':'Cooling Radius at 7.7 Gyr', 'csb_ct':'Coefficient (ct/s)', 'csb_pho':'Coefficient (ph/cm^2/s)', 'csb_flux':'Coefficient (ergs/cm^2/s)'}
 
+
+# NORMAL TABLE
+outfile.write('<table id='+'"Analysis_summary"'+">'+\n")
+outfile.write("'<thead>'+\n")
+outfile.write("'<tr class="+'"table100-head">'+"'"+'+\n')
+for field_name in field_names[1:]: #Skip ID -> not necessary here
+    outfile.write("'<th class="+'"column0"'+">"+fields_mapping[field_name]+"</th>'+\n")
+outfile.write("'<th>Obsids</th>'+\n")
+outfile.write("'</tr>'"+'+\n') # outfile.write(''+'+\n')
+outfile.write("'</thead>'+\n")
+outfile.write("'<body>'+\n")
+# column data
 for cluster in clusters:
     cluster_name = str(clusters[cluster][0])
     obsids = ''
@@ -72,100 +77,67 @@ for cluster in clusters:
     outfile.write("'")
     for i in range(len(row)):
         if i==0:
-            outfile.write('<td class="column0"><a href="../ClusterPages/{}.html" target="_blank">%s</a></td>'.format(row[i]) % row[i])
+            outfile.write('<td class="column2"><a href="../ClusterPages/{}.html" target="_blank">%s</a></td>'.format(row[i]) % row[i])
         else:
-            outfile.write('<td class="column0">%s</td>' % row[i])
-
-    outfile.write('<td class="column0">%s</td>' %(obsids[:-1]))
+            outfile.write('<td class="column2">%s</td>' % row[i])
+    outfile.write('<td class="column2">%s</td>' %(obsids[:-1]))
     outfile.write("'+\n")
     outfile.write("'</tr>'+\n")
-
-    #Make individual page
-    images_list = ['bkgsub_exp','bkg_region']
-    photo_plots = ['Single_Beta','Double_Beta']
-    spec_plots = ['Temperature','Density','Entropy','Pressure','T_Cool','Abundance']
-    obsid_images = ['ccds','Lightcurve']
-    print(cluster_name)
-    with open(cluster_pages_path+'/'+cluster_name+'.html','w+') as cluster_page:
-        cluster_page.write('<!DOCTYPE html>\n <html lang="en">\n <head>\n<link rel="stylesheet" type="text/css" href="cluster.css">\n<meta charset="UTF-8">'
-                           '    <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Ubuntu" />\n'
-                           '<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">'
-                           '\n <title>'+cluster_name+'</title>\n </head> \n <body>\n')
-        cluster_page.write('<h1>'+cluster_name+'</h1> \n')
-        cluster_page.write('<div class="w3-center"> \n')
-        cluster_page.write('  <button class="w3-button w3-round-large w3-teal w3-hover-purple"><a href="#images">Images</a></button> &nbsp; \n')
-        cluster_page.write('  <button class="w3-button w3-round-large w3-teal w3-hover-purple"><a href="#spec">Spectroscopic</a></button> &nbsp; \n')
-        cluster_page.write('  <button class="w3-button w3-round-large w3-teal w3-hover-purple"><a href="#photo">Photometric</a></button> \n')
-        cluster_page.write('  <button class="w3-button w3-round-large w3-teal w3-hover-purple"><a href="#obsid_images">Individual Observations</a></button> \n')
-        cluster_page.write('</div> \n ')
-        #Images
-        plt_count = 0
-        cluster_page.write('<h2 style="color:white" id="images">Cluster Images</h2>\n')
-        cluster_page.write('<div align="left">\n')
-        for plot in images_list:
-            if plt_count%2 == 0:
-                cluster_page.write('  <div class="row">\n')
-            cluster_page.write('    <div class="column"> \n')
-            cluster_page.write('      <img src="../Cluster_plots/'+cluster_name+'/'+plot+'.png" alt="'+plot+'Profile" width="100%"> \n')
-            cluster_page.write('    </div> \n')
-            if plt_count%2 == 1:
-                cluster_page.write('  </div> \n')
-            plt_count += 1
-        if plt_count%2 == 1:
-            cluster_page.write('  </div> \n')
-        cluster_page.write('</div>\n')
-        #Photometric Plots
-        plt_count = 0
-        cluster_page.write('<h2 style="color:white" id="photo">Photometric Results</h2>\n')
-        cluster_page.write('<div align="left">\n')
-        for plot in photo_plots:
-            if plt_count%2 == 0:
-                cluster_page.write('  <div class="row">\n')
-            cluster_page.write('    <div class="column"> \n')
-            cluster_page.write('      <img src="../Cluster_plots/'+cluster_name+'/'+plot+'.png" alt="'+plot+'Profile" width="100%"> \n')
-            cluster_page.write('    </div> \n')
-            if plt_count%2 == 1:
-                cluster_page.write('  </div> \n')
-            plt_count += 1
-        if plt_count%2 == 1:
-            cluster_page.write('  </div> \n')
-        cluster_page.write('</div>\n')
-        #Spectroscopic Plots
-        plt_count = 0
-        cluster_page.write('<h2 style="color:white" id="spec">Spectroscopic Results</h2>\n')
-        cluster_page.write('<div align="left" id="spec">\n')
-        for plot in spec_plots:
-            if plt_count%2 == 0:
-                cluster_page.write('  <div class="row">\n')
-            cluster_page.write('    <div class="column"> \n')
-            cluster_page.write('      <img src="../Cluster_plots/'+cluster_name+'/'+plot+'_profile.png" alt="'+plot+'Profile" width="100%"> \n')
-            cluster_page.write('    </div> \n')
-            if plt_count%2 == 1:
-                cluster_page.write('  </div> \n')
-            plt_count += 1
-        if plt_count%2 == 1:
-            cluster_page.write('  </div> \n')
-        cluster_page.write('</div>\n')
-        #OBSID IMAGES
-        plt_count = 0
-        cluster_page.write('<h2 style="color:white" id="obsid">OBSID Images</h2>\n')
-        cluster_page.write('<div align="left">\n')
-        for obsid_ in cluster_obsid[cluster_name]:
-            cluster_page.write('<h3 style="color:white">'+str(obsid_)+'</h3>')
-            for plot in obsid_images:
-                if plt_count%2 == 0:
-                    cluster_page.write('  <div class="row">\n')
-                cluster_page.write('    <div class="column"> \n')
-                cluster_page.write('      <img src="../Cluster_plots/'+cluster_name+'/'+plot+'.png" alt="'+plot+'" width="100%"> \n')
-                cluster_page.write('    </div> \n')
-                if plt_count%2 == 1:
-                    cluster_page.write('  </div> \n')
-                plt_count += 1
-            if plt_count%2 == 1:
-                cluster_page.write('  </div> \n')
-        cluster_page.write('</div>\n')
-# end table
+outfile.write("'</body>'+\n")
 outfile.write("'</table>'\n\n")
+
+
+
+## VERSION 1 WITH SCROLL BAR
+'''outfile.write("<div class="+'"table100-firstcol"'+">'+\n")
+outfile.write("'<table id="+'"Analysis_summary"'+">'+\n")
+outfile.write("'<thead>'"+'+\n')
+outfile.write("'<tr class="+'"row100 head">'+"'+\n")
+outfile.write("'<th class="+'"cell100 column1">'+fields_mapping[field_names[1]]+'</th>'+"'+\n")
+outfile.write("'</tr>'"+"+\n")
+outfile.write("'</thead>'"+"+\n")
+
+outfile.write("'<tbody>'"+"+\n")
+for cluster in clusters:
+    row = clusters[cluster]
+    outfile.write("'<tr class="+'"row100 body">'+"'+\n")
+    outfile.write("'<td class="+'"cell100 column1"'+'><a href='+'"../ClusterPages/%s.html" target="_blank"'%(row[0])+">%s</a></td>'+\n"%(row[0]))
+    outfile.write("'<tr>'+\n")
+outfile.write("'</tbody>'"+"+\n")
+outfile.write("'</table>'"+"+\n")
+outfile.write("'</div>'"+'+\n')
+
+
+outfile.write("'<div class="+'"wrap-table100-nextcols js-pscroll"'+">'+\n")
+outfile.write("'<div class="+'"table100-nextcols"'+">'+\n")
+outfile.write("'<table id="+'"Analysis_summary2"'+">'+\n")
+outfile.write("'<thead>'"+'+\n')
+outfile.write("'<tr class="+'"row100 head">'+"'+\n")
+outfile.write("'<th class"+'"cell100" hidden>'+fields_mapping[field_names[1]]+'</th>'+"'+\n")
+for field_name in field_names[2:]:
+    outfile.write("'<th class="+'"cell100 ">'+fields_mapping[field_name]+'</th>'+"'+\n")
+outfile.write("'<th class="+'"cell100 ">Obsid</th>'+"'+\n")
+outfile.write("'</tr>'+\n")
+outfile.write("'</thead>'"+"+\n")
+outfile.write("'<tbody>'"+'+\n')
+for cluster in clusters:
+    cluster_name = str(clusters[cluster][0])
+    obsids = ''
+    for obsid  in cluster_obsid[cluster_name]:
+        obsids += str(obsid)+','
+    #Add in column data
+    row = clusters[cluster]
+    outfile.write("'<tr class="+'"row100 body">'+"'+\n")
+    outfile.write("'<td class="+'"cell100 column2" hidden>%s</td>'%(row[0])+"'+\n")
+    for i in range(len(row)-1):
+        outfile.write("'<td class="+'"cell100 column2">%s</td>'%(row[i+1])+"'+\n")
+    outfile.write("'<td class="+'"cell100 column2">%s</td>'%(obsids[:-1])+"'+\n")
+    outfile.write("'</tr>'+\n")
+outfile.write("'</tbody>'+\n")
+outfile.write("'</table>'+\n")
+outfile.write("'</div>'+\n")
+outfile.write("'</div>'\n")'''
+
 
 # JS write
 outfile.write("document.write(full_Table);")
