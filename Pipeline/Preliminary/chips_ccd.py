@@ -92,16 +92,16 @@ def display_ccds(ccd_list,obsid,Merge=False):
         image_data = fits.getdata(ccd+'.img')
         kernel = Gaussian2DKernel(x_stddev=3)
         astropy_conv = convolve(image_data, kernel)
-        ax[rw,ccd_moded].imshow(np.arcsinh(astropy_conv)/25, cmap='gist_heat')
+        ax[rw,ccd_moded].imshow(np.arcsinh(astropy_conv)/30, cmap='gist_heat')
         ax[rw,ccd_moded].set_xlim(min_x,max_x)
         ax[rw,ccd_moded].set_ylim(min_y,max_y)
         ax[rw,ccd_moded].text(min_x,min_y,ccd,fontsize=15,color='white')
         ax[rw,ccd_moded].set_axis_off()
         ccd_count += 1
     f.subplots_adjust(hspace=0)
-    outfile_name = "ccds.png"
+    outfile_name = str(obsid)+"_ccds.png"
     plt.savefig(outfile_name); plt.close()
-    plt.imshow(mpimg.imread('ccds.png')); plt.ion(); plt.show()
+    plt.imshow(mpimg.imread(str(obsid)+"_ccds.png")); plt.ion(); plt.show()
     msg = "Which CCD should be used for Background Flare Extraction?"
     bkg_ccd = gui.buttonbox(msg, choices=full_ccd_list)
     if Merge == False:
@@ -138,7 +138,7 @@ def display_entire(home_dir,OBSID,repro_img):
     gui.ccbox(msg)
     coords = get_pick()
     #Activily choose background region
-    msg = "Please pick the center and edge of background region..."
+    '''msg = "Please pick the center and edge of background region..."
     gui.ccbox(msg)
     bkg_coord = get_pick()
     #add the points to the image
@@ -149,18 +149,44 @@ def display_entire(home_dir,OBSID,repro_img):
     #Save the background region
     bkg_file = open('bkg.reg','w+')
     bkg_file.write("# Region file format: DS9 version 4.1 \n")
-    bkg_file.write("physical \n")
-    bkg_file.write('circle(%s,%s,%f) \n'%(bkg_coord[0][0],bkg_coord[1][0],bkg_radius))
+    bkg_file.write("image \n")
+    bkg_file.write('circle(%s,%s,%.2f) \n'%(bkg_coord[0][0],bkg_coord[1][0],bkg_radius))
     bkg_file.close()
+    #Save the background region ra/dec
+    dmcoords.punlearn()
+    dmcoords.infile = repro_img # OBSID+'_broad_thresh.img'
+    dmcoords.option = 'logical'
+    dmcoords.logicalx = bkg_coord[0][0]
+    dmcoords.logicaly = bkg_coord[1][0]
+    dmcoords()
+    bkg_ra = dmcoords.ra
+    bkg_dec = dmcoords.dec
+    #Calculate the radius in physical units
+    bkg_x = dmcoords.x
+    bkg_y = dmcoords.y
+    dmcoords.punlearn()
+    dmcoords.infile = repro_img # OBSID+'_broad_thresh.img'
+    dmcoords.option = 'logical'
+    dmcoords.logicalx = bkg_edge[0][0]
+    dmcoords.logicaly = bkg_edge[1][0]
+    dmcoords()
+    bkg_edge_x = dmcoords.x
+    bkg_edge_y = dmcoords.y
+    bkg_rad_phys = np.sqrt((float(bkg_x)-float(bkg_edge_x))**2+(float(bkg_y)-float(bkg_edge_y))**2)
+    bkg_file = open('bkg_cel.reg','w+')
+    bkg_file.write("# Region file format: DS9 version 4.1 \n")
+    bkg_file.write("physical \n")
+    bkg_file.write('circle(%s,%s,%.2f) \n'%(bkg_ra,bkg_dec,bkg_rad_phys))
+    bkg_file.close()'''
     #find any point sources contaminating the diffuse emission
     ptsrc_file = open('pt_srcs.reg','w+')
     ptsrc_file.write("# Region file format: DS9 version 4.1 \n")
-    ptsrc_file.write("physical \n")
+    ptsrc_file.write("image \n")
     #Also see if it is the central AGN
     agn_ = AGN(False)
     agn_file = open('AGN.reg','w+')
     agn_file.write("# Region file format: DS9 version 4.1 \n")
-    agn_file.write("physical \n")
+    agn_file.write("image \n")
     while point_srcs == True:
         msg = "Are there any point sources in the src CCD?"
         point_srcs = gui.ynbox(msg)
@@ -172,17 +198,18 @@ def display_entire(home_dir,OBSID,repro_img):
             pt_src_edge = get_pick()
             add_point(pt_src_edge[0], pt_src_edge[1], ["style", "cross", "color", "green"])
             radius = np.sqrt((float(pt_src_coord[0])-float(pt_src_edge[0]))**2+(float(pt_src_coord[1])-float(pt_src_edge[1]))**2)
-            ptsrc_file.write('circle(%s,%s,%f) \n'%(pt_src_coord[0][0],pt_src_coord[1][0],radius))
+            ptsrc_file.write('circle(%s,%s,%.2f) \n'%(pt_src_coord[0][0],pt_src_coord[1][0],radius))
             msg = "Is the point src the central AGN?"
             AGN_msg = gui.ynbox(msg)
             if AGN_msg == True:
-                agn_file.write('circle(%s,%s,%f) \n'%(pt_src_coord[0][0],pt_src_coord[1][0],radius))
+                agn_file.write('circle(%s,%s,%.2f) \n'%(pt_src_coord[0][0],pt_src_coord[1][0],radius))
                 agn_.set_AGN(pt_src_coord[0][0],pt_src_coord[1][0],radius)
     agn_file.close()
     ptsrc_file.close()
     #move to background directory for later
     copyfile('pt_srcs.reg',home_dir+'/'+OBSID+'/Background/pt_srcs.reg')
-    print_window(home_dir+'/'+OBSID+'/bkg.png', ['clobber', 'yes'])
+    set_plot_title("")
+    #print_window(home_dir+'/'+OBSID+'/bkg.png', ['clobber', 'yes'])
     clear()
     return coords[0][0],coords[1][0],agn_
 
@@ -212,7 +239,7 @@ def display_merge(merged_dir,merged_img):
     set_piximgvals(cr, gsmooth(img, 3)) #smooth
     pvalues = get_piximgvals(cr)
     add_image(np.arcsinh(pvalues)) #scale
-    set_image(["threshold", [0, np.arcsinh(np.max(pvalues))]])
+    set_image(["threshold", [0, np.arcsinh(np.max(pvalues))/5]])
     set_image(["colormap", "heat"])
     #Actively choose diffuse emission
     msg = "Please pick the extent of the diffuse emission..."
@@ -221,7 +248,7 @@ def display_merge(merged_dir,merged_img):
     #add source region to image
     add_point(coords[0], coords[1], ["style", "cross", "color", "red"])
     #Actively choose background region
-    msg = "Please pick the center and edge of background region..."
+    '''msg = "Please pick the center and edge of background region..."
     gui.ccbox(msg)
     bkg_coord = get_pick()
     #add bkg to image
@@ -233,18 +260,32 @@ def display_merge(merged_dir,merged_img):
     #Write background region file
     bkg_file = open('bkg.reg', 'w+')
     bkg_file.write("# Region file format: DS9 version 4.1 \n")
-    bkg_file.write("physical \n")
+    bkg_file.write("image \n")
     bkg_file.write('circle(%s,%s,%f) \n' % (bkg_coord[0][0], bkg_coord[1][0], bkg_radius))
     bkg_file.close()
+    #Save the background region ra/dec
+    dmcoords.punlearn()
+    dmcoords.infile = merged_img # OBSID+'_broad_thresh.img'
+    dmcoords.option = 'logical'
+    dmcoords.logicalx = bkg_coord[0][0]
+    dmcoords.logicaly = bkg_coord[1][0]
+    dmcoords()
+    bkg_ra = dmcoords.ra
+    bkg_dec = dmcoords.dec
+    bkg_file = open('bkg_cel.reg','w+')
+    bkg_file.write("# Region file format: DS9 version 4.1 \n")
+    bkg_file.write("physical \n")
+    bkg_file.write('circle(%s,%s,%.2f) \n'%(bkg_ra,bkg_dec,bkg_radius))
+    bkg_file.close()'''
     #check for contaminating pt srcs in diffuse emission and log them
     ptsrc_file = open('pt_srcs.reg','w+')
     ptsrc_file.write("# Region file format: DS9 version 4.1 \n")
-    ptsrc_file.write("physical \n")
+    ptsrc_file.write("image \n")
     #Also see if it is the central AGN
     agn_ = AGN(False)
     agn_file = open('AGN.reg','w+')
     agn_file.write("# Region file format: DS9 version 4.1 \n")
-    agn_file.write("physical \n")
+    agn_file.write("image \n")
     while point_srcs == True:
         msg = "Are there any point sources contaminating the diffuse emission?"
         point_srcs = gui.ynbox(msg)
