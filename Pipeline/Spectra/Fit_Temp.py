@@ -35,7 +35,8 @@ from pychips.all import *
 from sherpa.fit import *
 from sherpa.all import *
 from Misc.Classes import annulus
-from Database.Add_new import add_fit_db
+from Misc.ASCalc import angle_calc
+from Database.Add_new import add_fit_db,add_fit_additional_db
 #TURN OFF ON-SCREEN OUTPUT FROM SHERPA
 import logging
 logger = logging.getLogger("sherpa")
@@ -206,7 +207,10 @@ def FitXSPEC(mydb,mycursor,spectrum_files,background_files,Ann_cur, redshift,n_H
         notice_id(ob_num+1, energy_min, energy_max)
     fit()#outfile=os.getcwd()+'/Fits/%s.out'%spec_count,clobber=True)
     f = get_fit_results()
-    with open(os.getcwd() + '/Fits/Params/%s.out'%spec_count, 'w+') as res_out:
+    agn_ct = 'no'
+    if agn == True:
+        agn_ct = 'yes'
+    with open(os.getcwd() + '/Fits/Params/%s_agn_%s.out'%(spec_count,agn_ct), 'w+') as res_out:
         res_out.write(str(f))
     set_log_sherpa()
     if not os.path.exists(os.getcwd() + "/Fits/Spectra/Annulus_%s" % spec_count):
@@ -216,10 +220,10 @@ def FitXSPEC(mydb,mycursor,spectrum_files,background_files,Ann_cur, redshift,n_H
     for id_ in src_ids:
         plot("fit",id_,"resid",id_)
         obsid_val = str(spectrum_files[id_-1].split('/')[-4])
-        print_window(os.getcwd() + "/Fits/Spectra/Annulus_%s/%s.png" % (spec_count,obsid_val), ['clobber', 'yes'])
+        print_window(os.getcwd() + "/Fits/Spectra/Annulus_%s/%s_agn_%s.png" % (spec_count,obsid_val,agn_ct), ['clobber', 'yes'])
     set_covar_opt("sigma",sigma_covar)
     covar(get_model_component('apec1').kT,get_model_component('apec1').Abundanc)
-    with open(os.getcwd()+'/Fits/Params/%s_err.out'%spec_count,'w+') as res_out:
+    with open(os.getcwd()+'/Fits/Params/%s_err_agn_%s.out'%(spec_count,agn_ct),'w+') as res_out:
         res_out.write(str(get_covar_results()))
     #----------Calculate min/max values---------#
     mins = list(get_covar_results().parmins)
@@ -233,11 +237,11 @@ def FitXSPEC(mydb,mycursor,spectrum_files,background_files,Ann_cur, redshift,n_H
             pass
     #Get important values
     Temperature = apec1.kT.val;
-    Temp_min = mins[0];
-    Temp_max = maxes[0]
+    Temp_min = Temperature+mins[0];
+    Temp_max = Temperature+maxes[0]
     Abundance = apec1.Abundanc.val;
-    Ab_min = mins[1];
-    Ab_max = maxes[1]
+    Ab_min = Abundance+mins[1];
+    Ab_max = Abundance+maxes[1]
     #Calculate norm as average value
     Norm = 0; Norm_min = 0; Norm_max = 0
     for id_ in src_ids:
@@ -256,8 +260,8 @@ def FitXSPEC(mydb,mycursor,spectrum_files,background_files,Ann_cur, redshift,n_H
         Norm_min += mins[0]
         Norm_max += maxes[0]
     Norm = Norm/len(src_ids)
-    Norm_min = Norm_min/len(src_ids)
-    Norm_max = Norm_max/len(src_ids)
+    Norm_min = Norm+Norm_min/len(src_ids)
+    Norm_max = Norm+Norm_max/len(src_ids)
     #---------Set up Flux Calculation----------#
     freeze(get_model_component('apec1').kT);freeze(get_model_component('apec1').Abundanc);
     obs_count = 1
@@ -273,7 +277,7 @@ def FitXSPEC(mydb,mycursor,spectrum_files,background_files,Ann_cur, redshift,n_H
     for id_ in src_ids:
         plot("fit",id_,"resid",id_)
         obsid_val = str(spectrum_files[id_-1].split('/')[-4])
-        print_window(os.getcwd() + "/Fits/Spectra/Annulus_%s/%s_flux.png" % (spec_count,obsid_val), ['clobber', 'yes'])
+        print_window(os.getcwd() + "/Fits/Spectra/Annulus_%s/%s_flux_agn_%s.png" % (spec_count,obsid_val,agn), ['clobber', 'yes'])
     Flux = cflux.lg10Flux.val
     f = get_fit_results()
     with open(os.getcwd()+'/Fits/Params/%s_flux.out'%spec_count,'w+') as res_out:
@@ -283,10 +287,11 @@ def FitXSPEC(mydb,mycursor,spectrum_files,background_files,Ann_cur, redshift,n_H
     reset(get_source());
     delete_data()'''
     clean()
-    Ann_cur.add_fit_data(Temperature,Temp_min,Temp_max,Abundance,Ab_min,Ab_max,Norm,Norm_min,Norm_max,Flux,reduced_chi_sq,agn)
+    Ann_cur.add_fit_data(Temperature,Temp_min,Temp_max,Abundance,Ab_min,Ab_max,Norm,Norm_min,Norm_max,Flux,reduced_chi_sq,agn,redshift)
     #Add to database
-    volum = (4/3)*np.pi*(Ann_cur.r_in**3-Ann_cur.r_out**3)
-    add_fit_db(mydb,mycursor,cluster_name,str(spec_count),volum,str(Temperature),str(Temp_min),str(Temp_max),str(Abundance),str(Ab_min),str(Ab_max),str(Norm),str(Norm_min),str(Norm_max),str(Flux),str(reduced_chi_sq),agn)
+
+    add_fit_db(mydb,mycursor,cluster_name,str(spec_count),str(Ann_cur.r_in),str(Ann_cur.r_out),str(Ann_cur.vol),str(Temperature),str(Temp_min),str(Temp_max),str(Abundance),str(Ab_min),str(Ab_max),str(Norm),str(Norm_min),str(Norm_max),str(Flux),str(reduced_chi_sq),agn)
+    add_fit_additional_db(mydb,mycursor,cluster_name,str(spec_count),str(Ann_cur.lum),str(Ann_cur.dens[1]),str(Ann_cur.dens[0]),str(Ann_cur.dens[2]),str(Ann_cur.press[1]),str(Ann_cur.press[0]),str(Ann_cur.press[2]),str(Ann_cur.entropy[1]),str(Ann_cur.entropy[0]),str(Ann_cur.entropy[2]),str(Ann_cur.t_cool[1]),str(Ann_cur.t_cool[0]),str(Ann_cur.t_cool[2]))
     return None
 
 
@@ -326,6 +331,7 @@ def PrimeFitting(mydb,mycursor,home_dir,merge_dir,dir,file_name,output_file,annu
     #Create main output
     Annuli_ = []
     #Fit spectra to each annulus
+    ct_tot = 0
     for i in range(num_files):
         print("      Fitting model to spectrum number "+str(i+1))
         spectrum_files = []
@@ -339,19 +345,21 @@ def PrimeFitting(mydb,mycursor,home_dir,merge_dir,dir,file_name,output_file,annu
         for directory in dir:
             spectrum_files.append(home_dir+'/'+directory+'/'+file_name+"_"+str(i+1)+".pi")
             background_files.append(home_dir+'/'+directory+'/'+file_name+"_"+str(i+1)+"_bkg.pi")
-        #check if AGN is active and if it is in the current region
-        if agn_.active == True and 5*agn_.radius > float(region_.split('-')[0]):
-            #now we need to do two fits: one with and one without the AGN
-            for i in range(2):
-                Ann_cur = annulus(float(region_.split('-')[0]),float(region_.split('-')[1]))
-                if i == 0: #include AGN
-                    FitXSPEC(mydb,mycursor,spectrum_files,background_files,Ann_cur,redshift,n_H,Temp_guess,i+1,sigma_covar,True,cluster_name)
+        r_in = angle_calc(redshift,float(region_.split('-')[0]))
+        r_out = angle_calc(redshift,float(region_.split('-')[1]))
+        if r_in < angle_calc(redshift,50):#if within first 50 kpc
+            for k in range(2):
+                Ann_cur = annulus(r_in,r_out)
+                if k == 0: #include AGN
+                    FitXSPEC(mydb,mycursor,spectrum_files,background_files,Ann_cur,redshift,n_H,Temp_guess,ct_tot,sigma_covar,True,cluster_name)
                     Annuli_.append(Ann_cur)
-                if i == 1: #dont include AGN
-                    FitXSPEC(mydb,mycursor,spectrum_files,background_files,Ann_cur,redshift,n_H,Temp_guess,i+1,sigma_covar,False,cluster_name)
+                if k == 1: #dont include AGN
+                    FitXSPEC(mydb,mycursor,spectrum_files,background_files,Ann_cur,redshift,n_H,Temp_guess,ct_tot,sigma_covar,False,cluster_name)
                     Annuli_.append(Ann_cur)
+                ct_tot += 1
         else:
-            Ann_cur = annulus(float(region_.split('-')[0]),float(region_.split('-')[1]))
-            FitXSPEC(mydb,mycursor,spectrum_files,background_files,Ann_cur,redshift,n_H,Temp_guess,i+1,sigma_covar,False,cluster_name)
+            Ann_cur = annulus(r_in,r_out)
+            FitXSPEC(mydb,mycursor,spectrum_files,background_files,Ann_cur,redshift,n_H,Temp_guess,ct_tot,sigma_covar,False,cluster_name)
             Annuli_.append(Ann_cur)
+            ct_tot += 1
     return Annuli_

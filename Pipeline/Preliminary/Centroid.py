@@ -41,9 +41,10 @@ def source_region_pick(ccd):
     max_cts = max_counts(ccd+'.img')
     cr = read_file(ccd+".img")
     img = copy_piximgvals(cr)
-    set_piximgvals(cr, gsmooth(img, 3))
-    add_image(cr, ["depth", 50, "wcs", "logical"])
-    set_image(["threshold", [0,max_cts]])
+    set_piximgvals(cr, gsmooth(img, 3)) #smooth
+    pvalues = get_piximgvals(cr)
+    add_image(np.arcsinh(pvalues)) #scale
+    set_image(["threshold", [0,np.max(np.arcsinh(pvalues))]])
     set_image(["colormap", "heat"])
     x_min = min_coord(ccd+".fits",'x'); x_max = max_coord(ccd+".fits",'x')
     y_min = min_coord(ccd+".fits",'y'); y_max = max_coord(ccd+".fits",'y')
@@ -88,13 +89,18 @@ def merge_region_pick(merged_evt):
     msg = "Please choose the visual centroid and a small region about the centroid not containing any additional point sources..."
     gui.ccbox(msg)
     central_coord = get_pick()
-    add_point(central_coord[0], central_coord[1], ["style", "cross", "color", "green"])
     central_edge = get_pick()
-    add_point(central_edge[0], central_edge[1], ["style", "cross", "color", "green"])
     hide_axis()
     outfile_name = "central.png"
     print_window(outfile_name,['clobber','yes'])
     radius = np.sqrt((float(central_coord[0]) - float(central_edge[0])) ** 2 + (float(central_coord[1]) - float(central_edge[1])) ** 2)
+    #Plotting and saving data
+    add_region(50,float(central_coord[0]),float(central_coord[1]),radius)
+    attrs = {'coordsys': PLOT_NORM}
+    attrs['opacity'] = 0.0
+    attrs['edge.color'] = 'green'
+    outfile_name = "central.png"
+    print_window(outfile_name,['clobber','yes'])
     clear()
     return central_coord,radius
 
