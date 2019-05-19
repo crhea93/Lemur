@@ -8,148 +8,133 @@
 </head>
 
 
-<div class="Page_Header_div">
+<div class="Page_Header_div" id='top_page'>
     <a id="Title">{{ cluster_name }}</a>
 
     <hr>
     <div class="w3-center">
         <button class="w3-button w3-round-large w3-indigo w3-hover-purple"><a href="#images">Images</a></button> &nbsp;
         <button class="w3-button w3-round-large w3-indigo w3-hover-purple"><a href="#spec">Spectroscopic</a></button> &nbsp;
-        <button class="w3-button w3-round-large w3-indigo w3-hover-purple"><a href="#photo">Photometric</a></button>
+        <button class="w3-button w3-round-large w3-indigo w3-hover-purple"><a href="#photo">Photometric</a></button> &nbsp;
         <button class="w3-button w3-round-large w3-indigo w3-hover-purple"><a href="#obsid_images">Individual Observations</a></button>
     </div>
 </div>
 
 
-
-<h2 style="color:white" id="images" class="FigureHeaders">Cluster Images</h2>
-<div class="wrap-table100">
-    <div class="table100">
-        <table>
-            <thead>
-            <tr class="table100-head">
-                <th>Exposure Corrected Image</th>
-                <th>Background Corrected Image</th>
-            </tr>
-            </thead>
-            <tr>
-                <td>
-                    <img src={{ Exp_Cor_Img_path}} alt="bkgsub_expProfile" width="100%">
-                </td>
-                <td>
-                    <img src={{ Back_Cor_Img_path}} alt="bkg_regionProfile" width="100%">
-                </td>
-            </tr>
-        </table>
+<body>
+  <h2 style="color:white" id="images" class="FigureHeaders">Cluster Images</h2>
+  <div class="images">
+    <div class="wrap-table100">
+        <div class="table100">
+            <table>
+                <thead>
+                <tr class="table100-head">
+                    <th>Exposure Corrected Image</th>
+                </tr>
+                </thead>
+                <tr>
+                    <td>
+                        <img src={{ Exp_Cor_Img_path}} alt="bkgsub_expProfile" width="30%">
+                    </td>
+                </tr>
+            </table>
+        </div>
     </div>
-</div>
+  </div>
+  <hr>
 
-<hr>
+  <h2 style="color:white" id="photo" class="FigureHeaders">Photometric Results</h2>
+  <div class="wrap-table100">
+      <div class="table100">
+          <table>
+              <thead>
+              <tr class="table100-head">
+                  <th>Single King Beta Surface Brightness Profile</th>
+                  <th>Double King Beta Surface Brightness Profile</th>
+              </tr>
+              </thead>
+              <tr>
+                  <td>
+                      <img src={{ Sing_King_Beto_Surg_path}} alt="Single_BetaProfile" width="100%">
+                  </td>
+                  <td>
+                      <img src={{ Doub_King_Beto_Surg_path}} alt="Double_BetaProfile" width="100%">
+                  </td>
+              </tr>
+          </table>
+      </div>
+  </div>
 
-<h2 style="color:white" id="photo" class="FigureHeaders">Photometric Results</h2>
-<div class="wrap-table100">
-    <div class="table100">
-        <table>
-            <thead>
-            <tr class="table100-head">
-                <th>Single King Beta Surface Brightness Profile</th>
-                <th>Double King Beta Surface Brightness Profile</th>
-            </tr>
-            </thead>
-            <tr>
-                <td>
-                    <img src={{ Sing_King_Beto_Surg_path}} alt="Single_BetaProfile" width="100%">
-                </td>
-                <td>
-                    <img src={{ Doub_King_Beto_Surg_path}} alt="Double_BetaProfile" width="100%">
-                </td>
-            </tr>
-        </table>
-    </div>
-</div>
+  <hr>
 
-<hr>
+  <h2 style="color:white" id="spec" class="FigureHeaders">Spectroscopic Results</h2>
+  <div class="wrap-table100">
+      <div class="table100">
+          <table>
 
-<h2 style="color:white" id="spec" class="FigureHeaders">Spectroscopic Results</h2>
-<div class="wrap-table100">
-    <div class="table100">
-        <table>
+              <thead>
+              <tr class="table100-head">
+                  <th>Temperature Profile</th>
+                  <th>Density Profile</th>
+              </tr>
+              </thead>
 
-            <thead>
-            <tr class="table100-head">
-                <th>Temperature Profile</th>
-                <th>Density Profile</th>
-            </tr>
-            </thead>
+              <tr>
+                  <td>
+                      <img src={{ Temp_Prof_path}} alt="TemperatureProfile" width="100%">
+                  </td>
+                  <td>
+                      <img src={{ Dens_Prof_path}} alt="DensityProfile" width="100%">
+                  </td>
+              </tr>
 
-            <tr>
-                <td>
-                    <img src={{ Temp_Prof_path}} alt="TemperatureProfile" width="100%">
-                </td>
-                <td>
-                    <img src={{ Dens_Prof_path}} alt="DensityProfile" width="100%">
-                </td>
-            </tr>
-
-            <thead>
-            <tr class="table100-head">
-                <th>Entropy Profile</th>
-                <th>Pressure Profile</th>
-            </tr>
-            </thead>
-
-
-            <tr>
-                <td>
-                    <img src={{ Entro_Prof_path}} alt="EntropyProfile" width="100%">
-                </td>
-                <td>
-                    <img src={{ Press_Prof_path }} alt="PressureProfile" width="100%">
-                </td>
-            </tr>
+              <thead>
+              <tr class="table100-head">
+                  <th>Entropy Profile</th>
+                  <th>Pressure Profile</th>
+              </tr>
+              </thead>
 
 
-            <thead>
-            <tr class="table100-head">
-                <th>Cooling Temperature Profile</th>
-                <th>Abundance Profile</th>
-            </tr>
-            </thead>
+              <tr>
+                  <td>
+                      <img src={{ Entro_Prof_path}} alt="EntropyProfile" width="100%">
+                  </td>
+                  <td>
+                      <img src={{ Press_Prof_path }} alt="PressureProfile" width="100%">
+                  </td>
+              </tr>
 
 
-            <tr>
-                <td>
-                    <img src={{ Cool_Temp_Prof_path}} alt="T_CoolProfile" width="100%">
-                </td>
-                <td>
-                    <img src={{ Abund_Prof_path }} alt="AbundanceProfile" width="100%">
-                </td>
-            </tr>
+              <thead>
+              <tr class="table100-head">
+                  <th>Cooling Temperature Profile</th>
+                  <th>Abundance Profile</th>
+              </tr>
+              </thead>
 
-        </table>
-    </div>
-</div>
 
-<hr>
+              <tr>
+                  <td>
+                      <img src={{ Cool_Temp_Prof_path}} alt="T_CoolProfile" width="100%">
+                  </td>
+                  <td>
+                      <img src={{ Abund_Prof_path }} alt="AbundanceProfile" width="100%">
+                  </td>
+              </tr>
 
-<h2 style="color:white" id="obsid_images" class="FigureHeaders">OBSID Images - 904</h2>
-<div class="wrap-table100">
-    <div class="table100">
-        <table>
-            <thead>
-            <tr class="table100-head">
-                <th>CCD IMAGE</th>
-                <th>Background Flare</th>
-            </tr>
-            </thead>
-            <tr>
-                <td>
-                    <img src={{ CCD_Img_path }} alt="ccds" width="100%">
-                </td>
-                <td>
-                    <img src={{ Backg_Flare_path }} alt="Lightcurve" width="100%">
-                </td>
-            </tr>
-        </table>
-    </div>
+          </table>
+      </div>
+  </div>
 
+  <hr>
+
+
+  <div id="obsid_images">
+  <script src={{ cluster_name_obsid_js }}></script>
+  </div>
+  <div align="right">
+    <button class="w3-button w3-round-large w3-indigo w3-hover-purple"><a href="#top_page">Top</a></button>
+  </div>
+</body>
+</html>
