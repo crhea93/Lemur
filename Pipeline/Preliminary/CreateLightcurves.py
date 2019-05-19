@@ -27,7 +27,7 @@ def bkg_clean_srcs(bkg_ccd):
     return None
 
 
-def bkg_lightcurve(bkg_ccd):
+def bkg_lightcurve(bkg_ccd,obsid):
     '''
     Create and plot background lightcurve. Then create good-time-interval file
     '''
@@ -52,6 +52,6 @@ def bkg_lightcurve(bkg_ccd):
     add_window()
     #Clip image
     lc_sigma_clip(bkg_ccd+'_bkg.lc',bkg_ccd+'_bkg_clean.gti',sigma=3,pattern="none",verbose=0)
-    print_window('LightCurve.png')
+    print_window(obsid+'_Lightcurve.png')
     clear()
     return None
