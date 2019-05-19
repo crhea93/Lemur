@@ -1,10 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="b3463b8d-f532-4b04-8611-ecb47d15e54f" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/Web/AboutUs/About_us.html" beforeDir="false" afterPath="$PROJECT_DIR$/Web/AboutUs/About_us.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/index.html" afterDir="false" />
-    </list>
+    <list default="true" id="b3463b8d-f532-4b04-8611-ecb47d15e54f" name="Default Changelist" comment="" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -50,7 +47,7 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="600">
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Web/AboutUs/About_us.html">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="754">
@@ -62,7 +59,7 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/index.html">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="1073">
@@ -123,6 +120,9 @@
       </list>
     </option>
   </component>
+  <component name="PhpServers">
+    <servers />
+  </component>
   <component name="PhpWorkspaceProjectConfiguration" interpreter_name="PHP-webstorm" />
   <component name="ProjectFrameBounds" extendedState="6">
     <option name="y" value="27" />
@@ -142,17 +142,6 @@
               <item name="Lemur" type="b2602c69:ProjectViewProjectNode" />
               <item name="Lemur" type="462c0819:PsiDirectoryNode" />
             </path>
-            <path>
-              <item name="Lemur" type="b2602c69:ProjectViewProjectNode" />
-              <item name="Lemur" type="462c0819:PsiDirectoryNode" />
-              <item name="Web" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="Lemur" type="b2602c69:ProjectViewProjectNode" />
-              <item name="Lemur" type="462c0819:PsiDirectoryNode" />
-              <item name="Web" type="462c0819:PsiDirectoryNode" />
-              <item name="AboutUs" type="462c0819:PsiDirectoryNode" />
-            </path>
           </expand>
           <select />
         </subPane>
@@ -166,6 +155,9 @@
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="database.console.LAST_STATE" value="true" />
     <property name="list.type.of.created.stylesheet" value="CSS" />
+    <property name="node.js.detected.package.eslint" value="true" />
+    <property name="node.js.path.for.package.eslint" value="project" />
+    <property name="node.js.selected.package.eslint" value="(autodetect)" />
     <property name="nodejs_package_manager_path" value="npm" />
     <property name="settings.editor.selected.configurable" value="reference.webide.settings.project.settings.php" />
   </component>
@@ -194,12 +186,12 @@
       <workItem from="1557611474577" duration="191000" />
       <workItem from="1557611684304" duration="56000" />
       <workItem from="1557611755506" duration="11522000" />
-      <workItem from="1557675535956" duration="1268000" />
+      <workItem from="1557675535956" duration="1885000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="13037000" />
+    <option name="totallyTimeSpent" value="13654000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="0" y="52" width="3200" height="1748" extended-state="6" />
@@ -369,13 +361,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/index.html">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1073">
-          <caret line="91" column="47" lean-forward="true" selection-start-line="91" selection-start-column="47" selection-end-line="91" selection-end-column="47" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/Web/AboutUs/About_us.html">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="754">
@@ -383,6 +368,13 @@
           <folding>
             <element signature="n#style#0;n#span#0;n#p#0;n#div#0;n#div#0;n#div#1;n#body#0;n#html#0;n#!!top" expanded="true" />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/index.html">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1073">
+          <caret line="91" column="47" lean-forward="true" selection-start-line="91" selection-start-column="47" selection-end-line="91" selection-end-column="47" />
         </state>
       </provider>
     </entry>

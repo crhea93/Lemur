@@ -32,15 +32,18 @@
     <a href="#" class="w3-bar-item w3-button w3-hover-teal">Cluster Table</a>
     <a href="../Filter_Table/filter_index.html" class="w3-bar-item w3-button w3-hover-teal">Cluster Plots</a>
     <a href="../AboutUs/About_us.html" class="w3-bar-item w3-button w3-hover-teal">About Us</a>
-
+    <input type="text" id="myInput" class="w3-bar-item w3-border w3-round-xxlarge" onkeyup="myFunction()" placeholder="Search names...">
 </div>
+
+
 <div class="limiter">
     <div class="container-table100">
+
         <div class="wrap-table100">
+          <h1 style="font-family: Ubuntu; color:#02B875; text-align:center; font-weight: bold" >
+              X-ray Galaxy Cluster Archive
+          </h1>
             <div class="table100">
-                <h1 style="font-family: Ubuntu; color:#02B875; text-align:center; font-weight: bold; font-style: italic" >
-                    X-ray Galaxy Cluster Archive
-                </h1>
                 <script src="Results_table.js"></script>
             </div>
         </div>
@@ -50,13 +53,79 @@
 
 
 
+<script>
+    function myFunction() {
+        // Declare variables
+        var input, filter, table, tr, td, i, txtValue;
+        input = document.getElementById("myInput");
+        filter = input.value.toUpperCase();
+        table = document.getElementById("Analysis_summary");
+        tr = table.getElementsByTagName("tr");
+
+        // Loop through all table rows, and hide those who don't match the search query
+        for (i = 0; i < tr.length; i++) {
+            td = tr[i].getElementsByTagName("td")[0];
+            if (td) {
+                txtValue = td.textContent || td.innerText;
+                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                    tr[i].style.display = "";
+                } else {
+                    tr[i].style.display = "none";
+                }
+            }
+        }
+
+
+        table = document.getElementById("Analysis_summary2");
+        tr = table.getElementsByTagName("tr");
+
+        // Loop through all table rows, and hide those who don't match the search query
+        for (i = 0; i < tr.length; i++) {
+            td = tr[i].getElementsByTagName("td")[0];
+            if (td) {
+                txtValue = td.textContent || td.innerText;
+                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                    tr[i].style.display = "";
+                } else {
+                    tr[i].style.display = "none";
+                }
+            }
+        }
+    }
+</script>
+
 <!--===============================================================================================-->
-<script src="vendor/jquery/jquery-3.2.1.min.js"></script>
+	<script src="vendor/jquery/jquery-3.2.1.min.js"></script>
 <!--===============================================================================================-->
-<script src="vendor/bootstrap/js/popper.js"></script>
-<script src="vendor/bootstrap/js/bootstrap.min.js"></script>
+	<script src="vendor/bootstrap/js/popper.js"></script>
+	<script src="vendor/bootstrap/js/bootstrap.min.js"></script>
 <!--===============================================================================================-->
-<script src="vendor/select2/select2.min.js"></script>
+	<script src="vendor/select2/select2.min.js"></script>
+<!--===============================================================================================-->
+	<script src="vendor/perfect-scrollbar/perfect-scrollbar.min.js"></script>
+	<script>
+		$('.js-pscroll').each(function(){
+			var ps = new PerfectScrollbar(this);
+
+			$(window).on('resize', function(){
+				ps.update();
+			})
+
+			$(this).on('ps-x-reach-start', function(){
+				$(this).parent().find('.table100-firstcol').removeClass('shadow-table100-firstcol');
+			});
+
+			$(this).on('ps-scroll-x', function(){
+				$(this).parent().find('.table100-firstcol').addClass('shadow-table100-firstcol');
+			});
+
+		});
+
+
+
+
+	</script>
+
 <!--===============================================================================================-->
 <script src="js/main.js"></script>
 

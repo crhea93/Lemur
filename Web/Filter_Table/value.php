@@ -2,10 +2,11 @@
 
 
 
+
 $servername = "localhost";
-$username = "carterrhea";
+$username = "id9499302_carterrhea";
 $password = "ILoveLuci3!";
-$dbname = "Lemur_DB";
+$dbname = "id9499302_lemur_db";
 
 // Create connection
 $conn = new mysqli($servername, $username, $password, $dbname);
