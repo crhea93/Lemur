@@ -6,7 +6,7 @@ var Obsids = '<h2 style="color:white" class="FigureHeaders">2203</h2>'+
 '   <th>CCD IMAGE</th>'+
 '   <th>Background Flare</th>'+
 '   </tr>   </thead>  <tr>'+
-'   <td>     <img src=../Cluster_plots/Abell133/ccds.png alt="ccds" width="100%">    </td>'+
+'   <td>     <img src=../Cluster_plots/Abell133/2203_ccds.png alt="ccds" width="100%">    </td>'+
 '   <td>     <img src=../Cluster_plots/Abell133/Lightcurve.png alt="LightCurve" width="100%">    </td>'+
 '   </tr>   </table>  </div> </div>'+
 '<h2 style="color:white" class="FigureHeaders">9897</h2>'+
@@ -17,7 +17,7 @@ var Obsids = '<h2 style="color:white" class="FigureHeaders">2203</h2>'+
 '   <th>CCD IMAGE</th>'+
 '   <th>Background Flare</th>'+
 '   </tr>   </thead>  <tr>'+
-'   <td>     <img src=../Cluster_plots/Abell133/ccds.png alt="ccds" width="100%">    </td>'+
+'   <td>     <img src=../Cluster_plots/Abell133/9897_ccds.png alt="ccds" width="100%">    </td>'+
 '   <td>     <img src=../Cluster_plots/Abell133/Lightcurve.png alt="LightCurve" width="100%">    </td>'+
 '   </tr>   </table>  </div> </div>'+
 ''

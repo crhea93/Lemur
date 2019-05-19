@@ -80,7 +80,7 @@ for cluster_name in list_of_cluster_names: #loop over all clusters
             outfile.write("'   <th>CCD IMAGE</th>'+\n")
             outfile.write("'   <th>Background Flare</th>'+\n")
             outfile.write("'   </tr>   </thead>  <tr>'+\n")
-            outfile.write("'   <td>     <img src=../Cluster_plots/"+cluster_name+"/ccds.png alt="+'"ccds"'+' width="100%">   '+" </td>'+\n")
+            outfile.write("'   <td>     <img src=../Cluster_plots/"+cluster_name+"/"+str(obsid_)+"_ccds.png alt="+'"ccds"'+' width="100%">   '+" </td>'+\n")
             outfile.write("'   <td>     <img src=../Cluster_plots/"+cluster_name+"/Lightcurve.png alt="+'"LightCurve"'+' width="100%">  '+"  </td>'+\n")
             outfile.write("'   </tr>   </table>  </div> </div>'+\n")
         outfile.write("''\n")

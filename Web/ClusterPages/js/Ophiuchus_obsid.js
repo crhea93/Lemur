@@ -1,4 +1,4 @@
-var Obsids = '<h2 style="color:white" class="FigureHeaders">3275</h2>'+
+var Obsids = '<h2 style="color:white" class="FigureHeaders">3200</h2>'+
 '<div class="wrap-table100">'+
 ' <div class="table100">'+
 '  <table>   <thead>'+
@@ -6,7 +6,7 @@ var Obsids = '<h2 style="color:white" class="FigureHeaders">3275</h2>'+
 '   <th>CCD IMAGE</th>'+
 '   <th>Background Flare</th>'+
 '   </tr>   </thead>  <tr>'+
-'   <td>     <img src=../Cluster_plots/Ophiuchus/ccds.png alt="ccds" width="100%">    </td>'+
+'   <td>     <img src=../Cluster_plots/Ophiuchus/3200_ccds.png alt="ccds" width="100%">    </td>'+
 '   <td>     <img src=../Cluster_plots/Ophiuchus/Lightcurve.png alt="LightCurve" width="100%">    </td>'+
 '   </tr>   </table>  </div> </div>'+
 ''

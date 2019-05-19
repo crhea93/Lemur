@@ -30,26 +30,34 @@ table tbody tr td:before {
     top: 0;
  }
 table tbody tr td:nth-child(1):before {
-content: "Name"
+content: "Cluster Name"
 }
 table tbody tr td:nth-child(2):before {
-content: "redshift"
+content: "Redshift"
 }
 table tbody tr td:nth-child(3):before {
-content: "RightAsc"
+content: "Right Ascension"
 }
 table tbody tr td:nth-child(4):before {
 content: "Declination"
 }
 table tbody tr td:nth-child(5):before {
-content: "R_cool_3"
+content: "Cooling Radius at 3 Gyr"
 }
 table tbody tr td:nth-child(6):before {
-content: "R_cool_7"
+content: "Cooling Radius at 7.7 Gyr"
 }
 table tbody tr td:nth-child(7):before {
-content: "Obsid"
+content: "Coefficient (ct/s)"
 }
+table tbody tr td:nth-child(8):before {
+content: "Coefficient (ph/cm^2/s)"
+}
+table tbody tr td:nth-child(9):before {
+content: "Coefficient (ergs/cm^2/s)"
+}
+table tbody tr td:nth-child(10):before {
+content: "Obsid"
 }
 @media (max-width: 576px) { 
  .container-table100 { 

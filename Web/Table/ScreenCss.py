@@ -12,7 +12,7 @@ clusters = {}
 cluster_obsid = {}
 try: #Get data from database
     mySQLconnection = mysql.connector.connect(host='localhost',
-                                              database='carterrhea',
+                                              database='Lemur_DB',
                                               user='carterrhea',
                                               password='REDACTED_DB_PASSWORD')
     #cluster info
@@ -62,10 +62,11 @@ outfile.write('table tbody tr td:before {\n    font-family: OpenSans-Regular;\n 
 
 
 # column headers
+fields_mapping = {'Name':'Cluster Name', 'redshift':'Redshift', 'RightAsc': 'Right Ascension', 'Declination':'Declination', 'R_cool_3':'Cooling Radius at 3 Gyr', 'R_cool_7':'Cooling Radius at 7.7 Gyr', 'csb_ct':'Coefficient (ct/s)', 'csb_pho':'Coefficient (ph/cm^2/s)', 'csb_flux':'Coefficient (ergs/cm^2/s)'}
 head_ct = 1
 for field_name in field_names[1:]:
     outfile.write('table tbody tr td:nth-child('+str(head_ct)+'):before {\n')
-    outfile.write('content: "'+field_name+'"\n')
+    outfile.write('content: "'+fields_mapping[field_name]+'"\n')
     outfile.write('}\n')
     head_ct += 1
 outfile.write('table tbody tr td:nth-child('+str(head_ct)+'):before {\n')
