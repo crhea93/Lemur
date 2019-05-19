@@ -2,10 +2,11 @@
 
 
 
+
 $servername = "localhost";
-$username = "carterrhea";
+$username = "id9499302_carterrhea";
 $password = "ILoveLuci3!";
-$dbname = "Lemur_DB";
+$dbname = "id9499302_lemur_db";
 
 // Create connection
 $conn = new mysqli($servername, $username, $password, $dbname);
@@ -25,9 +26,9 @@ $arr2 = array();
 
 #check if we need to get the errors
 if ($search2 == 'csb_flux') {
-    echo 'Searching';
     $sql2 = "SELECT $search,$search2 FROM csb";
     $result_err1 = $conn->query($sql2);
+
 };
 
 if ($result->num_rows > 0) {
@@ -40,10 +41,10 @@ if ($result->num_rows > 0) {
 
 if ($result_err1->num_rows > 0) {
     // output data of each row
-    echo 'YAY';
     while($row2 = $result_err1->fetch_assoc()) {
         array_push($arr1_err,$row2[$search]);
         array_push($arr2_err,$row2[$search2]);
+
     }
 }
 else {
@@ -53,6 +54,7 @@ else {
 
 if ($result->num_rows > 0) {
     echo json_encode(array('Value1'=>$arr1,'Value2'=>$arr2,'err1'=>$arr1_err,'err2'=>$arr2_err));
+
 } else {
     echo "Couldn't Find Cluster";
 }

@@ -12,25 +12,7 @@
     <link rel="stylesheet" href="filter.css">
 </head>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
-<script type="text/javascript">
-    var test;
-    $(document).ready(function() {
-        $('#button').click(function () {
-            var val1 = $('#Name').val();
-            $.ajax({
-                type: 'POST',
-                url: 'search.php',
-                data: {Name: val1},
-                success: function (response) {
-                    //$('#result').html(response);
-                    //test = JSON.parse(response)//JSON.parse(response);
-                    document.getElementById("result").innerHTML = test['redshift'];
-                }
-            });
-        });
-        //document.getElementById("result").innerHTML = test["redshift"];
-    });
-</script>
+
 
 <script type="text/javascript">
     var test;
@@ -56,7 +38,8 @@
                     var trace1 = {
                         x: test['Value1'],
                         y: test['Value2'],
-                        error_x: {
+
+                        /*error_x: {
                             type: 'data',
                             array: test['err1'],
                             visible: true
@@ -66,6 +49,7 @@
                             array: test['err2'],
                             visible: true
                         },
+                        },*/
                         mode: 'markers'
                     };
                     var data = [trace1];
@@ -88,7 +72,7 @@
                                     color: '#7f7f7f'
                                 }
                             },
-                            range: [0,1.1*x_max]
+                            range: [0, 1.1 * x_max]
                         },
                         yaxis: {
                             title: {
@@ -99,41 +83,16 @@
                                     color: '#7f7f7f'
                                 }
                             },
-                            range: [0,1.1*y_max]
+                            range: [0, 1.1 * y_max]
                         }
                     };
                     Plotly.newPlot('plot_result', data, layout, {showSendToCloud: true});
                 }
             });
-        });
-        //document.getElementById("result").innerHTML = test["redshift"];
-    });
+        })
+    })
 </script>
 
-
-<script>
-    function showUser(str) {
-        if (str == "") {
-            document.getElementById("txtHint").innerHTML = "";
-            return;
-        } else {
-            if (window.XMLHttpRequest) {
-                // code for IE7+, Firefox, Chrome, Opera, Safari
-                xmlhttp = new XMLHttpRequest();
-            } else {
-                // code for IE6, IE5
-                xmlhttp = new ActiveXObject("Microsoft.XMLHTTP");
-            }
-            xmlhttp.onreadystatechange = function() {
-                if (this.readyState == 4 && this.status == 200) {
-                    document.getElementById("txtHint").innerHTML = this.responseText;
-                }
-            };
-            xmlhttp.open("GET","values.php?q="+str,true);
-            xmlhttp.send();
-        }
-    }
-</script>
 
 
 <body>
@@ -144,57 +103,13 @@
     <a href="../Table/index_table.html" class="w3-bar-item w3-button w3-hover-teal">Cluster Table</a>
     <a href="#" class="w3-bar-item w3-button w3-hover-teal">Cluster Plots</a>
     <a href="../AboutUs/About_us.html" class="w3-bar-item w3-button w3-hover-teal">About Us</a>
+
 </div>
-<!--
-<input type="text" id="Name" placeholder="Enter Cluster Name">
-<button id="button"> Calculate </button>
-<div id="result"></div>
--->
+
 <div class="total_plot">
 <div class="big_row" align="center">
-   <!-- <div  class="big_column">
-        <div class="row">
-            <div class="column">
-                <form>
-                    <select class="w3-container w3-blue" name="Value1" id="Value1">
-                        <option value="">Select a value:</option>
-                        <option value="ID" label="ID">ID</option>
-                        <option value="redshift" label="Redshift">Redshift</option>
-                        <option value="R_cool_3" label="Cooling Radius at 3 Gyr">Cooling Radius at 3 Gyr</option>
-                        <option value="R_cool_7" label="Cooling Radius at 7.7 Gyr">Cooling Radius at 7.7 Gyr</option>
-                        <option value="csb_ct" label="CSB Count Rate">CSB Count Rate</option>
-                        <option value="csb_pho" label="CSB Photon Flux">CSB Photon Flux</option>
-                        <option value="csb_flux" label="CSB Energy Flux">CSB Energy Flux</option>
-                    </select>
-                </form>
-            </div>
-            <div class="column">
-                <form>
-                    <select  class="w3-container w3-blue" name="Value2" id="Value2">
-                        <option value="">Select a value:</option>
-                        <option value="ID" label="ID">ID</option>
-                        <option value="redshift" label="Redshift">Redshift</option>
-                        <option value="R_cool_3" label="Cooling Radius at 3 Gyr">Cooling Radius at 3 Gyr</option>
-                        <option value="R_cool_7" label="Cooling Radius at 7.7 Gyr">Cooling Radius at 7.7 Gyr</option>
-                        <option value="csb_ct" label="CSB Count Rate">CSB Count Rate</option>
-                        <option value="csb_pho" label="CSB Photon Flux">CSB Photon Flux</option>
-                        <option value="csb_flux" label="CSB Energy Flux">CSB Energy Flux</option>
-                    </select>
-                </form>
-            </div>
-            <div class="column">
-                <button class="w3-container w3-blue" id="plot"> Plot </button>
-            </div>
-
-        </div>
-
-
-    </div>-->
-
-    <div class="big_column" align="center">
-
-                <div class="table100" align="center">
-
+    <div class="big_column">
+                <div class="table100">
                     <table>
                         <thead>
                         <tr class="table100-head">

@@ -22,6 +22,7 @@
 }
 html, body {
     //margin: 0;
+
     height: 100%;
     font-family: Ubuntu;
 }
@@ -39,6 +40,7 @@ body {
 .plt_result{
     padding-left: 5%;
     padding-bottom: -10%;
+
 }
 
 select {
@@ -70,12 +72,14 @@ select {
 
 
 
+
 /*//////////////////////////////////////////////////////////////////
 [ Table ]*/
 
 
 .container-table100 {
     width: 90%;
+
     min-height: 100vh;
     background: #c850c0;
     background: -webkit-linear-gradient(45deg, #4158d0, #c850c0);
@@ -92,6 +96,7 @@ select {
     justify-content: center;
     flex-wrap: wrap;
     //padding: 33px 30px;
+
 }
 
 .wrap-table100 {
@@ -106,6 +111,7 @@ table {
     border-radius: 10px;
     overflow: hidden;
     width: 90%;
+
     //margin: 0 auto;
     position:absolute;
     top:10%;
@@ -116,6 +122,7 @@ table * {
 }
 table td, table th {
     //padding-left: 8px;
+
 }
 table thead tr {
     height: 60px;
