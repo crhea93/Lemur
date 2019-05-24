@@ -45,7 +45,7 @@ def calc_size(z,Omega_mass,Omega_lam,Hubble_const):
 
 def ls_calc(z,theta):
     '''
-    Calculate the length scale given an angle
+    Calculate the projected length scale given an angle
     PARAMETERS:
         z - redshift
         theta - angle
