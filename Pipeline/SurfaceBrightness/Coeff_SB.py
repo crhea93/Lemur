@@ -169,7 +169,6 @@ def spec_run(directory_base,obsid,region,energy_range,bkg_file):
     '''
     Create spectra for region file in obserservation in soft band
     '''
-    bkg_file = 'bkg_cel.reg'
     os.chdir(directory_base+'/'+obsid+'/repro')
     evt_file = 'acisf'+obsid+'_repro_evt2'
     specextract.punlearn()
@@ -193,7 +192,6 @@ def merge_observations(obs_to_merge,output_dir,directory_base,energy_range2,mono
     merge_obs()
 def CSB_calc(directory_base,dir_name,obs,cen_ra,cen_dec,bkg_file,redshift,merge_bool):
     os.chdir(directory_base+'/'+dir_name)
-
     regions = ['40kpc','400kpc']
     sizes = [40,400]
     energy_range = '500:2000' #Soft range in electron volts
@@ -202,7 +200,6 @@ def CSB_calc(directory_base,dir_name,obs,cen_ra,cen_dec,bkg_file,redshift,merge_
     for region in regions:
         print(" Region "+region+'...')
         reg_size = angle_calc(redshift,sizes[ct])
-
         with open(region+'.reg','w+') as new_reg:
             new_reg.write("# Region file format: DS9 version 4.1 \n")
             new_reg.write("physical \n")
@@ -226,8 +223,7 @@ def CSB_calc(directory_base,dir_name,obs,cen_ra,cen_dec,bkg_file,redshift,merge_
     energy_range2 = str(energies[0]/1000)+':'+str(energies[1]/1000)
     mono_energy = calc_effenergy(region,energy_range2)
     merge_observations(obs,directory_base+'/'+dir_name+'/SurfaceBrightness/',directory_base,energy_range2,mono_energy)
-    #Move Bkg file
-    #copyfile(directory_base+'/'+dir_name+'/'+bkg_file,directory_base+'/'+dir_name+'/SurfaceBrightness/bkg_cel.reg')
+
     for obser in obs:
         copyfile(directory_base+'/'+obser+'/repro/acisf'+obser+'_repro_evt2.fits',directory_base+'/'+dir_name+'/SurfaceBrightness/'+obser+'.fits')
     for region in regions:

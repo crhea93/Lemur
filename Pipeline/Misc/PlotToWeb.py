@@ -17,7 +17,6 @@ def plots_to_web(dir,obsids,name,web_dir):
         shutil.copyfile(obsid+'_Lightcurve.png',web_dir+'/'+obsid+'_Lightcurve.png')
     #Cluster images
     os.chdir(dir+'/'+name)
-    shutil.copyfile('bkg_region.png',web_dir+'/'+'bkg_region.png')
     shutil.copyfile('bkgsub_exp.png',web_dir+'/'+'bkgsub_exp.png')
     #Spectroscopic info
     os.chdir(dir+'/'+name+'/Fits/Plots')

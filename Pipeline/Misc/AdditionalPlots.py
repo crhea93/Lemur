@@ -40,4 +40,3 @@ def bkg_image(directory,image,bkg_reg,filenames):
     ax.set_ylim(bkg_cntr[1]-scale*bkg_rad,bkg_cntr[1]+scale*bkg_rad)
     ax.set_axis_off()
     plt.savefig(directory+'/bkg_region.png',bbox_inches='tight')
-    filenames['bkg_cel'] = 'bkg_cel.reg'

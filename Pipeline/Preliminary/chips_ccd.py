@@ -77,6 +77,7 @@ def display_ccds(ccd_list,obsid,Merge=False):
     ccd_count = 0
     full_ccd_list = ['ccd'+i for i in ccd_list[obsid]]
     #Go through each ccd in the list
+    max_val = 0 #max for scale
     for ccd in full_ccd_list:
         if ccd_count < col_num:
             rw = 0
@@ -92,11 +93,13 @@ def display_ccds(ccd_list,obsid,Merge=False):
         image_data = fits.getdata(ccd+'.img')
         kernel = Gaussian2DKernel(x_stddev=3)
         astropy_conv = convolve(image_data, kernel)
-        ax[rw,ccd_moded].imshow(np.arcsinh(astropy_conv)/30, cmap='gist_heat')
+        ax[rw,ccd_moded].imshow(np.arcsinh(astropy_conv), cmap='gist_heat', vmin=0,vmax=np.max(np.arcsinh(astropy_conv))/5)
         ax[rw,ccd_moded].set_xlim(min_x,max_x)
         ax[rw,ccd_moded].set_ylim(min_y,max_y)
         ax[rw,ccd_moded].text(min_x,min_y,ccd,fontsize=15,color='white')
         ax[rw,ccd_moded].set_axis_off()
+        if np.max(np.arcsinh(astropy_conv)) > max_val:
+            max_val = np.max(np.arcsinh(astropy_conv))
         ccd_count += 1
     f.subplots_adjust(hspace=0)
     outfile_name = str(obsid)+"_ccds.png"
@@ -187,20 +190,46 @@ def display_entire(home_dir,OBSID,repro_img):
     agn_file = open('AGN.reg','w+')
     agn_file.write("# Region file format: DS9 version 4.1 \n")
     agn_file.write("image \n")
+    pt_srcs_num = 0
     while point_srcs == True:
-        msg = "Are there any point sources in the src CCD?"
+        if pt_srcs_num == 0:
+            msg = "Are there any point sources in the src CCD?"
+        else:
+            msg = "Are there any other point sources in the src CCD?"
         point_srcs = gui.ynbox(msg)
         if point_srcs == True:
             msg = "Please pick the point source and then the extent of the source after pressing continue..."
             gui.ccbox(msg)
-            pt_src_coord = get_pick()
+            pt_src_coord = get_pick() #in logical
             add_point(pt_src_coord[0], pt_src_coord[1], ["style", "cross", "color", "green"])
             pt_src_edge = get_pick()
             add_point(pt_src_edge[0], pt_src_edge[1], ["style", "cross", "color", "green"])
-            radius = np.sqrt((float(pt_src_coord[0])-float(pt_src_edge[0]))**2+(float(pt_src_coord[1])-float(pt_src_edge[1]))**2)
-            ptsrc_file.write('circle(%s,%s,%.2f) \n'%(pt_src_coord[0][0],pt_src_coord[1][0],radius))
-            msg = "Is the point src the central AGN?"
-            AGN_msg = gui.ynbox(msg)
+            #Get physical Coordinates
+            dmcoords.punlearn()
+            dmcoords.infile = repro_img # OBSID+'_broad_thresh.img'
+            dmcoords.option = 'logical'
+            dmcoords.logicalx = pt_src_coord[0][0]
+            dmcoords.logicaly = pt_src_coord[1][0]
+            dmcoords()
+            pt_src_coord_ra = dmcoords.ra
+            pt_src_coord_dec = dmcoords.dec
+            #Calculate the radius in physical units
+            pt_src_coord_x = dmcoords.x
+            pt_src_coord_y = dmcoords.y
+            dmcoords.punlearn()
+            dmcoords.infile = repro_img # OBSID+'_broad_thresh.img'
+            dmcoords.option = 'logical'
+            dmcoords.logicalx = pt_src_edge[0][0]
+            dmcoords.logicaly = pt_src_edge[1][0]
+            dmcoords()
+            pt_src_edge_x = dmcoords.x
+            pt_src_edge_y = dmcoords.y
+            radius = np.sqrt((float(pt_src_coord_x)-float(pt_src_edge_x))**2+(float(pt_src_coord_y)-float(pt_src_edge_y))**2)
+            radius = 0.492*radius #physical to arcsec
+            ptsrc_file.write('circle(%s,%s,%.2f) \n'%(pt_src_coord_ra,pt_src_coord_dec,radius))
+            pt_srcs_num += 1
+            #msg = "Is the point src the central AGN?"
+            #AGN_msg = gui.ynbox(msg)
             if AGN_msg == True:
                 agn_file.write('circle(%s,%s,%.2f) \n'%(pt_src_coord[0][0],pt_src_coord[1][0],radius))
                 agn_.set_AGN(pt_src_coord[0][0],pt_src_coord[1][0],radius)
@@ -239,7 +268,7 @@ def display_merge(merged_dir,merged_img):
     set_piximgvals(cr, gsmooth(img, 3)) #smooth
     pvalues = get_piximgvals(cr)
     add_image(np.arcsinh(pvalues)) #scale
-    set_image(["threshold", [0, np.arcsinh(np.max(pvalues))/5]])
+    set_image(["threshold", [0, np.arcsinh(np.max(pvalues))/2]])
     set_image(["colormap", "heat"])
     #Actively choose diffuse emission
     msg = "Please pick the extent of the diffuse emission..."
@@ -286,8 +315,12 @@ def display_merge(merged_dir,merged_img):
     agn_file = open('AGN.reg','w+')
     agn_file.write("# Region file format: DS9 version 4.1 \n")
     agn_file.write("image \n")
+    pt_srcs_num = 0
     while point_srcs == True:
-        msg = "Are there any point sources contaminating the diffuse emission?"
+        if pt_srcs_num == 0:
+            msg = "Are there any point sources in the src CCD?"
+        else:
+            msg = "Are there any other point sources in the src CCD?"
         point_srcs = gui.ynbox(msg)
         if point_srcs == True:
             msg = "Please pick the point source and then the extent of the source after pressing continue..."
@@ -296,13 +329,35 @@ def display_merge(merged_dir,merged_img):
             add_point(pt_src_coord[0], pt_src_coord[1], ["style", "cross", "color", "green"])
             pt_src_edge = get_pick()
             add_point(pt_src_edge[0], pt_src_edge[1], ["style", "cross", "color", "green"])
-            radius = np.sqrt((float(pt_src_coord[0])-float(pt_src_edge[0]))**2+(float(pt_src_coord[1])-float(pt_src_edge[1]))**2)
+            #Get physical Coordinates
+            dmcoords.punlearn()
+            dmcoords.infile = merged_img # OBSID+'_broad_thresh.img'
+            dmcoords.option = 'logical'
+            dmcoords.logicalx = pt_src_coord[0][0]
+            dmcoords.logicaly = pt_src_coord[1][0]
+            dmcoords()
+            pt_src_coord_ra = dmcoords.ra
+            pt_src_coord_dec = dmcoords.dec
+            #Calculate the radius in physical units
+            pt_src_coord_x = dmcoords.x
+            pt_src_coord_y = dmcoords.y
+            dmcoords.punlearn()
+            dmcoords.infile = merged_img # OBSID+'_broad_thresh.img'
+            dmcoords.option = 'logical'
+            dmcoords.logicalx = pt_src_edge[0][0]
+            dmcoords.logicaly = pt_src_edge[1][0]
+            dmcoords()
+            pt_src_edge_x = dmcoords.x
+            pt_src_edge_y = dmcoords.y
+            radius = np.sqrt((float(pt_src_coord_x)-float(pt_src_edge_x))**2+(float(pt_src_coord_y)-float(pt_src_edge_y))**2)
+            radius = 0.492*radius #physical to arcsec
             ptsrc_file.write('annulus(%s,%s,0.0,%f) \n'%(pt_src_coord[0][0],pt_src_coord[1][0],radius))
-            msg = "Is the point src the central AGN?"
-            AGN_msg = gui.ynbox(msg)
+            #msg = "Is the point src the central AGN?"
+            #AGN_msg = gui.ynbox(msg)
             if AGN_msg == True:
                 agn_file.write('circle(%s,%s,%f) \n'%(pt_src_coord[0][0],pt_src_coord[1][0],radius))
                 agn_.set_AGN(pt_src_coord[0][0],pt_src_coord[1][0],radius)
+            pt_srcs_num += 1
     agn_file.close()
     ptsrc_file.close()
     clear()

@@ -23,10 +23,16 @@ def add_cluster_db(mydb,mycursor,cluster_name,redshift):
     if number_of_rows == 0:
         # if the cluster doesnt yet exist
         # Lets get the number of clusters current in set
-        mycursor.execute("SELECT COUNT(*) FROM Clusters")
-        (number_of_rows_curr,) = mycursor.fetchone()
+        mycursor.execute("SELECT ID FROM Clusters")
+        Ids = mycursor.fetchall()
+        ids_ = [id_v[0] for id_v in Ids]
+        #(number_of_rows_curr,) = mycursor.fetchone()
+        try:
+            id_ = next(a for a, b in enumerate(sorted(ids_), ids_[0]) if a != b)
+        except StopIteration:
+            id_ = len(ids_)
         sql = "INSERT INTO Clusters (ID,Name,redshift) VALUES (%s,%s,%s)"
-        val = (number_of_rows_curr,cluster_name, redshift)
+        val = (id_,cluster_name, redshift)
         mycursor.execute(sql, val)
         print("Added cluster to database")
     else:
@@ -159,7 +165,7 @@ def add_obsid_db(mydb,mycursor,cluster_name,obsid):
         sql = "INSERT INTO Obsids (ClusterNumber, Obsid) VALUES (%s,%s)"
         vals = (id, obsid)
         mycursor.execute(sql,vals)
-        print("Added OBSID to database")
+        print("  Added ObsID to database")
     else:
         pass
     mydb.commit()

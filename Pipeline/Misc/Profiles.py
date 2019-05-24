@@ -47,18 +47,14 @@ def profile(mydb,mycursor,data_folder,output_folder,redshift,cluster_id,property
             r_in.append(row[4])
             r_out.append(row[5])
     regions = []
-
-    regions = []
     regions_err = []
-    arcsec_to_kpc = ls_calc(redshift,1)#arcsec to kpc conversion factor
+    #arcsec_to_kpc = ls_calc(redshift,1)#arcsec to kpc conversion factor
     #Grab region info
     for region_ct in range(len(r_in)):
         mid_point = float((float(r_in[region_ct])+float(r_out[region_ct])))/2
         error_reg = r_out[region_ct]-mid_point
         regions.append(mid_point)#*arcsec_to_kpc)
         regions_err.append(error_reg)#*arcsec_to_kpc)
-    #Error info
-
     #Pick out AGN vs Non-AGN
     AGN_regions = []; NonAGN_regions = []
     AGN_data = []; NonAGN_data = []

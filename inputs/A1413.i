@@ -16,9 +16,9 @@ Temp_Guess = 4.0
 merge = True
 debug = false
 cleaning = false
-spectra_calc = false
-spec_create = false
-spec_fit = false
+spectra_calc = True
+spec_create = True
+spec_fit = True
 surface_brightness_calc = false
 
 

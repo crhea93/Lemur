@@ -16,7 +16,7 @@ def profile1(scaling,model_type='single'):
     #Single Fit
     set_source("beta1d.src1")
     data = get_data()
-    data.x = data.x*scaling #now in kpc
+    data.x = data.x#*scaling #now in kpc
     set_method('moncar')
     fit()
     plot_fit_delchi()
@@ -37,7 +37,7 @@ def profile2(scaling,model_type='single'):
     load_data(1,'rprofile_rmid_data.fits', 3, ["RMID","SUR_BRI","SUR_BRI_ERR"])
     set_source("beta1d.src1+beta1d.src2")
     data = get_data()
-    data.x = data.x*scaling #now in kpc
+    data.x = data.x#*scaling #now in kpc
     set_method('moncar')
     fit()
     plot_fit_delchi()
