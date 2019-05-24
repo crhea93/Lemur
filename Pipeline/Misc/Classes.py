@@ -39,13 +39,14 @@ class annulus:
         self.vol = 0
         self.Da = 0
         self.dl = 0
-    def add_fit_data(self,temp,temp_min,temp_max,abund,abund_min,abund_max,norm,norm_min,norm_max,flux,reduced_chi_sq,agn):
-        self.temp = [temp+temp_min,temp,temp+temp_max]
+    def add_fit_data(self,temp,temp_min,temp_max,abund,abund_min,abund_max,norm,norm_min,norm_max,flux,reduced_chi_sq,agn,redshift):
+        self.temp = [temp_min,temp,temp_max]
         self.temp_ergs = [val*1.60218e-9 for val in self.temp]
-        self.abund = [abund+abund_min,abund,abund+abund_max]
-        self.norm = [norm+norm_min,norm,norm+norm_max]
+        self.abund = [abund_min,abund,abund_max]
+        self.norm = [norm_min,norm,norm_max]
         self.flux = flux
         self.agn_act = agn
+        self.calc_all(redshift)
     def calc_D(self,z):
         '''
         Calculate comoving distance in kpc
@@ -63,8 +64,8 @@ class annulus:
         Calculate volume given inner and outer radii
         Must multiply radii by 0.492 to convert from physical to WCS coordinates
         '''
-        dist_out = ls_calc(z,self.r_out*0.492)*3.086e21 #conversion to cm from kpc
-        dist_in = ls_calc(z,self.r_in*0.492)*3.086e21 #conversion to cm from kpc
+        dist_out = self.r_out*0.492*3.086e21#ls_calc(z,self.r_out*0.492)*3.086e21 #conversion to cm from kpc
+        dist_in = self.r_in*0.492*3.086e21#ls_calc(z,self.r_in*0.492)*3.086e21 #conversion to cm from kpc
         self.vol = (4/3)*np.pi*(dist_out**3-dist_in**3)
     def calc_dens(self,z):
         '''

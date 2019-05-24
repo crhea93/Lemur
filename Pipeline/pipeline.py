@@ -24,38 +24,47 @@ Carter Rhea
 carter.rhea@umontreal.ca
 '''
 #------------------------------------IMPORTS-----------------------------------#
+#----------------------------------GENERAL IMPORTS-----------------------------#
 import os
 import sys
-import easygui as gui
 import pandas as pd
-from shutil import copyfile
+import easygui as gui
 import mysql.connector
-from Misc.move import move_files
-from Misc.PlotToWeb import plots_to_web
+from shutil import copyfile
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
-from Preliminary.unzip import unzip
-from Misc.Post_Process import PostProcess
+from ciao_contrib.runtool import *
+#----------------------------------MISC IMPORTS--------------------------------#
+from Misc.move import move_files
+from Misc.R_cool import R_cool_calc
+from Misc.Profiles import all_profiles
+from Misc.PlotToWeb import plots_to_web
 from Misc.filenames import get_filenames
+from Misc.Post_Process import PostProcess
+from Misc.AdditionalPlots import bkg_image
+from Misc.RaDec import get_RaDec,get_RaDec_log
 from Misc.read_input import read_input_file, read_password
 from Misc.Bkg_sub import run_bkg_sub, create_clean_img, exp_corr, create_clean_img_merge
+#-------------------------------PRELIMINARY IMPORTS----------------------------#
+from Preliminary.unzip import unzip
 from Preliminary.Merge import merge_objects
 from Preliminary.CCD_split import split_ccds
-from Preliminary.Centroid import basic_centroid, basic_centroid_guess, merged_centroid
-from Spectra.deproject_mod import deproj_final
 from Preliminary.FaintCleaning import FaintCleaning
-from Spectra.annuli_create import create_annuli,create_src_img, annuli_obs, create_src_img_merge
-from Spectra.Batch_Spec import spec_create
-from Spectra.Fit_Temp import PrimeFitting
-from Misc.Profiles import all_profiles
-from Preliminary.chips_ccd import AGN,display_ccds, display_entire, display_merge
 from Preliminary.CreateLightcurves import bkg_clean_srcs, bkg_lightcurve
+from Preliminary.chips_ccd import AGN,display_ccds, display_entire, display_merge
+from Preliminary.Centroid import basic_centroid, basic_centroid_guess, merged_centroid
+#----------------------------------SPECTRAL IMPORTS----------------------------#
+from Spectra.Fit_Temp import PrimeFitting
+from Spectra.Batch_Spec import spec_create
+from Spectra.deproject_mod import deproj_final
+from Spectra.annuli_create import create_annuli,create_src_img, annuli_obs
+#--------------------------SURFACE BRIGHTNESS IMPORTS---------------------------#
+from SurfaceBrightness.Coeff_SB import CSB_calc
 from SurfaceBrightness.SBProfile import SB_profile
-from ciao_contrib.runtool import *
-from Misc.RaDec import get_RaDec,get_RaDec_log
-from Misc.R_cool import R_cool_calc
-from Misc.AdditionalPlots import bkg_image
-from Database.Add_new import add_cluster_db,add_obsid_db,add_fit_db, add_coord, add_r_cool
+from SurfaceBrightness.CSB_bounds_merged import calculate_bounds
+#---------------------------------DATABASE IMPORTS-----------------------------#
+from Database.Add_new import add_cluster_db,add_obsid_db,add_fit_db, add_coord, add_r_cool, add_csb,get_id
+#------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------#
 print('Connecting to Database...')
 mydb = mysql.connector.connect(
@@ -66,14 +75,17 @@ mydb = mysql.connector.connect(
 )
 mycursor = mydb.cursor()
 print(" Connected to Database!")
+#------------------------------------------------------------------------------#
 #------------------------------------PROGRAM-----------------------------------#
-def main():
+def run_pipeline(input_file):
     #---------------------------Global Imports--------------------------------#
-    global max_rad, cen_x, cen_y, edge_x, edge_y, filenames, annuli_data, Temperatures, Abundances, Norms, Fluxes, obsid_, main_out
+    global max_rad, cen_x, cen_y, edge_x, edge_y, filenames, annuli_data
+    global Temperatures, Abundances, Norms, Fluxes, obsid_, main_out
     global Temp_min, Temp_max, Ab_min, Ab_max, Norm_min, Norm_max
     #---------------------------Read in data----------------------------------#
     print("Reading Input File and Running Preliminary Steps...")
-    inputs,merge_bool = read_input_file(sys.argv[1])
+    #inputs,merge_bool = read_input_file(sys.argv[1])
+    inputs,merge_bool = read_input_file(input_file)
     os.chdir(inputs['home_dir'])
     add_cluster_db(mydb,mycursor,inputs['name'],inputs['redshift'])
     #Unzip all relavent files
@@ -99,7 +111,7 @@ def main():
                 if inputs['cleaning'].lower() == 'true':
                     print("    We can now create a lightcurve for the background...")
                     bkg_clean_srcs(bkg_ccd)
-                    bkg_lightcurve(bkg_ccd)
+                    bkg_lightcurve(bkg_ccd,obsid_)
                     cen_x,cen_y = basic_centroid_guess(src_ccd) #Currently not actually used
                     print("    We need to clean our diffuse emission...")
                     filenames = FaintCleaning(inputs['home_dir'],obsid_,bkg_ccd,cen_x,cen_y,ccds[obsid_])
@@ -159,14 +171,15 @@ def main():
             print("Moving Files")
             move_files(inputs['home_dir']+'/'+inputs['name'],filenames)#move needed files to merged folder
             os.chdir(inputs['home_dir']+'/'+inputs['name'])
-            main_out_obsid.close()
+            #main_out_obsid.close()
     #--------------------------------Multiple Obsid Scenario--------------------------------------#
     if merge_bool == True:
         print("#-----Multiple Observation Mode----#")
         #We must clean each observation first :)
-        if inputs['cleaning'].lower() == 'true':
-            print("Beginning cleaning process for each individual obsid...")
-            for obsid_ in inputs['dir_list']: #left as a list to keep input deck the same and sample :)
+        print("Beginning cleaning process for each individual obsid...")
+        for obsid_ in inputs['dir_list']: #left as a list to keep input deck the same and sample :)
+            add_obsid_db(mydb,mycursor,inputs['name'],obsid_)
+            if inputs['cleaning'].lower() == 'true':
                 main_out_obsid = open(inputs['home_dir'] + "/" + obsid_ + "/decisions.txt", 'w+')
                 os.chdir(inputs['home_dir'] + '/' + obsid_ + '/Background')
                 print("We are on obsid %s"%obsid_)
@@ -177,7 +190,7 @@ def main():
                 main_out_obsid.write("The background CCD chosen is CCD#%s\n"%bkg_ccd)
                 print("    We can now create a lightcurve for the background...")
                 bkg_clean_srcs(bkg_ccd)
-                bkg_lightcurve(bkg_ccd)
+                bkg_lightcurve(bkg_ccd,obsid_)
                 print("    We need to clean our diffuse emission...")
                 filenames = FaintCleaning(inputs['home_dir'],obsid_,bkg_ccd,0,0,ccds[obsid_])
                 #We have to create bkg-subtracted images for each obsid because we need them for our merged image!
@@ -198,20 +211,17 @@ def main():
             print("Beginning Merged Calculations...")
             print("    Merging obsids...")
             os.chdir(inputs['home_dir'])
-            #merge_objects(inputs['dir_list'], inputs['name'], clean='yes')
+            merge_objects(inputs['dir_list'], inputs['name'], clean='yes')
             os.chdir(inputs['home_dir']+'/'+inputs['name'])
             print("    Choosing extent of source and contaminating point sources")
             edge_x,edge_y,agn_ = display_merge(inputs['home_dir']+'/'+inputs['name'],'broad_flux.img')
             edge_ra,edge_dec = get_RaDec_log('broad_flux.img',edge_x,edge_y)
-            print(edge_ra,edge_dec)
             main_out.write('The edge point is chosen to be %s,%s \n' % (edge_ra, edge_dec))
             os.chdir(inputs['home_dir']+'/'+inputs['name'])
             print("    Calculating centroid position")
             cen_x,cen_y = merged_centroid('broad_flux.img')
             cen_ra,cen_dec = get_RaDec('broad_flux.img',cen_x,cen_y)
-            print(cen_ra,cen_dec)
             main_out.write('The center point is chosen to be %s,%s \n' % (cen_ra, cen_dec))
-            main_out.close()
         if inputs['debug'].lower() == 'true': #Abell 133
             agn_ = AGN(False)
             #main_out = open(os.getcwd() + "/decisions.txt", 'w+')
@@ -228,12 +238,11 @@ def main():
             main_out.write('The center point is chosen to be %s,%s \n' % (cen_ra, cen_dec))
     filenames['exp_corr'] = inputs['home_dir']+'/'+inputs['name']+'/broad_flux.img' #Need this defined
     #Calculate additional needed parameters
-    bkg_image(os.getcwd(),filenames['exp_corr'],os.getcwd()+'/bkg.reg')
-    if merge_bool == True:
-        create_src_img(filenames['exp_corr'],[cen_ra,cen_dec],[edge_ra,edge_dec])
-    else:
-        create_src_img(filenames['exp_corr'],[cen_ra,cen_dec],[edge_ra,edge_dec])
+    #bkg_image(os.getcwd(),filenames['exp_corr'],os.getcwd()+'/bkg.reg',filenames)
+    create_src_img(filenames['exp_corr'],[cen_ra,cen_dec],[edge_ra,edge_dec])
     add_coord(mydb,mycursor,inputs['name'],cen_ra,cen_dec)
+    #Get cluster ID
+    cluster_id = get_id(mydb,mycursor,inputs['name'])
     #---------------------------------Spectral Extraction------------------------------------------#
     if inputs['spectra_calc'].lower() == 'true':
         print("#-----Spectral Extraction Mode----#")
@@ -258,19 +267,22 @@ def main():
             Annuli_ = PrimeFitting(mydb,mycursor,inputs['home_dir'],inputs['name'],inputs['dir_list'],'repro/Annuli/Annulus','temperatures',list(annuli_data.values()),total_ann_num,inputs['redshift'],inputs['n_h'],inputs['temp_guess'],inputs['sigma'],agn_,inputs['name'])
             print("Postprocessing and creating plots...")
             PostProcess(Annuli_,inputs['redshift'],inputs['home_dir']+'/'+inputs['name']+'/Fits')
-        all_profiles(inputs['home_dir']+'/'+inputs['name']+'/Fits',inputs['home_dir']+'/'+inputs['name']+'/Fits/Plots',inputs['redshift'])
+        all_profiles(mydb,mycursor,inputs['home_dir']+'/'+inputs['name']+'/Fits',inputs['home_dir']+'/'+inputs['name']+'/Fits/Plots',inputs['redshift'],cluster_id)
     #----------------------------------Surface Brightness------------------------------------------#
     os.chdir(inputs['home_dir']+'/'+inputs['name'])
     filenames['exp_map'] = os.getcwd()+'/broad_thresh.expmap'
     filenames['bkg'] = os.getcwd()+'/bkg.reg'
     if inputs['surface_brightness_calc'].lower() == 'true':
         print("#-----Surface Brightness Mode----#")
-        SB_profile(inputs['home_dir']+'/'+inputs['name']+'/SurfaceBrightness',filenames['evt2_repro'],filenames['exp_map'],filenames['bkg'],cen_ra,cen_dec,inputs['redshift'])
+        SB_profile(inputs['home_dir']+'/'+inputs['name']+'/SurfaceBrightness/',filenames['evt2_repro'],filenames['exp_map'],filenames['bkg'],cen_ra,cen_dec,inputs['redshift'])
+        print('Calculating Surface Brightess Coefficient')
+        CSB_calc(inputs['home_dir'],inputs['name'],inputs['dir_list'],cen_ra,cen_dec,filenames['bkg'],inputs['redshift'],merge_bool)
+        calculate_bounds(mydb,mycursor,cluster_id,inputs['home_dir']+'/'+inputs['name']+'/SurfaceBrightness',inputs['name'])
     #---------------------------------Additional Calculations--------------------------------------#
-    R_cool_3,R_cool_7 = R_cool_calc(inputs['home_dir']+'/'+inputs['name']+'/Fits',inputs['redshift'],main_out)
-    add_r_cool(mydb,mycursor,inputs['name'],R_cool_3,R_cool_7)
+    R_cool_calc(mydb,mycursor,cluster_id,inputs['name'],inputs['home_dir']+'/'+inputs['name']+'/Fits',inputs['redshift'],main_out)
     #--------------------------FINISH---------------------------------#
     plots_to_web(inputs['home_dir'],inputs['dir_list'],inputs['name'],inputs['web_dir']+'/'+inputs['name'])
     main_out.close()
     return None
-main()
+#run_pipeline()
+#main()

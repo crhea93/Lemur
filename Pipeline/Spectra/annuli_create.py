@@ -113,7 +113,7 @@ def annuli_obs(home_dir,obsids,exp_corr,cen_ra,cen_dec,merge_bool):
 
         #Copy the additional files too
         if merge_bool == False:
-            add_files = ['bkg.reg']
+            add_files = []#['bkg.reg']
             with open(home_dir+'/'+obsid+'/repro/'+'pt_srcs.reg','r') as text_file:
                 filedata = text_file.readlines()
                 if len(filedata) > 2: #only add pt_src to change coordinates if there are pt sources!
@@ -291,7 +291,6 @@ def create_src_img(repro_img,centrd,edge):
     wcs = WCS(hdu.header)
     max_rad = np.sqrt((float(cen_x) - float(edge_x)) ** 2 + (float(cen_y) - float(edge_y)) ** 2)
     ax = plt.subplot(projection=wcs)
-    #f.add_subplot(111, projection=wcs)
     image_data = fits.getdata(repro_img)
     kernel = Gaussian2DKernel(x_stddev=3)
     astropy_conv = convolve(image_data, kernel)
@@ -300,50 +299,13 @@ def create_src_img(repro_img,centrd,edge):
     circle = plt.Circle((cen_x, cen_y), max_rad, color='green', fill=False)
     ax.add_artist(circle)
     scale = 5
-    #ax.set_xlim(cen_x-scale*max_rad,cen_x+scale*max_rad)
-    #ax.set_ylim(cen_y-scale*max_rad,cen_y+scale*max_rad)
-    #ax.set_axis_off()
-    plt.title("Exposure Corrected Image")
     plt.xlabel('RA J2000')
     plt.ylabel("DEC J2000")
     plt.savefig('bkgsub_exp.png',bbox_inches='tight')
-    return None
-
-def create_src_img_merge(repro_img,centrd,edge):
-    '''
-    Create nice background subtracted image with the centroid marked
-    '''
-    #Change ra dec to physical coordinates for center
-    dmcoords.punlearn()
-    dmcoords.infile = repro_img#OBSID+'_broad_thresh.img'
-    dmcoords.option = 'sky'
-    dmcoords.x = centrd[0]
-    dmcoords.y = centrd[1]
-    dmcoords()
-    cen_x = dmcoords.logicalx
-    cen_y = dmcoords.logicaly
-    #edge is already in logical system
-    edge_x = edge[0]
-    edge_y = edge[1]
-    #Be sure that repro_img is the exposure corrected one!
-    hdu = fits.open(repro_img)[0]
-    wcs = WCS(hdu.header)
-    max_rad = np.sqrt((float(cen_x) - float(edge_x)) ** 2 + (float(cen_y) - float(edge_y)) ** 2)
-    ax = plt.subplot(projection=wcs)
-    #f.add_subplot(111, projection=wcs)
-    image_data = fits.getdata(repro_img)
-    kernel = Gaussian2DKernel(x_stddev=3)
-    astropy_conv = convolve(image_data, kernel)
-    #get background info
-    ax.imshow(np.arcsinh(astropy_conv), cmap='gist_heat',vmin=0,vmax=np.max(np.arcsinh(astropy_conv))/10)
-    circle = plt.Circle((cen_x, cen_y), max_rad, color='green', fill=False)
-    ax.add_artist(circle)
-    scale = 5
-    #ax.set_xlim(cen_x-scale*max_rad,cen_x+scale*max_rad)
-    #ax.set_ylim(cen_y-scale*max_rad,cen_y+scale*max_rad)
-    #ax.set_axis_off()
-    plt.title("Exposure Corrected Image")
-    plt.xlabel('RA J2000')
-    plt.ylabel("DEC J2000")
-    plt.savefig('bkgsub_exp.png',bbox_inches='tight')
+    #Create background region
+    reg_bkg = open('bkg.reg','w+')
+    reg_bkg.write("# Region file format: DS9 version 4.1 \n")
+    reg_bkg.write("physical \n")
+    reg_bkg.write('annulus(%s,%s,%f,%f)'%(centrd[0],centrd[1],1.1*max_rad,1.5*max_rad))
+    reg_bkg.close()
     return None

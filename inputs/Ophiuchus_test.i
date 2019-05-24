@@ -19,5 +19,5 @@ cleaning = false
 spectra_calc = false
 spec_create = false
 spec_fit = false
-surface_brightness_calc = true
+surface_brightness_calc = false
 
