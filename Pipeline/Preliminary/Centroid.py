@@ -57,9 +57,28 @@ def source_region_pick(ccd):
     add_point(central_coord[0], central_coord[1], ["style", "cross", "color", "green"])
     central_edge = get_pick()
     add_point(central_edge[0], central_edge[1], ["style", "cross", "color", "green"])
+    dmcoords.punlearn()
+    dmcoords.infile = ccd+'.img'
+    dmcoords.option = 'logical'
+    dmcoords.logicalx = central_coord[0][0]
+    dmcoords.logicaly = central_coord[1][0]
+    dmcoords()
+    cen_x = dmcoords.x
+    cen_y = dmcoords.y
+    cen_ra = dmcoords.ra
+    cen_dec = dmcoords.dec
+    dmcoords.punlearn()
+    dmcoords.infile = ccd+'.img'
+    dmcoords.option = 'logical'
+    dmcoords.logicalx = central_edge[0][0]
+    dmcoords.logicaly = central_edge[1][0]
+    dmcoords()
+    edge_x = dmcoords.x
+    edge_y = dmcoords.y
     hide_axis()
     hide_point("all")
-    radius = np.sqrt((float(central_coord[0]) - float(central_edge[0])) ** 2 + (float(central_coord[1]) - float(central_edge[1])) ** 2)
+    radius = np.sqrt((float(cen_x) - float(edge_x)) ** 2 + (float(cen_y) - float(edge_y)) ** 2)
+    radius = radius# * 0.492 # convert to arcsec from physical/sky units
     #Plotting and saving data
     add_region(50,float(central_coord[0]),float(central_coord[1]),radius)
     attrs = {'coordsys': PLOT_NORM}
@@ -69,7 +88,7 @@ def source_region_pick(ccd):
     print_window(outfile_name,['clobber','yes'])
 
     clear()
-    return central_coord,radius
+    return [cen_ra,cen_dec],radius
 
 def merge_region_pick(merged_evt):
     '''
@@ -90,10 +109,30 @@ def merge_region_pick(merged_evt):
     gui.ccbox(msg)
     central_coord = get_pick()
     central_edge = get_pick()
+    #Calculate radius in arcseconds
+    dmcoords.punlearn()
+    dmcoords.infile = merged_evt
+    dmcoords.option = 'logical'
+    dmcoords.logicalx = central_coord[0][0]
+    dmcoords.logicaly = central_coord[1][0]
+    dmcoords()
+    cen_ra = dmcoords.ra
+    cen_dec = dmcoords.dec
+    cen_x = dmcoords.x
+    cen_y = dmcoords.y
+    dmcoords.punlearn()
+    dmcoords.infile = merged_evt
+    dmcoords.option = 'logical'
+    dmcoords.logicalx = central_edge[0][0]
+    dmcoords.logicaly = central_edge[1][0]
+    dmcoords()
+    edge_x = dmcoords.x
+    edge_y = dmcoords.y
     hide_axis()
     outfile_name = "central.png"
     print_window(outfile_name,['clobber','yes'])
-    radius = np.sqrt((float(central_coord[0]) - float(central_edge[0])) ** 2 + (float(central_coord[1]) - float(central_edge[1])) ** 2)
+    radius = np.sqrt((float(central_coord[0][0]) - float(central_edge[0][0])) ** 2 + (float(central_coord[1][0]) - float(central_edge[1][0])) ** 2)
+    #radius = 0.492 * radius # sky pixels to arcseconds
     #Plotting and saving data
     add_region(50,float(central_coord[0]),float(central_coord[1]),radius)
     attrs = {'coordsys': PLOT_NORM}
@@ -102,7 +141,7 @@ def merge_region_pick(merged_evt):
     outfile_name = "central.png"
     print_window(outfile_name,['clobber','yes'])
     clear()
-    return central_coord,radius
+    return [cen_ra,cen_dec],radius
 
 
 def basic_centroid_guess(ccd_src):
@@ -116,7 +155,7 @@ def basic_centroid_guess(ccd_src):
     dmstat.centroid = True
     dmstat()
     #print(dmstat.out_max_loc.split(','))
-    return dmstat.out_max_loc.split(',')[0],dmstat.out_max_loc.split(',')[1]
+    return dmstat.out_cntrd_phys.split(',')[0],dmstat.out_cntrd_phys.split(',')[1]
 def basic_centroid(ccd_src):
     '''
     Final choice of centroid
@@ -124,14 +163,25 @@ def basic_centroid(ccd_src):
         ccd_src - CCD number that contains source
     '''
     #Chose region to search for centroid
-    central_coord, radius = source_region_pick(ccd_src)
+    [cen_ra,cen_dec], radius = source_region_pick(ccd_src)
     #find centroid
+    with open('cen.reg','w+') as new_reg:
+        new_reg.write("# Region file format: DS9 version 4.1 \n")
+        new_reg.write("physical \n")
+        new_reg.write("circle("+str(cen_ra)+','+str(cen_dec)+','+str(radius)+'"'+")")
     dmstat.punlearn()
-    dmstat.infile = ccd_src+'.img[sky=circle('+str(central_coord[0][0])+','+str(central_coord[1][0])+','+str(radius)+')]'
+    dmstat.infile = ccd_src+'.img[sky=region(cen.reg)]'
     dmstat.centroid = True
     dmstat()
-    #print(dmstat.out_max_loc.split(','))
-    return dmstat.out_max_loc.split(',')[0],dmstat.out_max_loc.split(',')[1]
+    dmcoords.punlearn()
+    dmcoords.infile = ccd_src+'.img'
+    dmcoords.option = 'sky'
+    dmcoords.x = dmstat.out_cntrd_phys.split(',')[0]
+    dmcoords.y = dmstat.out_cntrd_phys.split(',')[1]
+    dmcoords()
+    cen_ra = dmcoords.ra
+    cen_dec = dmcoords.dec
+    return cen_ra,cen_dec
 def merged_centroid(merged_img):
     '''
     Final choice of centroid in merged observations
@@ -140,21 +190,24 @@ def merged_centroid(merged_img):
     OUTPUT IN PHYSICAL UNITS
     '''
 
-    central_coord, radius = merge_region_pick(merged_img)
+    [cen_ra,cen_dec], radius = merge_region_pick(merged_img)
     #Change ra dec to physical coordinates for center
-    dmcoords.punlearn()
-    dmcoords.infile = merged_img#OBSID+'_broad_thresh.img'
-    dmcoords.option = 'logical'
-    dmcoords.logicalx = central_coord[0][0]
-    dmcoords.logicaly = central_coord[1][0]
-    dmcoords()
-    cen_x = dmcoords.ra
-    cen_y = dmcoords.dec
+    with open('cen.reg','w+') as new_reg:
+        new_reg.write("# Region file format: DS9 version 4.1 \n")
+        new_reg.write("physical \n")
+        new_reg.write("circle("+str(cen_ra)+','+str(cen_dec)+','+str(radius)+'"'+")")
     # find centroid
     dmstat.punlearn()
-    dmstat.infile = merged_img+'[sky=circle('+str(cen_x)+','+str(cen_y)+','+str(radius)+')]'
+    dmstat.infile = merged_img+'[sky=region(cen.reg)]'
     dmstat.centroid = True
     dmstat()
-    #print(dmstat.out_max_loc.split(','))
-    #Coordinates in Physical units
-    return dmstat.out_max_loc.split(',')[0],dmstat.out_max_loc.split(',')[1]
+
+    dmcoords.punlearn()
+    dmcoords.infile = merged_img
+    dmcoords.option = 'sky'
+    dmcoords.x = dmstat.out_cntrd_phys.split(',')[0]
+    dmcoords.y = dmstat.out_cntrd_phys.split(',')[1]
+    dmcoords()
+    cen_ra = dmcoords.ra
+    cen_dec = dmcoords.dec
+    return cen_ra,cen_dec
