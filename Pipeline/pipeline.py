@@ -27,6 +27,7 @@ carter.rhea@umontreal.ca
 #----------------------------------GENERAL IMPORTS-----------------------------#
 import os
 import sys
+import shutil
 import pandas as pd
 import easygui as gui
 import mysql.connector
@@ -77,15 +78,16 @@ mycursor = mydb.cursor()
 print(" Connected to Database!")
 #------------------------------------------------------------------------------#
 #------------------------------------PROGRAM-----------------------------------#
-def run_pipeline(input_file):
+def run_pipeline():
     #---------------------------Global Imports--------------------------------#
     global max_rad, cen_x, cen_y, edge_x, edge_y, filenames, annuli_data
     global Temperatures, Abundances, Norms, Fluxes, obsid_, main_out
     global Temp_min, Temp_max, Ab_min, Ab_max, Norm_min, Norm_max
     #---------------------------Read in data----------------------------------#
     print("Reading Input File and Running Preliminary Steps...")
-    #inputs,merge_bool = read_input_file(sys.argv[1])
-    inputs,merge_bool = read_input_file(input_file)
+    inputs,merge_bool = read_input_file(sys.argv[1])
+    print("#-------STARTING ANALYSIS ON %s-------#"%inputs['name'])
+    #inputs,merge_bool = read_input_file(input_file)
     os.chdir(inputs['home_dir'])
     add_cluster_db(mydb,mycursor,inputs['name'],inputs['redshift'])
     #Unzip all relavent files
@@ -106,6 +108,7 @@ def run_pipeline(input_file):
                 print("    Now let us pick our src and background ccd...")
                 #Lets take a look at each ccd and pick our background and src ccds
                 bkg_ccd, src_ccd = display_ccds(ccds,obsid_)
+                #bkg_ccd, src_ccd = 'ccd1', 'ccd0'
                 main_out_obsid.write("The background CCD chosen is CCD#%s\n"%bkg_ccd)
                 main_out_obsid.write("The source CCD chosen is CCD#%s\n"%src_ccd)
                 if inputs['cleaning'].lower() == 'true':
@@ -130,9 +133,9 @@ def run_pipeline(input_file):
                 os.chdir(inputs['home_dir']+'/'+obsid_+'/Background')
                 print("    We will now calculate the centroid...")
                 #Just a quick calculation of the centroid based off the pixel with the most counts in a region of choice (deteremined in this step by the user)
-                cen_x, cen_y = basic_centroid(src_ccd)
+                cen_ra, cen_dec = basic_centroid(src_ccd)
                 #Change to logical coordinates in exp_corr image for consistency
-                cen_ra,cen_dec = get_RaDec(src_ccd+'.img',cen_x,cen_y)
+                #cen_ra,cen_dec = get_RaDec(src_ccd+'.img',cen_x,cen_y)
                 main_out_obsid.write("The centroid's X,Y sky coordinates are: %s,%s \n"%(str(cen_ra),str(cen_dec)))
                 #We can now get a pretty picture with all of our information and run the background subtraction
                 if inputs['cleaning'].lower() == 'true':
@@ -147,16 +150,11 @@ def run_pipeline(input_file):
                     filenames['evt_uncontam_img'] = inputs['home_dir']+'/'+obsid_+'/repro/'+'evt_uncontam.img'
                 #exp_corr(filenames) #exposure correct bkg sub image and update
             if inputs['debug'].lower() == 'true': #Abell 85 or ophiuchus
-                agn_ = AGN(False) #Abell85 - False; Ophiuchus -True
-                #agn_.set_AGN(4077.05,4253.87,5.43)
+                agn_ = AGN(False)
                 bkg_ccd = '3'
                 src_ccd = '0'
                 edge_ra,edge_dec = '00:41:57.968', '-09:17:14.871'  #abell85
                 cen_ra,cen_dec =  '00:41:50.232','-09:18:09.29'  #abell 85
-                #cen_ra,cen_dec = 4076,4255 #ophiuchus
-                #edge_ra,edge_dec = 4010,4207 #ophiuchus
-                #cen_ra,cen_dec = 4172,4475 #random
-                #edge_ra,edge_dec = 4091.91,4457.37 #random
                 os.chdir(inputs['home_dir']+'/'+obsid_)
                 filenames,temp = get_filenames()
                 filenames['evt2_repro'] = os.getcwd()+'/repro/acisf'+obsid_+'_repro_evt2.fits'
@@ -166,12 +164,13 @@ def run_pipeline(input_file):
                 filenames['evt_uncontam_img'] = os.getcwd()+'/repro/'+'evt_uncontam.img'
             #Clean up data
             os.chdir(inputs['home_dir']+'/'+obsid_+'/repro')
+            #if os.path.exists(inputs['home_dir']+'/'+inputs['name']):
+            #    shutil.rmtree(inputs['home_dir']+'/'+inputs['name'])
             if not os.path.exists(inputs['home_dir']+'/'+inputs['name']):
                 os.makedirs(inputs['home_dir']+'/'+inputs['name'])
             print("Moving Files")
             move_files(inputs['home_dir']+'/'+inputs['name'],filenames)#move needed files to merged folder
             os.chdir(inputs['home_dir']+'/'+inputs['name'])
-            #main_out_obsid.close()
     #--------------------------------Multiple Obsid Scenario--------------------------------------#
     if merge_bool == True:
         print("#-----Multiple Observation Mode----#")
@@ -219,8 +218,8 @@ def run_pipeline(input_file):
             main_out.write('The edge point is chosen to be %s,%s \n' % (edge_ra, edge_dec))
             os.chdir(inputs['home_dir']+'/'+inputs['name'])
             print("    Calculating centroid position")
-            cen_x,cen_y = merged_centroid('broad_flux.img')
-            cen_ra,cen_dec = get_RaDec('broad_flux.img',cen_x,cen_y)
+            cen_ra,cen_dec = merged_centroid('broad_flux.img')
+            #cen_ra,cen_dec = get_RaDec('broad_flux.img',cen_x,cen_y)
             main_out.write('The center point is chosen to be %s,%s \n' % (cen_ra, cen_dec))
         if inputs['debug'].lower() == 'true': #Abell 133
             agn_ = AGN(False)
@@ -264,7 +263,7 @@ def run_pipeline(input_file):
                 deproj_final(prefix,'.pi',1,total_ann_num,0,prefix,'.deproj')
         os.chdir(inputs['home_dir'])
         if inputs['spec_fit'].lower() == 'true':
-            Annuli_ = PrimeFitting(mydb,mycursor,inputs['home_dir'],inputs['name'],inputs['dir_list'],'repro/Annuli/Annulus','temperatures',list(annuli_data.values()),total_ann_num,inputs['redshift'],inputs['n_h'],inputs['temp_guess'],inputs['sigma'],agn_,inputs['name'])
+            Annuli_ = PrimeFitting(mydb,mycursor,cluster_id,inputs['home_dir'],inputs['name'],inputs['dir_list'],'repro/Annuli/Annulus','temperatures',list(annuli_data.values()),total_ann_num,inputs['redshift'],inputs['n_h'],inputs['temp_guess'],inputs['sigma'],agn_,inputs['name'])
             print("Postprocessing and creating plots...")
             PostProcess(Annuli_,inputs['redshift'],inputs['home_dir']+'/'+inputs['name']+'/Fits')
         all_profiles(mydb,mycursor,inputs['home_dir']+'/'+inputs['name']+'/Fits',inputs['home_dir']+'/'+inputs['name']+'/Fits/Plots',inputs['redshift'],cluster_id)
@@ -284,5 +283,5 @@ def run_pipeline(input_file):
     plots_to_web(inputs['home_dir'],inputs['dir_list'],inputs['name'],inputs['web_dir']+'/'+inputs['name'])
     main_out.close()
     return None
-#run_pipeline()
+run_pipeline()
 #main()
