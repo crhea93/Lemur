@@ -5,7 +5,7 @@ import os
 from ciao_contrib.runtool import *
 
 
-def spec_extract(evt_file,src_reg,bkg_reg):
+def spec_extract(evt_file,obsid,src_reg,bkg_reg):
     '''
     Standard spectral extration from CIAO
     PARAMETERS:
@@ -16,8 +16,13 @@ def spec_extract(evt_file,src_reg,bkg_reg):
     specextract.punlearn()
     specextract.infile = evt_file+'[sky=region('+src_reg+'.reg)]'
     specextract.outroot = src_reg+'_'
-    specextract.bkgfile = evt_file+'[sky=region('+bkg_reg+'.reg)]'
+    #specextract.bkgfile = evt_file+'[sky=region('+bkg_reg+'.reg)]'
+    specextract.bkgfile = obsid+'_blank.evt[sky=region('+src_reg+'.reg)]'
     specextract.clobber = True
+    specextract.grouptype = 'NUM_CTS'
+    specextract.binspec = 1
+    specextract.bkgresp = False #Necessary if using blank sky
+    specextract.energy_wmap = '500:14000'
     specextract()
     return None
 
@@ -38,7 +43,7 @@ def spec_create(home_dir,obsids,num_ann,ann_values):
         count = 1
         for ann in range(num_ann):
             print("      We are on annulus %s"%int(count))
-            spec_extract(evt_file,'Annuli/Annulus_'+str(count),'bkg')
+            spec_extract(evt_file,obsid,'Annuli/Annulus_'+str(count),'bkg_cel')
             dmhedit.punlearn()
             dmhedit.infile = 'Annuli/Annulus_'+str(count)+'.pi'
             dmhedit.filelist = None

@@ -9,10 +9,12 @@ import shutil
 
 def plots_to_web(dir,obsids,name,web_dir):
     #Move individual obsid images
+    if not os.path.exists(web_dir):
+        os.mkdir(web_dir)
     for obsid in obsids:
         os.chdir(dir+'/'+obsid+'/Background')
-        shutil.copyfile('ccds.png',web_dir+'/'+'ccds.png')
-        shutil.copyfile('LightCurve.png',web_dir+'/'+'Lightcurve.png')
+        shutil.copyfile(obsid+'_ccds.png',web_dir+'/'+obsid+'_ccds.png')
+        shutil.copyfile(obsid+'_Lightcurve.png',web_dir+'/'+obsid+'_Lightcurve.png')
     #Cluster images
     os.chdir(dir+'/'+name)
     shutil.copyfile('bkg_region.png',web_dir+'/'+'bkg_region.png')
