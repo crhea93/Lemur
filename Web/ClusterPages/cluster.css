@@ -42,11 +42,10 @@ body{
 
 
 
-.ExpCor{
-    height:10%;
-    
-}
 
+#images img{
+  width:50%;
+}
 
 /*#spec{
   background-image:
