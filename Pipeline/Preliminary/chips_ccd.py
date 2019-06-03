@@ -67,7 +67,7 @@ def display_ccds(ccd_list,obsid,Merge=False):
         ccd_list - list of ccd numbers
         obsid - current Chandra observation ID
     '''
-    #add_window(32,32)
+    add_window(32,32)
     #split(2,int(len(ccd_list[obsid])/2)+1)
     if len(ccd_list[obsid])%2 == 0:
         col_num = int(len(ccd_list[obsid])/2)
@@ -110,9 +110,11 @@ def display_ccds(ccd_list,obsid,Merge=False):
     if Merge == False:
         msg = "Which CCD should be used for Source Centroid Extraction?"
         src_ccd = gui.buttonbox(msg, choices=full_ccd_list)
+        plt.clf()
         plt.close()
         return bkg_ccd,src_ccd
     else:
+        plt.clf()
         plt.close()
         return bkg_ccd
 
@@ -230,9 +232,9 @@ def display_entire(home_dir,OBSID,repro_img):
             pt_srcs_num += 1
             #msg = "Is the point src the central AGN?"
             #AGN_msg = gui.ynbox(msg)
-            if AGN_msg == True:
-                agn_file.write('circle(%s,%s,%.2f) \n'%(pt_src_coord[0][0],pt_src_coord[1][0],radius))
-                agn_.set_AGN(pt_src_coord[0][0],pt_src_coord[1][0],radius)
+            #if AGN_msg == True:
+            #    agn_file.write('circle(%s,%s,%.2f) \n'%(pt_src_coord[0][0],pt_src_coord[1][0],radius))
+            #    agn_.set_AGN(pt_src_coord[0][0],pt_src_coord[1][0],radius)
     agn_file.close()
     ptsrc_file.close()
     #move to background directory for later
@@ -354,9 +356,9 @@ def display_merge(merged_dir,merged_img):
             ptsrc_file.write('annulus(%s,%s,0.0,%f) \n'%(pt_src_coord[0][0],pt_src_coord[1][0],radius))
             #msg = "Is the point src the central AGN?"
             #AGN_msg = gui.ynbox(msg)
-            if AGN_msg == True:
-                agn_file.write('circle(%s,%s,%f) \n'%(pt_src_coord[0][0],pt_src_coord[1][0],radius))
-                agn_.set_AGN(pt_src_coord[0][0],pt_src_coord[1][0],radius)
+            #if AGN_msg == True:
+            #    agn_file.write('circle(%s,%s,%f) \n'%(pt_src_coord[0][0],pt_src_coord[1][0],radius))
+            #    agn_.set_AGN(pt_src_coord[0][0],pt_src_coord[1][0],radius)
             pt_srcs_num += 1
     agn_file.close()
     ptsrc_file.close()
