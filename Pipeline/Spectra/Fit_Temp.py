@@ -35,7 +35,7 @@ from pychips.all import *
 from sherpa.fit import *
 from sherpa.all import *
 from Misc.Classes import annulus
-from Misc.ASCalc import angle_calc
+from Misc.LSCalc import ls_calc
 from Database.Add_new import add_fit_db,add_fit_additional_db
 #TURN OFF ON-SCREEN OUTPUT FROM SHERPA
 import logging
@@ -283,9 +283,9 @@ def FitXSPEC(mydb,mycursor,spectrum_files,background_files,Ann_cur, redshift,n_H
     with open(os.getcwd()+'/Fits/Params/%s_flux.out'%spec_count,'w+') as res_out:
         res_out.write(str(f))
     reduced_chi_sq = f.rstat
-    '''reset(get_model()); reset(get_bkg_model())
+    reset(get_model()); reset(get_bkg_model())
     reset(get_source());
-    delete_data()'''
+    delete_data()
     clean()
     Ann_cur.add_fit_data(Temperature,Temp_min,Temp_max,Abundance,Ab_min,Ab_max,Norm,Norm_min,Norm_max,Flux,reduced_chi_sq,agn,redshift)
     #Add to database
@@ -295,7 +295,7 @@ def FitXSPEC(mydb,mycursor,spectrum_files,background_files,Ann_cur, redshift,n_H
     return None
 
 
-def PrimeFitting(mydb,mycursor,home_dir,merge_dir,dir,file_name,output_file,annuli_data,num_files,redshift,n_H,Temp_guess,sigma_covar,agn_,cluster_name):
+def PrimeFitting(mydb,mycursor,cluster_id,home_dir,merge_dir,dir,file_name,output_file,annuli_data,num_files,redshift,n_H,Temp_guess,sigma_covar,agn_,cluster_name):
     '''
     Step through spectra to fit
     PARAMETERS:
@@ -328,6 +328,9 @@ def PrimeFitting(mydb,mycursor,home_dir,merge_dir,dir,file_name,output_file,annu
         os.makedirs(os.getcwd()+'/Fits/Plots')
     if os.path.isfile(file_name) == True:
         os.remove(file_name) #remove it
+    #Clean region file
+    mycursor.execute("DELETE FROM Region WHERE idCluster=%s"%cluster_id)
+    #mycursor.nextset()
     #Create main output
     Annuli_ = []
     #Fit spectra to each annulus
@@ -345,9 +348,9 @@ def PrimeFitting(mydb,mycursor,home_dir,merge_dir,dir,file_name,output_file,annu
         for directory in dir:
             spectrum_files.append(home_dir+'/'+directory+'/'+file_name+"_"+str(i+1)+".pi")
             background_files.append(home_dir+'/'+directory+'/'+file_name+"_"+str(i+1)+"_bkg.pi")
-        r_in = angle_calc(redshift,float(region_.split('-')[0]))
-        r_out = angle_calc(redshift,float(region_.split('-')[1]))
-        if r_in < angle_calc(redshift,50):#if within first 50 kpc
+        r_in = ls_calc(redshift,float(region_.split('-')[0]))
+        r_out = ls_calc(redshift,float(region_.split('-')[1]))
+        if r_in < 50:#if within first 50 kpc
             for k in range(2):
                 Ann_cur = annulus(r_in,r_out)
                 if k == 0: #include AGN
