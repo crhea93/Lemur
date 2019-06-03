@@ -13,7 +13,6 @@ def int_rcool(regions,data,val_to_find):
     yToFind = val_to_find
     yreduced = np.array(data) - yToFind
     freduced = interpolate.UnivariateSpline(regions, yreduced)
-    print(freduced.roots())
     if len(freduced.roots()) > 0:
         val = freduced.roots()[-1]
     else:

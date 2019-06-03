@@ -14,10 +14,10 @@ n_H = 0.0285
 Temp_Guess = 4.0
 #-----Additional Info----#
 merge = True
-debug = true
+debug = False
 cleaning = false
-spectra_calc = false
-spec_create = false
-spec_fit = false
+spectra_calc = True
+spec_create = True
+spec_fit = True
 surface_brightness_calc = false
 

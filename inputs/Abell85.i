@@ -13,10 +13,10 @@ redshift = 0.0558
 n_H = 0.0276
 Temp_Guess = 4.0
 #-----Additional Info----#
-merge = false
-debug = true
-cleaning = false
-spectra_calc = false
-spec_create = false
-spec_fit = false
-surface_brightness_calc = false
+merge = False
+debug = True
+cleaning = False
+spectra_calc = True
+spec_create = True
+spec_fit = True
+surface_brightness_calc = True
