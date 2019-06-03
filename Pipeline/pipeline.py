@@ -18,6 +18,7 @@ VERSIONS (and submission date):
 v0 - 01/11/19 - basic pipeline for single observations
 v1 - 04/11/19 - fully functioning pipeline for single/multiple observations
 v1.1 - 04/25/19 - Considerably more modular and addition of AGN and surface brightness calculations
+v1.2 - 05/24/19 - Added cooling radii calculations, coefficient calculations, and moved to a database structure
 
 For suggestions/comments/errata please contact:
 Carter Rhea
@@ -86,6 +87,7 @@ def run_pipeline():
     #---------------------------Read in data----------------------------------#
     print("Reading Input File and Running Preliminary Steps...")
     inputs,merge_bool = read_input_file(sys.argv[1])
+
     print("#-------STARTING ANALYSIS ON %s-------#"%inputs['name'])
     #inputs,merge_bool = read_input_file(input_file)
     os.chdir(inputs['home_dir'])
@@ -197,6 +199,7 @@ def run_pipeline():
                 print("    Creating Clean Image...")
                 create_clean_img_merge(filenames)
                 print("    Running Background Subtraction...")
+
                 run_bkg_sub(filenames['evt2_repro_uncontam'], filenames['evt_uncontam_img'], obsid_, filenames)
                 main_out_obsid.close()
         if inputs['cleaning'].lower() == 'false':
@@ -212,6 +215,7 @@ def run_pipeline():
             os.chdir(inputs['home_dir'])
             merge_objects(inputs['dir_list'], inputs['name'], clean='yes')
             os.chdir(inputs['home_dir']+'/'+inputs['name'])
+            filenames['evt2_repro'] = inputs['home_dir']+'/'+inputs['name']+'/merged_evt.fits'
             print("    Choosing extent of source and contaminating point sources")
             edge_x,edge_y,agn_ = display_merge(inputs['home_dir']+'/'+inputs['name'],'broad_flux.img')
             edge_ra,edge_dec = get_RaDec_log('broad_flux.img',edge_x,edge_y)

@@ -19,6 +19,7 @@ If running the Flares module assumes that we have already created a background l
 import os
 from shutil import copyfile
 from ciao_contrib.runtool import *
+import matplotlib.pyplot as plt
 from Preliminary.Astrometric import Astrometric
 from Preliminary.Destreak import Destreak
 from Preliminary.BadPixel import BadPixel
@@ -60,4 +61,5 @@ def FaintCleaning(chandra_dir,OBSID,ccd_bkg,source_ra,source_dec,ccds):
 	BadPixel(base_dir,output_dir,OBSID,filenames,biases)
 	print("      Apply GTI and Completing Reprocessing...")
 	filenames = Process(filenames,OBSID)
+	plt.close()
 	return filenames

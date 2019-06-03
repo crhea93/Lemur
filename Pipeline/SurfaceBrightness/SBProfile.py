@@ -26,7 +26,6 @@ def SB_profile(merged_dir,evt_file,exposure_map,bkg_region,ra,dec,z,model_type='
     #print(merged_dir)
     shutil.copyfile(bkg_region,merged_dir+bkg_region.split('/')[-1])
     os.chdir(merged_dir)
-
     #---------------------Create Annuli---------------------------#
     create_ann(ra,dec)
     #---------------------Create Profile--------------------------#
