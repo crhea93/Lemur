@@ -1,117 +1,393 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="icon" type="image/png" href="Table/images/icons/udem.png" />
+        <link rel="stylesheet" type="text/css" href="css/main.css" />
+        <link
+            rel="stylesheet"
+            type="text/css"
+            href="//fonts.googleapis.com/css?family=Ubuntu:300,400,500,700"
+        />
+        <link
+            rel="stylesheet"
+            href="https://www.w3schools.com/w3css/4/w3.css"
+        />
+        <link
+            href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css"
+            rel="stylesheet"
+        />
+        <link href="css/bootstrap.min.css" rel="stylesheet" />
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+        <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css?family=IBM+Plex+Sans:300,400,500,600,700"
+        />
+        <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600;700&display=swap"
+        />
+        <link rel="stylesheet" type="text/css" href="css/nav.css" />
+        <title>Lemur</title>
+        <style>
+            :root {
+                --bg-0: #f7f4fb;
+                --bg-1: #eee7f8;
+                --paper: rgba(255, 255, 255, 0.78);
+                --paper-strong: rgba(255, 255, 255, 0.92);
+                --ink-0: #21192f;
+                --ink-1: #483b5d;
+                --ink-2: #6f6385;
+                --line: rgba(95, 78, 131, 0.2);
+                --accent: #8f78c4;
+                --accent-deep: #7159a6;
+                --accent-soft: rgba(143, 120, 196, 0.14);
+                --shadow-soft: 0 14px 36px rgba(74, 58, 110, 0.13);
+                --shadow-hard: 0 24px 56px rgba(56, 38, 88, 0.2);
+            }
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="icon" type="image/png" href="Table/images/icons/udem.png"/>
-    <link rel="stylesheet" type="text/css" href="css/main.css">
-    <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Ubuntu" />
-    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
-    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet">
-    <link href="css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lobster">
-    <title>Lemur</title>
-</head>
+            body {
+                font-family: "DM Sans", "IBM Plex Sans", sans-serif;
+                font-size: 16px;
+                background:
+                    radial-gradient(
+                        1200px 640px at 14% 10%,
+                        rgba(188, 166, 236, 0.32),
+                        transparent 60%
+                    ),
+                    radial-gradient(
+                        900px 500px at 84% 4%,
+                        rgba(146, 122, 204, 0.18),
+                        transparent 58%
+                    ),
+                    linear-gradient(160deg, var(--bg-0), var(--bg-1));
+                color: var(--ink-1);
+                min-height: 100vh;
+                margin: 0;
+            }
 
+            a {
+                color: var(--accent);
+                text-decoration: none;
+                transition: color 180ms ease;
+            }
 
+            a:hover,
+            a:focus {
+                color: var(--accent-deep);
+            }
 
-<body>
+            .hero {
+                padding: 88px 0 54px;
+                position: relative;
+                overflow: hidden;
+            }
 
+            .hero::before {
+                content: "";
+                position: absolute;
+                inset: 0;
+                background:
+                    radial-gradient(
+                        circle at 68% 62%,
+                        rgba(143, 120, 196, 0.12),
+                        transparent 50%
+                    ),
+                    repeating-linear-gradient(
+                        -30deg,
+                        rgba(143, 120, 196, 0.07),
+                        rgba(143, 120, 196, 0.07) 1px,
+                        transparent 1px,
+                        transparent 16px
+                    );
+                opacity: 0.85;
+                pointer-events: none;
+            }
 
-  <!-- NAVIGATION BAR -->
-  <div class="w3-bar w3-blue" id='nav'>
-      <a href="#" class="w3-bar-item w3-button w3-hover-teal">Home</a>
-      <a href="Table/index_table.html" class="w3-bar-item w3-button w3-hover-teal">Cluster Table</a>
-      <a href="Filter_Table/filter_index.html" class="w3-bar-item w3-button w3-hover-teal">Cluster Plots</a>
-      <a href="AboutUs/About_us.html" class="w3-bar-item w3-button w3-hover-teal">About Us</a>
-  </div>
-  <h1 class="Titles" align="center"> X-ray Galaxy Cluster Archive </h1>
-  <h3 class="Titles" align="center"> À l'Université de Montréal </h3>
-  <div class="primary_text">
-      <p>Welcome to the X-ray Galaxy Cluster Archive à l'Université de Montréal! The archive was built out of several graduate students' desire
-      to have a coherent and comprehensive data archive dedicated the X-ray Galaxy Clusters. While the primary purpose of the archive was initially to
-      categorize clusters into cool-core vs. non cool-core, we hope it will enable further investigation into cluster properties and allow for
-      statistical studies of clusters.
-      </p><br>
-      <p>
-          On the <a href="Table/index_table.html">Cluster Table</a> page, you can find a searchable collection of clusters along with
-          pertinent information on each including parameters such as the cooling radius and coefficient of surface brightness.
-          If you visit the <a href="Filter_Table/filter_index.html">Cluster Plots</a> page, you will be able to create plots using the
-          calculated cluster parameters and download the datatable as a csv file.
-      </p>
-      <div id="counter">
-          <div class="col-md-12" align="center">
-              <div class="counter ">
-                  <h2 class="desc"><b>Total Clusters Added</b></h2>
-                  <h2 class="title"><b><span class="counter-value" data-duration="2000"  id="count_result"></span></b></h2>
-              </div><!-- counter -->
-          </div>
-      </div>
-  </div>
+            .hero-content {
+                position: relative;
+                max-width: 1050px;
+                margin: 0 auto;
+                padding: 0 24px;
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+                gap: 34px;
+                align-items: center;
+            }
 
+            .hero-title {
+                font-family: "Cormorant Garamond", Georgia, serif;
+                font-size: clamp(2.9rem, 4.5vw, 4.9rem);
+                font-weight: 600;
+                letter-spacing: 0.01em;
+                line-height: 1.02;
+                color: var(--ink-0);
+                margin: 0 0 14px;
+            }
 
-  <section id="mu-register">
-      <div class="container">
-          <div class="row">
-              <div class="col-md-12">
-                  <div class="mu-register-area">
+            .hero-subtitle {
+                font-size: 1rem;
+                color: var(--ink-2);
+                text-transform: uppercase;
+                letter-spacing: 0.22em;
+                margin-bottom: 6px;
+            }
 
-                      <div class="mu-title-area">
-                          <h1 class="mu-title" align="center"><b>Comments Form</b></h1>
-                      </div>
+            .hero-card {
+                background: var(--paper-strong);
+                border: 1px solid var(--line);
+                border-radius: 20px;
+                padding: 30px;
+                box-shadow: var(--shadow-soft);
+                backdrop-filter: blur(8px);
+            }
 
-                      <div class="mu-register-content">
-                          <div id="form-messages"></div>
-                          <form id="ajax-contact" method="post" action="php/mailer.php" class="mu-register-form">
+            .hero-card h2 {
+                font-size: 1rem;
+                margin-bottom: 12px;
+                text-transform: uppercase;
+                letter-spacing: 0.18em;
+                color: var(--accent-deep);
+            }
 
-                              <div class="row">
-                                  <div class="col-md-6">
-                                      <div class="form-group">
-                                          <input type="text" class="form-control" placeholder="Your Full Name" id="name" name="name" required="">
-                                      </div>
-                                  </div>
+            .hero-card p {
+                color: var(--ink-1);
+                line-height: 1.72;
+                font-size: 1.08rem;
+                margin: 0;
+            }
 
-                                  <div class="col-md-6">
-                                      <div class="form-group">
-                                          <input type="email" class="form-control" placeholder="Enter Your Email" id="email" name="email" required="">
-                                      </div>
-                                  </div>
-                                  <!--</div>-->
-                              </div>
-                                  <!--<div class="row">-->
-                              <div class="row">
-                                  <div class="col-md-12">
-                                      <div class="form-group">
-                                          <textarea class="form-message" rows="5" cols="60" placeholder="If you have any comments, suggestions, or requests please include them here..." id="message" name="message"></textarea><label for="message"></label>
-                                      </div>
-                                  </div>
-                                  <!--</div>-->
-                              </div>
+            .cta-row {
+                margin-top: 24px;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 12px;
+            }
 
-                              <div class="row">
-                                  <div class="col-md-12">
-                                      <button type="submit" class="mu-send-msg-btn">SUBMIT</button> <br>&nbsp<br>
-                                  </div>
-                              </div>
-                          </form>
-                      </div>
+            .cta-btn {
+                padding: 12px 20px;
+                border-radius: 999px;
+                font-weight: 600;
+                letter-spacing: 0.06em;
+                text-transform: uppercase;
+                background: linear-gradient(135deg, #9378d3, #7459ae);
+                color: #fff;
+                border: none;
+                box-shadow: 0 12px 22px rgba(97, 74, 150, 0.28);
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                transition:
+                    transform 200ms ease,
+                    box-shadow 200ms ease;
+            }
 
-                  </div>
-              </div>
-          </div>
-      </div>
-  </section>
+            .cta-btn:hover,
+            .cta-btn:focus {
+                color: #fff;
+                transform: translateY(-1px);
+                box-shadow: 0 16px 28px rgba(97, 74, 150, 0.36);
+            }
 
+            .cta-ghost {
+                padding: 12px 20px;
+                border-radius: 999px;
+                border: 1px solid var(--line);
+                color: var(--ink-1);
+                text-transform: uppercase;
+                letter-spacing: 0.06em;
+                font-weight: 600;
+                background: rgba(255, 255, 255, 0.56);
+                transition:
+                    background-color 180ms ease,
+                    border-color 180ms ease;
+            }
 
+            .cta-ghost:hover,
+            .cta-ghost:focus {
+                background-color: rgba(255, 255, 255, 0.8);
+                border-color: rgba(95, 78, 131, 0.35);
+                color: var(--ink-0);
+            }
 
+            .info-section {
+                max-width: 1100px;
+                margin: 0 auto;
+                padding: 40px 24px 60px;
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+                gap: 24px;
+            }
 
+            .info-panel {
+                background: var(--paper-strong);
+                border: 1px solid var(--line);
+                border-radius: 18px;
+                padding: 24px;
+                box-shadow: var(--shadow-soft);
+            }
 
+            .info-panel h3 {
+                font-size: 1rem;
+                margin-bottom: 14px;
+                color: var(--accent-deep);
+                text-transform: uppercase;
+                letter-spacing: 0.14em;
+            }
 
-<script type="text/javascript" src="js/count.js"></script>
-<script type="text/javascript" src="common-js/scripts.js"></script>
-<script type="text/javascript" src="js/app.js"></script>
+            .info-panel p {
+                color: var(--ink-1);
+                line-height: 1.7;
+                font-size: 1.04rem;
+            }
 
-</body>
+            #counter {
+                margin-top: 14px;
+                display: flex;
+                justify-content: center;
+            }
+
+            .counter {
+                background: #fff;
+                border: 1px solid var(--line);
+                border-radius: 16px;
+                padding: 18px 28px;
+                box-shadow: var(--shadow-hard);
+            }
+
+            .counter .desc {
+                color: var(--ink-2);
+                text-transform: uppercase;
+                letter-spacing: 0.16em;
+                font-size: 0.88rem;
+            }
+
+            .counter .title {
+                color: var(--accent-deep);
+                font-size: 2.2rem;
+                margin-top: 4px;
+            }
+
+            .section-label {
+                font-size: 1rem;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+                color: var(--ink-2);
+                max-width: 48ch;
+                line-height: 1.55;
+            }
+
+            .hero > *,
+            .info-section > * {
+                animation: rise-in 580ms ease both;
+            }
+
+            .hero-card {
+                animation-delay: 120ms;
+            }
+
+            .info-panel:nth-child(2) {
+                animation-delay: 140ms;
+            }
+
+            @keyframes rise-in {
+                from {
+                    opacity: 0;
+                    transform: translateY(18px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            @media (max-width: 768px) {
+                .hero {
+                    padding-top: 60px;
+                }
+
+                .hero-content {
+                    gap: 22px;
+                }
+
+                .hero-title {
+                    line-height: 1.08;
+                }
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="w3-bar" id="nav">
+            <a href="#" class="w3-bar-item w3-button w3-hover-teal">Home</a>
+            <a
+                href="Table/index_table.html"
+                class="w3-bar-item w3-button w3-hover-teal"
+                >Cluster Table</a
+            >
+        </div>
+
+        <section class="hero">
+            <div class="hero-content">
+                <div>
+                    <div class="hero-subtitle">Universite de Montreal</div>
+                    <h1 class="hero-title">X-ray Galaxy Cluster Archive</h1>
+                    <p class="section-label">
+                        Precision cataloging of cool-core and non cool-core
+                        clusters
+                    </p>
+                    <div class="cta-row">
+                        <a class="cta-btn" href="Table/index_table.html">
+                            Explore clusters
+                            <i class="fa fa-arrow-right" aria-hidden="true"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="hero-card">
+                    <h2>Archive mission</h2>
+                    <p>
+                        Welcome to the X-ray Galaxy Cluster Archive a
+                        l'Universite de Montreal. This archive was built so
+                        researchers have a coherent, comprehensive view of
+                        cluster data, enabling statistical studies and rapid
+                        discovery of cluster properties.
+                    </p>
+                    <div id="counter">
+                        <div class="counter">
+                            <div class="desc"><b>Total clusters added</b></div>
+                            <div class="title">
+                                <b
+                                    ><span
+                                        class="counter-value"
+                                        data-duration="2000"
+                                        id="count_result"
+                                    ></span
+                                ></b>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="info-section">
+            <div class="info-panel">
+                <h3>Cluster table</h3>
+                <p>
+                    Search a curated collection of clusters with key parameters
+                    like cooling radius and surface brightness coefficients.
+                </p>
+                <p>
+                    Jump into the
+                    <a href="Table/index_table.html">Cluster Table</a> to sort,
+                    filter, and explore the full archive.
+                </p>
+            </div>
+        </section>
+
+        <script type="text/javascript" src="js/count.js?v=2"></script>
+        <script type="text/javascript" src="common-js/scripts.js"></script>
+        <script type="text/javascript" src="js/app.js"></script>
+    </body>
 </html>

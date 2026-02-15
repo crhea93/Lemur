@@ -1,3 +1,0 @@
-The background CCD chosen is CCD#6
-The source CCD chosen is CCD#7
-The edge point is chosen to be 3988.35,4192.34The centroid's X,Y physical coordinates are: 4045,4242We have a total of 4 annuliThe centroid's coordinates in ra/dec are: ra=14:59:28.765 dec=-18:10:45.21The radius of interest extends to 75.33 arcsec

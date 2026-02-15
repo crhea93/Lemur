@@ -1,88 +1,387 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Ubuntu" />
-    <title>Archive Table</title>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <!--===============================================================================================-->
-    <link rel="icon" type="image/png" href="images/icons/udem.png"/>
-    <!--===============================================================================================-->
-    <link rel="stylesheet" type="text/css" href="vendor/bootstrap/css/bootstrap.min.css">
-    <!--===============================================================================================-->
-    <link rel="stylesheet" type="text/css" href="fonts/font-awesome-4.7.0/css/font-awesome.min.css">
-    <!--===============================================================================================-->
-    <link rel="stylesheet" type="text/css" href="vendor/animate/animate.css">
-    <!--===============================================================================================-->
-    <link rel="stylesheet" type="text/css" href="vendor/select2/select2.min.css">
-    <!--===============================================================================================-->
-    <link rel="stylesheet" type="text/css" href="vendor/perfect-scrollbar/perfect-scrollbar.css">
-    <!--===============================================================================================-->
-    <link rel="stylesheet" type="text/css" href="css/util.css">
-    <link rel="stylesheet" type="text/css" href="css/main.css">
-    <link rel="stylesheet" type="text/css" href="css/screen.css">
-    <!--===============================================================================================-->
-    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link
+            rel="stylesheet"
+            type="text/css"
+            href="//fonts.googleapis.com/css?family=Ubuntu:300,400,500,700"
+        />
+        <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css?family=IBM+Plex+Sans:300,400,500,600,700"
+        />
+        <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600;700&display=swap"
+        />
+        <title>Archive Table</title>
+        <link rel="icon" type="image/png" href="images/icons/udem.png" />
+        <link
+            rel="stylesheet"
+            type="text/css"
+            href="vendor/bootstrap/css/bootstrap.min.css"
+        />
+        <link
+            rel="stylesheet"
+            type="text/css"
+            href="fonts/font-awesome-4.7.0/css/font-awesome.min.css"
+        />
+        <link
+            rel="stylesheet"
+            type="text/css"
+            href="vendor/animate/animate.css"
+        />
+        <link
+            rel="stylesheet"
+            type="text/css"
+            href="vendor/select2/select2.min.css"
+        />
+        <link
+            rel="stylesheet"
+            type="text/css"
+            href="vendor/perfect-scrollbar/perfect-scrollbar.css"
+        />
+        <link rel="stylesheet" type="text/css" href="css/util.css" />
+        <link rel="stylesheet" type="text/css" href="css/main.css" />
+        <link rel="stylesheet" type="text/css" href="css/screen.css" />
+        <link
+            rel="stylesheet"
+            href="https://www.w3schools.com/w3css/4/w3.css"
+        />
+        <link rel="stylesheet" type="text/css" href="../css/nav.css" />
+        <style>
+            :root {
+                --bg-0: #f7f4fb;
+                --bg-1: #eee7f8;
+                --paper: rgba(255, 255, 255, 0.8);
+                --paper-strong: rgba(255, 255, 255, 0.92);
+                --ink-0: #21192f;
+                --ink-1: #483b5d;
+                --ink-2: #6f6385;
+                --line: rgba(95, 78, 131, 0.2);
+                --accent: #8f78c4;
+                --accent-deep: #7159a6;
+                --accent-soft: rgba(143, 120, 196, 0.14);
+                --shadow-soft: 0 14px 36px rgba(74, 58, 110, 0.13);
+                --shadow-hard: 0 24px 56px rgba(56, 38, 88, 0.18);
+            }
 
-</head>
-<body>
+            body {
+                font-family: "DM Sans", "IBM Plex Sans", sans-serif;
+                background:
+                    radial-gradient(
+                        1200px 600px at 15% 10%,
+                        rgba(188, 166, 236, 0.32),
+                        transparent 55%
+                    ),
+                    radial-gradient(
+                        900px 520px at 85% 5%,
+                        rgba(146, 122, 204, 0.18),
+                        transparent 60%
+                    ),
+                    linear-gradient(160deg, var(--bg-0), var(--bg-1));
+                color: var(--ink-1);
+                min-height: 100vh;
+            }
 
-<div class="w3-bar w3-blue" id='nav'>
-    <a href="../index.html" class="w3-bar-item w3-button w3-hover-teal">Home</a>
-    <a href="#" class="w3-bar-item w3-button w3-hover-teal">Cluster Table</a>
-    <a href="../Filter_Table/filter_index.html" class="w3-bar-item w3-button w3-hover-teal">Cluster Plots</a>
-    <a href="../AboutUs/About_us.html" class="w3-bar-item w3-button w3-hover-teal">About Us</a>
-    <input type="text" id="myInput" class="w3-bar-item w3-border w3-round-large" onkeyup="myFunction()" placeholder="Search names...">
-</div>
+            a {
+                color: var(--accent);
+                text-decoration: none;
+            }
 
+            a:hover,
+            a:focus {
+                color: var(--accent-deep);
+            }
 
-<div class="limiter">
-    <div class="container-table100">
-        <div class="wrap-table100">
-            <div class="table100">
-                <h1 style="font-family: Ubuntu; color:#02B875; text-align:center; font-weight: bold; font-style: italic" >
-                    X-ray Galaxy Cluster Archive
-                </h1>
-                <script src="Results_table.js"></script>
-            </div>
-        </div>
-    </div>
-</div>
+            #myInput {
+                margin-left: auto;
+                background: rgba(255, 255, 255, 0.8) !important;
+                border: 1px solid var(--line) !important;
+                color: var(--ink-1) !important;
+                min-width: 220px;
+                font-size: 1rem;
+                padding: 10px 12px;
+            }
 
+            #myInput::placeholder {
+                color: var(--ink-2);
+            }
 
-<script>
-    function myFunction() {
-        // Declare variables
-        var input, filter, table, tr, td, i, txtValue;
-        input = document.getElementById("myInput");
-        filter = input.value.toUpperCase();
-        table = document.getElementById("Analysis_summary");
-        tr = table.getElementsByTagName("tr");
+            .page-header {
+                position: relative;
+                overflow: hidden;
+                padding: 60px 24px 30px;
+            }
 
-        // Loop through all table rows, and hide those who don't match the search query
-        for (i = 0; i < tr.length; i++) {
-            td = tr[i].getElementsByTagName("td")[0];
-            if (td) {
-                txtValue = td.textContent || td.innerText;
-                if (txtValue.toUpperCase().indexOf(filter) > -1) {
-                    tr[i].style.display = "";
-                } else {
-                    tr[i].style.display = "none";
+            .page-header::before {
+                content: "";
+                position: absolute;
+                inset: 0;
+                background:
+                    radial-gradient(
+                        circle at 70% 58%,
+                        rgba(143, 120, 196, 0.12),
+                        transparent 50%
+                    ),
+                    repeating-linear-gradient(
+                        -30deg,
+                        rgba(143, 120, 196, 0.07),
+                        rgba(143, 120, 196, 0.07) 1px,
+                        transparent 1px,
+                        transparent 16px
+                    );
+                opacity: 0.85;
+                pointer-events: none;
+            }
+
+            .page-header-content {
+                position: relative;
+                max-width: 1100px;
+                margin: 0 auto;
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+            }
+
+            .page-header h1 {
+                font-family: "Cormorant Garamond", Georgia, serif;
+                font-size: clamp(2.8rem, 4.2vw, 4.2rem);
+                font-weight: 600;
+                letter-spacing: 0.01em;
+                margin: 0;
+                color: var(--ink-0);
+            }
+
+            .page-header p {
+                color: var(--ink-2);
+                max-width: 760px;
+                margin: 0 auto;
+                font-size: 1.1rem;
+                line-height: 1.7;
+            }
+
+            .table-shell {
+                max-width: 1250px;
+                margin: 0 auto 80px;
+                padding: 0 24px;
+            }
+
+            .table-card {
+                background: var(--paper-strong);
+                border: 1px solid var(--line);
+                border-radius: 18px;
+                padding: 24px;
+                box-shadow: var(--shadow-soft);
+            }
+
+            .table-card .table100 {
+                background: transparent;
+            }
+
+            .table100 table {
+                color: var(--ink-1);
+                border-color: var(--line);
+                border-radius: 14px;
+            }
+
+            .table100 table thead {
+                background: rgba(143, 120, 196, 0.16);
+            }
+
+            .table100 table thead tr {
+                background: rgba(143, 120, 196, 0.16) !important;
+            }
+
+            .table100 table thead th {
+                color: var(--accent-deep);
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                font-size: 0.92rem;
+                font-weight: 700;
+            }
+
+            .table100 table tbody tr {
+                background: rgba(255, 255, 255, 0.88);
+            }
+
+            .table100 table tbody tr:nth-child(even) {
+                background: rgba(245, 240, 252, 0.9);
+            }
+
+            .table100 table tbody td {
+                color: var(--ink-1);
+                font-size: 1.02rem;
+                line-height: 1.45;
+                padding-top: 14px;
+                padding-bottom: 14px;
+            }
+
+            .table100 table tbody tr:hover {
+                background: rgba(230, 221, 247, 0.95);
+            }
+
+            .table100 table tbody tr:hover td,
+            .table100 table tbody tr:hover a {
+                color: var(--ink-0);
+            }
+
+            .table-status {
+                color: var(--ink-2);
+                text-align: center;
+                padding: 20px 0;
+                font-size: 1.05rem;
+            }
+
+            @media (max-width: 768px) {
+                #myInput {
+                    margin-left: 0;
+                    width: 100%;
                 }
             }
-        }
-    }
-</script>
+        </style>
+    </head>
+    <body>
+        <div class="w3-bar" id="nav">
+            <a href="../index.html" class="w3-bar-item w3-button w3-hover-teal"
+                >Home</a
+            >
+            <a href="#" class="w3-bar-item w3-button w3-hover-teal"
+                >Cluster Table</a
+            >
+            <input
+                type="text"
+                id="myInput"
+                class="w3-bar-item w3-border w3-round-large"
+                onkeyup="myFunction()"
+                placeholder="Search names..."
+            />
+        </div>
 
-<!--===============================================================================================-->
-<script src="vendor/jquery/jquery-3.2.1.min.js"></script>
-<!--===============================================================================================-->
-<script src="vendor/bootstrap/js/popper.js"></script>
-<script src="vendor/bootstrap/js/bootstrap.min.js"></script>
-<!--===============================================================================================-->
-<script src="vendor/select2/select2.min.js"></script>
-<!--===============================================================================================-->
-<script src="js/main.js"></script>
+        <section class="page-header">
+            <div class="page-header-content">
+                <h1>X-ray Galaxy Cluster Archive</h1>
+                <p>
+                    Browse the full catalog of X-ray galaxy clusters, filter by
+                    name, and scan the key parameters that define each entry.
+                </p>
+            </div>
+        </section>
 
-</body>
+        <div class="table-shell">
+            <div class="table-card">
+                <div class="table100">
+                    <div class="table-status" id="table-status">
+                        Loading clusters...
+                    </div>
+                    <div id="table-container"></div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function formatValue(value) {
+                if (value === null || value === undefined || value === "") {
+                    return "None";
+                }
+                return value;
+            }
+
+            async function loadTable() {
+                const status = document.getElementById("table-status");
+                const container = document.getElementById("table-container");
+
+                try {
+                    const response = await fetch("/api/clusters");
+                    if (!response.ok) {
+                        throw new Error("Failed to load clusters");
+                    }
+                    const clusters = await response.json();
+
+                    const table = document.createElement("table");
+                    table.id = "Analysis_summary";
+
+                    const thead = document.createElement("thead");
+                    thead.innerHTML = `
+                        <tr class="table100-head">
+                            <th>Cluster Name</th>
+                            <th>Redshift</th>
+                            <th>Right Ascension</th>
+                            <th>Declination</th>
+                            <th>Obsids</th>
+                            <th>FITS</th>
+                        </tr>
+                    `;
+                    table.appendChild(thead);
+
+                    const tbody = document.createElement("tbody");
+                    clusters.forEach((cluster) => {
+                        const row = document.createElement("tr");
+                        row.innerHTML = `
+                            <td class="column0">
+                                <a href="/cluster.html?name=${encodeURIComponent(
+                                    cluster.Name,
+                                )}">${cluster.Name}</a>
+                            </td>
+                            <td class="column0">${formatValue(cluster.redshift)}</td>
+                            <td class="column0">${formatValue(cluster.RightAsc)}</td>
+                            <td class="column0">${formatValue(cluster.Declination)}</td>
+                            <td class="column0">${
+                                cluster.Obsids.length
+                                    ? cluster.Obsids.join(", ")
+                                    : "None"
+                            }</td>
+                            <td class="column0">
+                                <a href="/api/fits/${encodeURIComponent(
+                                    cluster.Name,
+                                )}/download">Download</a>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                    table.appendChild(tbody);
+
+                    container.appendChild(table);
+                    status.remove();
+                } catch (err) {
+                    status.textContent = "Unable to load clusters.";
+                    console.error(err);
+                }
+            }
+
+            function myFunction() {
+                var input, filter, table, tr, td, i, txtValue;
+                input = document.getElementById("myInput");
+                filter = input.value.toUpperCase();
+                table = document.getElementById("Analysis_summary");
+                if (!table) {
+                    return;
+                }
+                tr = table.getElementsByTagName("tr");
+
+                for (i = 0; i < tr.length; i++) {
+                    td = tr[i].getElementsByTagName("td")[0];
+                    if (td) {
+                        txtValue = td.textContent || td.innerText;
+                        if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                            tr[i].style.display = "";
+                        } else {
+                            tr[i].style.display = "none";
+                        }
+                    }
+                }
+            }
+
+            loadTable();
+        </script>
+
+        <script src="vendor/jquery/jquery-3.2.1.min.js"></script>
+        <script src="vendor/bootstrap/js/popper.js"></script>
+        <script src="vendor/bootstrap/js/bootstrap.min.js"></script>
+        <script src="vendor/select2/select2.min.js"></script>
+        <script src="js/main.js"></script>
+    </body>
 </html>
