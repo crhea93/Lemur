@@ -1,0 +1,41 @@
+.w3-bar {
+    background: rgba(252, 248, 255, 0.96) !important;
+    border-bottom: 1px solid rgba(113, 89, 166, 0.14);
+    box-shadow: 0 6px 14px rgba(66, 49, 103, 0.06);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    backdrop-filter: blur(10px);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+}
+
+#nav .w3-bar-item.w3-button {
+    font-family: "DM Sans", "IBM Plex Sans", sans-serif;
+    color: var(--ink-1, #483b5d) !important;
+    font-size: 15px !important;
+    line-height: 1.15 !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    border-radius: 999px;
+    font-weight: 600 !important;
+    padding: 11px 14px !important;
+    transition:
+        background-color 180ms ease,
+        color 180ms ease;
+}
+
+#nav .w3-bar-item.w3-button:hover,
+#nav .w3-bar-item.w3-button:focus {
+    background-color: var(--accent-soft, rgba(143, 120, 196, 0.14)) !important;
+    color: var(--ink-0, #21192f) !important;
+}
+
+@media (max-width: 768px) {
+    #nav .w3-bar-item.w3-button {
+        padding: 11px 12px !important;
+    }
+}
