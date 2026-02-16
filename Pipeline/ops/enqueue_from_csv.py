@@ -5,7 +5,7 @@ import hashlib
 import os
 import pickle
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 import mysql.connector
 
@@ -152,8 +152,78 @@ def _first_present(dct, keys):
     return None
 
 
+def load_obsid_name_map(path, obsid_col, name_col, delimiter):
+    mapping = {}
+    if not path:
+        return mapping
+    with open(path, newline="", encoding="utf-8-sig") as handle:
+        reader = csv.DictReader(handle, delimiter=delimiter)
+        if not reader.fieldnames:
+            return mapping
+        headers = {normalize_header(h): h for h in reader.fieldnames}
+        obsid_key = find_column(headers, obsid_col, OBSID_CANDIDATES)
+        name_key = find_column(headers, name_col, CLUSTER_CANDIDATES)
+        if not obsid_key or not name_key:
+            return mapping
+        for row in reader:
+            obsids = parse_obsids(row.get(headers[obsid_key]))
+            name = (row.get(headers[name_key]) or "").strip()
+            if not name:
+                continue
+            for obsid in obsids:
+                mapping[int(obsid)] = name
+    return mapping
+
+
+def infer_name_from_members(members):
+    if not isinstance(members, (list, tuple)):
+        return None
+    candidates = []
+    for item in members:
+        if not isinstance(item, dict):
+            continue
+        value = _first_present(
+            item,
+            (
+                "cluster",
+                "cluster_name",
+                "name",
+                "target_name",
+                "target name",
+            ),
+        )
+        if value:
+            candidates.append(str(value).strip())
+    if not candidates:
+        return None
+    return Counter(candidates).most_common(1)[0][0]
+
+
+def infer_name_from_obsid_map(obsids, obsid_to_name):
+    if not obsids or not obsid_to_name:
+        return None
+    names = [
+        obsid_to_name.get(int(obsid)) for obsid in obsids if int(obsid) in obsid_to_name
+    ]
+    names = [n for n in names if n]
+    if not names:
+        return None
+    return Counter(names).most_common(1)[0][0]
+
+
 def ingest_pickle(args):
     groups = defaultdict(lambda: {"obsids": set(), "redshift": None})
+    map_csv = args.name_map_csv
+    if not map_csv:
+        default_map = os.path.join("survey", "galaxyClusters.csv")
+        if os.path.exists(default_map):
+            map_csv = default_map
+    obsid_to_name = load_obsid_name_map(
+        map_csv,
+        args.name_map_obsid_col,
+        args.name_map_name_col,
+        args.name_map_delimiter,
+    )
     with open(args.pickle, "rb") as handle:
         data = pickle.load(handle)
 
@@ -180,6 +250,8 @@ def ingest_pickle(args):
                 entry, ("obsids", "obsid", "obs_ids", "dir_list", "obs_list")
             )
             redshift_raw = _first_present(entry, ("redshift", "z"))
+            if not cluster:
+                cluster = infer_name_from_members(entry.get("members"))
         elif isinstance(entry, (list, tuple, set)):
             obsid_raw = list(entry)
         else:
@@ -189,6 +261,8 @@ def ingest_pickle(args):
         if not obsids:
             continue
 
+        if not cluster:
+            cluster = infer_name_from_obsid_map(obsids, obsid_to_name)
         if not cluster:
             cluster = f"Cluster_{idx:04d}"
         cluster = str(cluster).strip()
@@ -272,6 +346,23 @@ def build_parser():
     parser.add_argument("--cluster-col", help="Cluster column name.")
     parser.add_argument("--obsid-col", help="ObsID column name.")
     parser.add_argument("--redshift-col", help="Optional redshift column name.")
+    parser.add_argument(
+        "--name-map-csv",
+        help="Optional CSV used to map ObsID -> cluster name for pickle manifests.",
+    )
+    parser.add_argument(
+        "--name-map-obsid-col",
+        help="ObsID column name in --name-map-csv (auto-detected by default).",
+    )
+    parser.add_argument(
+        "--name-map-name-col",
+        help="Name column name in --name-map-csv (auto-detected by default).",
+    )
+    parser.add_argument(
+        "--name-map-delimiter",
+        default=",",
+        help="Delimiter for --name-map-csv (default: ',').",
+    )
     parser.add_argument("--db-host", default="localhost")
     parser.add_argument("--db-user", default="carterrhea")
     parser.add_argument("--db-name", default="carterrhea")
