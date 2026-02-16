@@ -7,14 +7,14 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from .db import DB_PATH, get_conn
+from .db import DATA_DIR, DB_PATH, get_conn
 
 app = FastAPI(title="Lemur API")
 
 BASE_DIR = Path(__file__).resolve().parent
 WEB_DIR = BASE_DIR.parent / "Web"
 PLOTS_DIR = WEB_DIR / "Cluster_plots"
-FITS_DIR = BASE_DIR / "data" / "fits"
+FITS_DIR = Path(os.getenv("LEMUR_FITS_DIR", str(DATA_DIR / "fits"))).expanduser()
 
 
 def ensure_db():

@@ -27,6 +27,11 @@ uvicorn api.app:app --reload --host 0.0.0.0 --port 8000
 - Cluster table: `http://localhost:8000/Table/index_table.html`
 - Cluster detail page: `http://localhost:8000/cluster/Abell133`
 
+Optional runtime paths (to keep data out of Git):
+- `LEMUR_DATA_DIR` - base directory for runtime data (default: `api/data`)
+- `LEMUR_DB_PATH` - full path to SQLite DB (default: `$LEMUR_DATA_DIR/lemur.db`)
+- `LEMUR_FITS_DIR` - full path to FITS tree (default: `$LEMUR_DATA_DIR/fits`)
+
 ## Pipeline
 The pipeline is now orchestrated through `Pipeline/pipeline.py` and is split into
 focused modules:
@@ -59,6 +64,48 @@ python Pipeline/pipeline.py --cluster Abell133 --obsids 2203 9897 --defaults /pa
 python Pipeline/pipeline.py --cluster Abell133 --obsids 2203,9897 --redshift 0.0566
 ```
 
+### Queue-Based Batch Runs (CSV -> Download -> Lemur)
+This repo now includes an operations queue to process many clusters from a CSV manifest.
+
+1. Create queue tables in MySQL:
+```bash
+mysql -u carterrhea -p carterrhea < Pipeline/sql/2026_02_16_pipeline_ops.sql
+```
+
+2. Enqueue runs from CSV:
+```bash
+python Pipeline/ops/enqueue_from_csv.py --csv /path/to/clusters.csv
+```
+
+Or from a pickle manifest:
+```bash
+python Pipeline/ops/enqueue_from_csv.py --pickle /path/to/clusters_grouped.pkl
+```
+
+If column names are non-standard, pass them explicitly:
+```bash
+python Pipeline/ops/enqueue_from_csv.py \
+  --csv /path/to/clusters.csv \
+  --cluster-col "Target Name" \
+  --obsid-col "Obs ID" \
+  --redshift-col redshift
+```
+
+3. Run the queue worker:
+```bash
+python Pipeline/ops/run_queue.py --defaults inputs/template.i
+```
+
+Useful flags:
+- `--once` process one queued run then exit.
+- `--retry-failed` include failed runs for retry.
+- `--recover-interrupted` requeue runs left in `downloading/processing` after a crash/shutdown.
+- `--skip-download` assume ObsIDs already exist in `home_dir`.
+- `--download-cmd-template "download_chandra_obsid {obsid}"` customize fetch command.
+
+Each run writes logs and metadata to:
+- `Pipeline/ops/runs/<run_id>_<cluster>_<timestamp>/`
+
 ### Smoke test
 Runs a real pipeline execution and verifies key outputs exist:
 ```bash
@@ -80,7 +127,14 @@ The smoke test checks:
 
 ## FITS Downloads
 Place FITS files at:
-- `api/data/fits/<ClusterName>/<ClusterName>.fits`
+- `$LEMUR_FITS_DIR/<ClusterName>/<file>.fits` (or `.fit`, `.fts`, `.gz`)
+- If `LEMUR_FITS_DIR` is unset, default is `api/data/fits/<ClusterName>/`
+
+Sync helper:
+```bash
+scripts/sync_fits.sh /path/to/fits_source
+scripts/sync_fits.sh s3://my-bucket/fits
+```
 
 The table page and cluster detail page link to downloads automatically.
 
