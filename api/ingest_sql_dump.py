@@ -6,7 +6,12 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_SQL = BASE_DIR.parent / "Pipeline" / "Lemur_DB.sql"
-DEFAULT_DB = BASE_DIR / "data" / "lemur.db"
+DEFAULT_DATA_DIR = Path(
+    os.getenv("LEMUR_DATA_DIR", str(BASE_DIR / "data"))
+).expanduser()
+DEFAULT_DB = Path(
+    os.getenv("LEMUR_DB_PATH", str(DEFAULT_DATA_DIR / "lemur.db"))
+).expanduser()
 
 
 def split_tuples(values_blob):
