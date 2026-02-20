@@ -1,10 +1,10 @@
-# Cloudflare Full-Stack Deployment (D1 + R2 + Worker Assets)
+# Cloudflare Full-Stack Deployment (D1 + Zenodo + Worker Assets)
 
 This folder scaffolds the Cloudflare-native deployment path for Lemur:
 - Static site from `Web/` via Worker assets binding.
 - API routes from a Worker (`cloudflare/src/worker.js`).
 - Cluster metadata in D1 (`DB` binding).
-- FITS download archives in R2 (`FITS_BUCKET` binding).
+- FITS download links resolved from `Web/zenodo_fits_links.json` and redirected to Zenodo.
 
 ## 1. Prerequisites
 - Node.js 18+.
@@ -19,12 +19,10 @@ From repo root:
 ```bash
 wrangler login
 wrangler d1 create lemur-db
-wrangler r2 bucket create lemur-fits
 ```
 
 Then update `wrangler.toml`:
 - `database_id` under `[[d1_databases]]` with the created D1 ID.
-- `bucket_name` if you chose a different R2 name.
 
 ## 3. Initialize D1 schema
 ```bash
@@ -44,19 +42,17 @@ One practical path:
 
 If your `.dump` includes SQLite internals, remove lines for `sqlite_sequence` before import.
 
-## 5. Upload FITS archives to R2
-Worker expects one zip per cluster, with any of these keys:
-- `fits/<ClusterName>.zip` (preferred)
-- `<ClusterName>.zip`
-- `<ClusterName>/<ClusterName>.zip`
+## 5. Upload FITS archives to Zenodo
+Run the sync helper to package per-cluster FITS zips, upload to Zenodo, and
+generate `Web/zenodo_fits_links.json` used by the API/Worker download route.
 
-Example:
+Set your token first:
 ```bash
-wrangler r2 object put lemur-fits/fits/Abell133.zip --file ./path/to/Abell133.zip
+export ZENODO_TOKEN=your_token_here
 ```
 
-## Automated sync for Steps 3 and 4
-Use the helper script to run D1 schema+data sync and R2 FITS uploads in one command:
+## Automated sync for Steps 3, 4, and 5
+Use the helper script to run D1 sync and Zenodo FITS uploads in one command:
 
 ```bash
 ./cloudflare/scripts/sync_cloudflare_data.sh
@@ -64,17 +60,20 @@ Use the helper script to run D1 schema+data sync and R2 FITS uploads in one comm
 
 Useful flags:
 - `--d1-db <name>` override D1 DB name
-- `--r2-bucket <name>` override R2 bucket name
+- `--zenodo-api-base <url>` set API base (e.g. `https://sandbox.zenodo.org/api`)
+- `--zenodo-token <token>` pass token directly
+- `--zenodo-links-file <path>` output links map
 - `--skip-schema` only import data (no schema apply)
 - `--skip-d1` only run FITS uploads
-- `--skip-r2` only run D1 sync
+- `--skip-zenodo` only run D1 sync
 - `--dry-run` preview commands without executing
 
 Examples:
 ```bash
-./cloudflare/scripts/sync_cloudflare_data.sh --d1-db lemur-db --r2-bucket lemur-fits
-./cloudflare/scripts/sync_cloudflare_data.sh --skip-r2
+./cloudflare/scripts/sync_cloudflare_data.sh --d1-db lemur-db
+./cloudflare/scripts/sync_cloudflare_data.sh --skip-zenodo
 ./cloudflare/scripts/sync_cloudflare_data.sh --skip-d1
+./cloudflare/scripts/sync_cloudflare_data.sh --zenodo-api-base https://sandbox.zenodo.org/api --zenodo-token "$ZENODO_TOKEN"
 ```
 
 ## 6. Deploy
@@ -92,4 +91,5 @@ After deploy, the same routes should work:
 
 ## Notes
 - Plot images are still served from `Web/Cluster_plots/*` static assets.
+- FITS links map is loaded from `Web/zenodo_fits_links.json`.
 - `worker.js` currently checks for `bkgsub_exp.png` in each cluster plot directory for the detail page.

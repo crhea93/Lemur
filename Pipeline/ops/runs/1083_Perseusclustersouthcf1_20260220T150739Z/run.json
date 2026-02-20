@@ -1,0 +1,12 @@
+{
+  "run_id": 1083,
+  "cluster": "Perseus cluster south cf 1",
+  "obsids": [
+    "22643",
+    "22894",
+    "23086",
+    "23103"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150739Z"
+}

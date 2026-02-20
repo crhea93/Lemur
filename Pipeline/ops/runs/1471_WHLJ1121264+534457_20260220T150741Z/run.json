@@ -1,0 +1,9 @@
+{
+  "run_id": 1471,
+  "cluster": "WHL J112126.4+534457",
+  "obsids": [
+    "26912"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150741Z"
+}

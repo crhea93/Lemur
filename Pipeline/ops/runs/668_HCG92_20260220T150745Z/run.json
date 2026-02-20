@@ -1,0 +1,9 @@
+{
+  "run_id": 668,
+  "cluster": "HCG 92",
+  "obsids": [
+    "7924"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150745Z"
+}

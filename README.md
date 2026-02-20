@@ -126,7 +126,7 @@ The smoke test checks:
 - `GET /api/fits/{name}/download` - ZIP of FITS files for the cluster.
 
 ## FITS Downloads
-Place FITS files at:
+Local dev fallback (when no Zenodo link exists) still reads FITS files from:
 - `$LEMUR_FITS_DIR/<ClusterName>/<file>.fits` (or `.fit`, `.fts`, `.gz`)
 - If `LEMUR_FITS_DIR` is unset, default is `api/data/fits/<ClusterName>/`
 
@@ -136,7 +136,8 @@ scripts/sync_fits.sh /path/to/fits_source
 scripts/sync_fits.sh s3://my-bucket/fits
 ```
 
-The table page and cluster detail page link to downloads automatically.
+Production FITS download links are generated from `Web/zenodo_fits_links.json`
+and point to Zenodo records.
 
 ## Dynamic Pages
 - Table is rendered from `/api/clusters`.
@@ -164,10 +165,10 @@ This path runs:
 - Static web assets from `Web/`
 - API routes in a Worker
 - Cluster metadata in D1
-- FITS zip downloads from R2
+- FITS zip downloads from Zenodo (via redirect links map)
 
 Follow `cloudflare/README.md` for provisioning and import steps.
-For automated D1 + R2 data sync, use:
+For automated D1 + Zenodo sync, use:
 `./cloudflare/scripts/sync_cloudflare_data.sh`
 
 ### Makefile shortcuts

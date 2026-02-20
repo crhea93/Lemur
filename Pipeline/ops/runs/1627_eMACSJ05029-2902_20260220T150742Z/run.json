@@ -1,0 +1,11 @@
+{
+  "run_id": 1627,
+  "cluster": "eMACSJ0502.9-2902",
+  "obsids": [
+    "23840",
+    "26365",
+    "26366"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150742Z"
+}

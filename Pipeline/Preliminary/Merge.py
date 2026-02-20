@@ -44,6 +44,7 @@ def merge_objects(Obsids, output_name, clean="yes"):
         + output_name
         + "/ clobber=yes verbose=0 cleanup="
         + clean
+        + "bin=1 "
     )
     # Copy merged FITS to API download location with standardized name
     try:

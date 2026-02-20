@@ -1,0 +1,11 @@
+{
+  "run_id": 1468,
+  "cluster": "Virgo Cluster S11",
+  "obsids": [
+    "23850",
+    "25002",
+    "25003"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150749Z"
+}

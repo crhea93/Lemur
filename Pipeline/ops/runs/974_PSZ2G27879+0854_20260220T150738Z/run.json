@@ -1,0 +1,9 @@
+{
+  "run_id": 974,
+  "cluster": "PSZ2 G278.79+08.54",
+  "obsids": [
+    "18280"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150738Z"
+}

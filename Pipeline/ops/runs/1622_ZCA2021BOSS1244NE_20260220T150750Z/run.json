@@ -1,0 +1,10 @@
+{
+  "run_id": 1622,
+  "cluster": "[ZCA2021] BOSS1244 NE",
+  "obsids": [
+    "27400",
+    "29299"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150750Z"
+}

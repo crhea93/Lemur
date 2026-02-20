@@ -1,0 +1,12 @@
+{
+  "run_id": 815,
+  "cluster": "MOO J1059+5454",
+  "obsids": [
+    "23855",
+    "24484",
+    "24485",
+    "26226"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150746Z"
+}

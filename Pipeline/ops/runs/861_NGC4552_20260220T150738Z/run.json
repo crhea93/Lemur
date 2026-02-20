@@ -1,0 +1,11 @@
+{
+  "run_id": 861,
+  "cluster": "NGC 4552",
+  "obsids": [
+    "13985",
+    "14358",
+    "14359"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150738Z"
+}

@@ -47,7 +47,7 @@ def run_single_observation(inputs, ccds, main_out, db_service):
         if inputs["cleaning"].lower() == "true":
             print("    We can now create a lightcurve for the background...")
             bkg_clean_srcs(bkg_ccd)
-            bkg_lightcurve(bkg_ccd, obsid_)
+            bkg_lightcurve(bkg_ccd, obsid_, create_plot=False)
             cen_x, cen_y = basic_centroid_guess(src_ccd)
             print("    We need to clean our diffuse emission...")
             filenames = FaintCleaning(
@@ -143,7 +143,7 @@ def run_merge_observations(inputs, ccds, main_out, db_service):
             main_out_obsid.write("The background CCD chosen is CCD#%s\n" % bkg_ccd)
             print("    We can now create a lightcurve for the background...")
             bkg_clean_srcs(bkg_ccd)
-            bkg_lightcurve(bkg_ccd, obsid_)
+            bkg_lightcurve(bkg_ccd, obsid_, create_plot=False)
             print("    We need to clean our diffuse emission...")
             filenames = FaintCleaning(
                 inputs["home_dir"], obsid_, bkg_ccd, 0, 0, ccds[obsid_]

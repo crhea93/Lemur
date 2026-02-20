@@ -1,0 +1,10 @@
+{
+  "run_id": 702,
+  "cluster": "LEDA 449724",
+  "obsids": [
+    "23111",
+    "23112"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150745Z"
+}

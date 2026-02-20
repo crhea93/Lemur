@@ -185,11 +185,18 @@ def parse_obsids(obsid_args):
 def load_inputs_from_cli(cluster_name, obsid_args, defaults_path, redshift_override):
     inputs, _, env_vars = load_config(defaults_path)
     obsids = parse_obsids(obsid_args)
-    redshift = (
-        float(redshift_override)
-        if redshift_override is not None
-        else resolve_redshift(cluster_name)
-    )
+    if redshift_override is not None:
+        redshift = float(redshift_override)
+    else:
+        try:
+            redshift = resolve_redshift(cluster_name)
+        except Exception as exc:
+            fallback = inputs.get("redshift", 0.0)
+            redshift = float(fallback)
+            print(
+                "WARNING: redshift lookup failed for "
+                f"'{cluster_name}' ({exc}). Using fallback redshift={redshift}."
+            )
     inputs["name"] = cluster_name
     inputs["dir_list"] = obsids
     inputs["merge"] = "True" if len(obsids) > 1 else "False"

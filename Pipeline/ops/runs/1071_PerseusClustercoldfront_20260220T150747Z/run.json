@@ -1,0 +1,10 @@
+{
+  "run_id": 1071,
+  "cluster": "Perseus Cluster cold front",
+  "obsids": [
+    "19565",
+    "19938"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150747Z"
+}

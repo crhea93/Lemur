@@ -1,0 +1,9 @@
+{
+  "run_id": 1482,
+  "cluster": "XLSS J022303.3-043621",
+  "obsids": [
+    "18259"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150749Z"
+}

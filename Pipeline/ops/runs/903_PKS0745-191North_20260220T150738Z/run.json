@@ -1,0 +1,9 @@
+{
+  "run_id": 903,
+  "cluster": "PKS 0745-191 North",
+  "obsids": [
+    "19572"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150738Z"
+}

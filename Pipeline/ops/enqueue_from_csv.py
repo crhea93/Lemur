@@ -175,6 +175,29 @@ def load_obsid_name_map(path, obsid_col, name_col, delimiter):
     return mapping
 
 
+def load_obsid_redshift_map(path, obsid_col, redshift_col, delimiter):
+    mapping = {}
+    if not path:
+        return mapping
+    with open(path, newline="", encoding="utf-8-sig") as handle:
+        reader = csv.DictReader(handle, delimiter=delimiter)
+        if not reader.fieldnames:
+            return mapping
+        headers = {normalize_header(h): h for h in reader.fieldnames}
+        obsid_key = find_column(headers, obsid_col, OBSID_CANDIDATES)
+        z_key = find_column(headers, redshift_col, REDSHIFT_CANDIDATES)
+        if not obsid_key or not z_key:
+            return mapping
+        for row in reader:
+            z = parse_redshift(row.get(headers[z_key]))
+            if z is None:
+                continue
+            obsids = parse_obsids(row.get(headers[obsid_key]))
+            for obsid in obsids:
+                mapping[int(obsid)] = z
+    return mapping
+
+
 def infer_name_from_members(members):
     if not isinstance(members, (list, tuple)):
         return None
@@ -211,6 +234,20 @@ def infer_name_from_obsid_map(obsids, obsid_to_name):
     return Counter(names).most_common(1)[0][0]
 
 
+def infer_redshift_from_obsid_map(obsids, obsid_to_redshift):
+    if not obsids or not obsid_to_redshift:
+        return None
+    zs = [
+        obsid_to_redshift.get(int(obsid))
+        for obsid in obsids
+        if int(obsid) in obsid_to_redshift
+    ]
+    zs = [z for z in zs if z is not None]
+    if not zs:
+        return None
+    return zs[0]
+
+
 def ingest_pickle(args):
     groups = defaultdict(lambda: {"obsids": set(), "redshift": None})
     map_csv = args.name_map_csv
@@ -222,6 +259,12 @@ def ingest_pickle(args):
         map_csv,
         args.name_map_obsid_col,
         args.name_map_name_col,
+        args.name_map_delimiter,
+    )
+    obsid_to_redshift = load_obsid_redshift_map(
+        map_csv,
+        args.name_map_obsid_col,
+        args.name_map_redshift_col,
         args.name_map_delimiter,
     )
     with open(args.pickle, "rb") as handle:
@@ -270,6 +313,10 @@ def ingest_pickle(args):
 
         if groups[cluster]["redshift"] is None:
             groups[cluster]["redshift"] = parse_redshift(redshift_raw)
+        if groups[cluster]["redshift"] is None:
+            groups[cluster]["redshift"] = infer_redshift_from_obsid_map(
+                obsids, obsid_to_redshift
+            )
 
     return groups
 
@@ -357,6 +404,10 @@ def build_parser():
     parser.add_argument(
         "--name-map-name-col",
         help="Name column name in --name-map-csv (auto-detected by default).",
+    )
+    parser.add_argument(
+        "--name-map-redshift-col",
+        help="Redshift column name in --name-map-csv (auto-detected by default).",
     )
     parser.add_argument(
         "--name-map-delimiter",

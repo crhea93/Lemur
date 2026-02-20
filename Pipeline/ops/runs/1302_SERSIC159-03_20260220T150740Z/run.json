@@ -1,0 +1,10 @@
+{
+  "run_id": 1302,
+  "cluster": "SERSIC 159-03",
+  "obsids": [
+    "1668",
+    "11758"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150740Z"
+}

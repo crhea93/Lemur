@@ -1,0 +1,15 @@
+{
+  "run_id": 109,
+  "cluster": "A1367 orphan cloud",
+  "obsids": [
+    "26948",
+    "27219",
+    "27220",
+    "27746",
+    "27747",
+    "29289",
+    "29328"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260219T225032Z"
+}

@@ -1,0 +1,10 @@
+{
+  "run_id": 689,
+  "cluster": "ISCS J143809+341419 (Xbootes)",
+  "obsids": [
+    "10461",
+    "12003"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150737Z"
+}

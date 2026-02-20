@@ -1,0 +1,9 @@
+{
+  "run_id": 511,
+  "cluster": "CHIPS1011-0505",
+  "obsids": [
+    "21547"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150736Z"
+}

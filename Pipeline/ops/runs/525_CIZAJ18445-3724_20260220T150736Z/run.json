@@ -1,0 +1,9 @@
+{
+  "run_id": 525,
+  "cluster": "CIZAJ1844.5-3724",
+  "obsids": [
+    "27885"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150736Z"
+}

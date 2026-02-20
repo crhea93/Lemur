@@ -1,0 +1,9 @@
+{
+  "run_id": 1559,
+  "cluster": "[KMA2007] 186.07743+49.09719",
+  "obsids": [
+    "21711"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150741Z"
+}

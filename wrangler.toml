@@ -10,7 +10,3 @@ binding = "ASSETS"
 binding = "DB"
 database_name = "lemur-db"
 database_id = "5b8f2fc6-c283-4e54-9360-8adca603518c"
-
-[[r2_buckets]]
-binding = "FITS_BUCKET"
-bucket_name = "lemur-fits"

@@ -15,9 +15,10 @@ def plots_to_web(dir, obsids, name, web_dir):
         os.chdir(dir + "/" + obsid + "/Background")
         if os.path.exists(obsid + "_ccds.png"):
             shutil.copyfile(obsid + "_ccds.png", web_dir + "/" + obsid + "_ccds.png")
-        shutil.copyfile(
-            obsid + "_Lightcurve.png", web_dir + "/" + obsid + "_Lightcurve.png"
-        )
+        if os.path.exists(obsid + "_Lightcurve.png"):
+            shutil.copyfile(
+                obsid + "_Lightcurve.png", web_dir + "/" + obsid + "_Lightcurve.png"
+            )
     # Cluster images
     os.chdir(dir + "/" + name)
     if os.path.exists("bkgsub_exp.png"):

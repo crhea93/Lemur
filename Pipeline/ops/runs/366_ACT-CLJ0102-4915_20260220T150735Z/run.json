@@ -1,0 +1,11 @@
+{
+  "run_id": 366,
+  "cluster": "ACT-CL J0102-4915",
+  "obsids": [
+    "12258",
+    "14022",
+    "14023"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150735Z"
+}

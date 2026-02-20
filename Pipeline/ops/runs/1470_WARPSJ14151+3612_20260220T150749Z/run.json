@@ -1,0 +1,13 @@
+{
+  "run_id": 1470,
+  "cluster": "WARPS J1415.1+3612",
+  "obsids": [
+    "4163",
+    "12255",
+    "12256",
+    "13118",
+    "13119"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150749Z"
+}

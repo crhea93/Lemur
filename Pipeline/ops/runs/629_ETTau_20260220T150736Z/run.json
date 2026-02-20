@@ -1,0 +1,9 @@
+{
+  "run_id": 629,
+  "cluster": "ET Tau",
+  "obsids": [
+    "5770"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150736Z"
+}
