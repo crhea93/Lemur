@@ -1,0 +1,10 @@
+{
+  "run_id": 1520,
+  "cluster": "ZwCl 0934+5216",
+  "obsids": [
+    "15137",
+    "16573"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150741Z"
+}

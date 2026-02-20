@@ -1,0 +1,11 @@
+{
+  "run_id": 1094,
+  "cluster": "RB 219",
+  "obsids": [
+    "18237",
+    "19911",
+    "19912"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150739Z"
+}

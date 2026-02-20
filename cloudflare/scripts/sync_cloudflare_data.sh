@@ -4,14 +4,17 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 D1_DB_NAME="lemur-db"
-R2_BUCKET="lemur-fits"
 SQL_DUMP_PATH="$ROOT_DIR/Pipeline/Lemur_DB.sql"
 SQLITE_DB_PATH="$ROOT_DIR/api/data/lemur.db"
 SCHEMA_FILE="$ROOT_DIR/cloudflare/sql/d1_schema.sql"
 FITS_ROOT="$ROOT_DIR/api/data/fits"
+ZENODO_LINKS_FILE="$ROOT_DIR/Web/zenodo_fits_links.json"
+ZENODO_STATE_FILE="$ROOT_DIR/cloudflare/zenodo_fits_manifest.json"
+ZENODO_API_BASE="${ZENODO_API_BASE:-https://zenodo.org/api}"
+ZENODO_TOKEN=REDACTED_ZENODO_TOKEN
 
 SKIP_D1=0
-SKIP_R2=0
+SKIP_ZENODO=0
 SKIP_SCHEMA=0
 DRY_RUN=0
 KEEP_SQL_DUMP=0
@@ -24,14 +27,17 @@ Usage:
 
 Options:
   --d1-db <name>            D1 database name (default: lemur-db)
-  --r2-bucket <name>        R2 bucket name (default: lemur-fits)
   --sql-dump <path>         MySQL dump path (default: Pipeline/Lemur_DB.sql)
   --sqlite-db <path>        SQLite output path (default: api/data/lemur.db)
   --schema-file <path>      D1 schema SQL file (default: cloudflare/sql/d1_schema.sql)
   --fits-root <path>        Directory containing per-cluster FITS dirs (default: api/data/fits)
+  --zenodo-links-file <p>   Output JSON map consumed by API/Worker (default: Web/zenodo_fits_links.json)
+  --zenodo-state-file <p>   State JSON for change detection (default: cloudflare/zenodo_fits_manifest.json)
+  --zenodo-api-base <url>   Zenodo API base URL (default: https://zenodo.org/api)
+  --zenodo-token <token>    Zenodo personal access token (or set ZENODO_TOKEN env var)
   --d1-data-sql <path>      Save generated SQLite dump SQL to this path
   --skip-d1                 Skip D1 sync
-  --skip-r2                 Skip R2 FITS uploads
+  --skip-zenodo             Skip Zenodo FITS upload + manifest generation
   --skip-schema             Skip schema apply (only import data into D1)
   --keep-sql-dump           Keep temp D1 data SQL file when --d1-data-sql is not set
   --dry-run                 Print commands without executing
@@ -39,8 +45,8 @@ Options:
 
 Examples:
   cloudflare/scripts/sync_cloudflare_data.sh
-  cloudflare/scripts/sync_cloudflare_data.sh --d1-db prod-db --r2-bucket prod-fits
-  cloudflare/scripts/sync_cloudflare_data.sh --skip-r2
+  cloudflare/scripts/sync_cloudflare_data.sh --skip-zenodo
+  cloudflare/scripts/sync_cloudflare_data.sh --zenodo-api-base https://sandbox.zenodo.org/api --zenodo-token "$ZENODO_TOKEN"
 EOF
 }
 
@@ -68,10 +74,6 @@ while [[ $# -gt 0 ]]; do
             D1_DB_NAME="$2"
             shift 2
             ;;
-        --r2-bucket)
-            R2_BUCKET="$2"
-            shift 2
-            ;;
         --sql-dump)
             SQL_DUMP_PATH="$2"
             shift 2
@@ -88,6 +90,22 @@ while [[ $# -gt 0 ]]; do
             FITS_ROOT="$2"
             shift 2
             ;;
+        --zenodo-links-file)
+            ZENODO_LINKS_FILE="$2"
+            shift 2
+            ;;
+        --zenodo-state-file)
+            ZENODO_STATE_FILE="$2"
+            shift 2
+            ;;
+        --zenodo-api-base)
+            ZENODO_API_BASE="$2"
+            shift 2
+            ;;
+        --zenodo-token)
+            ZENODO_TOKEN="$2"
+            shift 2
+            ;;
         --d1-data-sql)
             CUSTOM_D1_DATA_SQL="$2"
             shift 2
@@ -96,8 +114,8 @@ while [[ $# -gt 0 ]]; do
             SKIP_D1=1
             shift
             ;;
-        --skip-r2)
-            SKIP_R2=1
+        --skip-zenodo)
+            SKIP_ZENODO=1
             shift
             ;;
         --skip-schema)
@@ -128,10 +146,6 @@ require_cmd python3
 require_cmd sqlite3
 require_cmd wrangler
 
-if [[ "$SKIP_R2" -eq 0 ]]; then
-    require_cmd zip
-fi
-
 if [[ "$SKIP_D1" -eq 0 ]]; then
     if [[ ! -f "$SQL_DUMP_PATH" ]]; then
         echo "SQL dump not found: $SQL_DUMP_PATH" >&2
@@ -143,8 +157,13 @@ if [[ "$SKIP_D1" -eq 0 ]]; then
     fi
 fi
 
-if [[ "$SKIP_R2" -eq 0 && ! -d "$FITS_ROOT" ]]; then
+if [[ "$SKIP_ZENODO" -eq 0 && ! -d "$FITS_ROOT" ]]; then
     echo "FITS root not found: $FITS_ROOT" >&2
+    exit 1
+fi
+
+if [[ "$SKIP_ZENODO" -eq 0 && -z "$ZENODO_TOKEN" && "$DRY_RUN" -eq 0 ]]; then
+    echo "Zenodo token is required. Pass --zenodo-token or set ZENODO_TOKEN." >&2
     exit 1
 fi
 
@@ -198,48 +217,20 @@ if [[ "$SKIP_D1" -eq 0 ]]; then
     fi
 fi
 
-if [[ "$SKIP_R2" -eq 0 ]]; then
-    echo "==> Uploading FITS zips to R2 bucket '$R2_BUCKET'"
-
-    tmp_zip_dir="$(mktemp -d "${TMPDIR:-/tmp}/lemur_fits_zip.XXXXXX")"
-    trap 'rm -rf "$tmp_zip_dir"; cleanup' EXIT
-
-    upload_count=0
-    skip_count=0
-
-    shopt -s nullglob
-    for cluster_dir in "$FITS_ROOT"/*; do
-        [[ -d "$cluster_dir" ]] || continue
-        cluster_name="$(basename "$cluster_dir")"
-
-        files=()
-        while IFS= read -r -d '' f; do
-            files+=("$f")
-        done < <(find "$cluster_dir" -maxdepth 1 -type f \
-            \( -iname "*.fits" -o -iname "*.fit" -o -iname "*.fts" -o -iname "*.gz" \) \
-            -print0)
-
-        if [[ "${#files[@]}" -eq 0 ]]; then
-            echo " - Skipping $cluster_name (no FITS-like files found)"
-            skip_count=$((skip_count + 1))
-            continue
-        fi
-
-        zip_path="$tmp_zip_dir/${cluster_name}.zip"
-        if [[ "$DRY_RUN" -eq 1 ]]; then
-            echo "[dry-run] zip -j '$zip_path' <${#files[@]} files>"
-        else
-            rm -f "$zip_path"
-            zip -j -q "$zip_path" "${files[@]}"
-        fi
-
-        target_key="fits/${cluster_name}.zip"
-        run_cmd wrangler r2 object put "$R2_BUCKET/$target_key" --file "$zip_path" --remote
-        echo " - Uploaded $cluster_name -> $R2_BUCKET/$target_key"
-        upload_count=$((upload_count + 1))
-    done
-
-    echo "R2 upload summary: uploaded=$upload_count skipped=$skip_count"
+if [[ "$SKIP_ZENODO" -eq 0 ]]; then
+    echo "==> Uploading FITS zips to Zenodo and generating links manifest"
+    zenodo_cmd=(
+        python3 "$ROOT_DIR/cloudflare/scripts/sync_zenodo_fits.py"
+        --fits-root "$FITS_ROOT"
+        --links-file "$ZENODO_LINKS_FILE"
+        --state-file "$ZENODO_STATE_FILE"
+        --zenodo-api-base "$ZENODO_API_BASE"
+        --zenodo-token "$ZENODO_TOKEN"
+    )
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+        zenodo_cmd+=(--dry-run)
+    fi
+    run_cmd "${zenodo_cmd[@]}"
 fi
 
 echo "Done."

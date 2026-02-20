@@ -1,0 +1,9 @@
+{
+  "run_id": 624,
+  "cluster": "EMSS 1054.5-0321",
+  "obsids": [
+    "512"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150745Z"
+}

@@ -1,0 +1,10 @@
+{
+  "run_id": 1385,
+  "cluster": "SPT-CLJ0304-4401",
+  "obsids": [
+    "13402",
+    "18610"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150749Z"
+}

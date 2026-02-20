@@ -48,7 +48,7 @@ def bkg_clean_srcs(bkg_ccd):
     return None
 
 
-def bkg_lightcurve(bkg_ccd, obsid):
+def bkg_lightcurve(bkg_ccd, obsid, create_plot=True):
     """
     Create and plot background lightcurve. Then create good-time-interval file
     """
@@ -60,39 +60,42 @@ def bkg_lightcurve(bkg_ccd, obsid):
     dmextract.clobber = True
     dmextract.verbose = 0
     dmextract()
-    # Plot lightcurve using matplotlib
-    lc_file = bkg_ccd + "_bkg.lc"
-    try:
-        with fits.open(lc_file, memmap=True) as hdul:
-            data = hdul[1].data
-            cols = data.columns.names
-            x_key = "dt" if "dt" in cols else ("time" if "time" in cols else None)
-            y_key = (
-                "count_rate"
-                if "count_rate" in cols
-                else ("rate" if "rate" in cols else None)
-            )
-            if x_key is None:
-                x = np.arange(len(data))
-            else:
-                x = data[x_key]
-            if y_key is None:
-                y = np.zeros(len(data))
-            else:
-                y = data[y_key]
-    except Exception:
-        x = np.array([])
-        y = np.array([])
+    x = np.array([])
+    y = np.array([])
+    if create_plot:
+        # Plot lightcurve using matplotlib
+        lc_file = bkg_ccd + "_bkg.lc"
+        try:
+            with fits.open(lc_file, memmap=True) as hdul:
+                data = hdul[1].data
+                cols = data.columns.names
+                x_key = "dt" if "dt" in cols else ("time" if "time" in cols else None)
+                y_key = (
+                    "count_rate"
+                    if "count_rate" in cols
+                    else ("rate" if "rate" in cols else None)
+                )
+                if x_key is None:
+                    x = np.arange(len(data))
+                else:
+                    x = data[x_key]
+                if y_key is None:
+                    y = np.zeros(len(data))
+                else:
+                    y = data[y_key]
+        except Exception:
+            x = np.array([])
+            y = np.array([])
 
-    plt.figure(figsize=(6, 4))
-    if len(x):
-        plt.plot(x, y, color="#47f5ff", linewidth=1)
-    plt.title("Light Curve")
-    plt.xlabel("ΔT (s)")
-    plt.ylabel("Rate (count s$^{-1}$)")
-    plt.tight_layout()
-    plt.savefig(bkg_ccd + "_bkg_lc.png", dpi=150)
-    plt.close()
+        plt.figure(figsize=(6, 4))
+        if len(x):
+            plt.plot(x, y, color="#47f5ff", linewidth=1)
+        plt.title("Light Curve")
+        plt.xlabel("ΔT (s)")
+        plt.ylabel("Rate (count s$^{-1}$)")
+        plt.tight_layout()
+        plt.savefig(bkg_ccd + "_bkg_lc.png", dpi=150)
+        plt.close()
 
     # Clip image (no plot)
     lc_sigma_clip(
@@ -104,13 +107,14 @@ def bkg_lightcurve(bkg_ccd, obsid):
         verbose=0,
     )
 
-    plt.figure(figsize=(6, 4))
-    if len(x):
-        plt.plot(x, y, color="#ff4fd8", linewidth=1)
-    plt.title("Light Curve")
-    plt.xlabel("ΔT (s)")
-    plt.ylabel("Rate (count s$^{-1}$)")
-    plt.tight_layout()
-    plt.savefig(obsid + "_Lightcurve.png", dpi=150)
-    plt.close()
+    if create_plot:
+        plt.figure(figsize=(6, 4))
+        if len(x):
+            plt.plot(x, y, color="#ff4fd8", linewidth=1)
+        plt.title("Light Curve")
+        plt.xlabel("ΔT (s)")
+        plt.ylabel("Rate (count s$^{-1}$)")
+        plt.tight_layout()
+        plt.savefig(obsid + "_Lightcurve.png", dpi=150)
+        plt.close()
     return None

@@ -172,11 +172,71 @@
                 margin-bottom: 6px;
             }
 
+            .cluster-nav {
+                margin-top: 16px;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+
+            .cluster-nav a,
+            .cluster-nav .nav-disabled {
+                background: var(--paper-strong);
+                border: 1px solid var(--line);
+                border-radius: 12px;
+                padding: 10px 12px;
+                min-height: 66px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                gap: 4px;
+            }
+
+            .cluster-nav a {
+                color: var(--ink-1);
+                transition:
+                    background-color 160ms ease,
+                    border-color 160ms ease;
+            }
+
+            .cluster-nav a:hover,
+            .cluster-nav a:focus {
+                background-color: rgba(255, 255, 255, 0.96);
+                border-color: rgba(95, 78, 131, 0.34);
+                color: var(--ink-0);
+            }
+
+            .cluster-nav .nav-label {
+                font-size: 0.72rem;
+                text-transform: uppercase;
+                letter-spacing: 0.16em;
+                color: var(--ink-2);
+            }
+
+            .cluster-nav .nav-name {
+                font-size: 0.98rem;
+                font-weight: 600;
+                line-height: 1.25;
+                word-break: break-word;
+            }
+
+            .cluster-nav .nav-disabled {
+                opacity: 0.55;
+                color: var(--ink-2);
+            }
+
             .download-row {
                 margin-top: 18px;
                 display: flex;
                 flex-wrap: wrap;
                 gap: 12px;
+            }
+
+            .fits-note {
+                margin-top: 6px;
+                color: var(--ink-2);
+                font-size: 0.92rem;
+                line-height: 1.45;
             }
 
             .download-btn {
@@ -321,7 +381,11 @@
                 <div class="stats-column">
                     <div class="stat-grid" id="cluster-stats"></div>
                     <div class="obsid-box" id="cluster-obsids"></div>
+                    <div class="cluster-nav" id="cluster-nav"></div>
                     <div class="download-row" id="fits-download"></div>
+                    <div class="fits-note">
+                        FITS download: cleaned 0.5-7.0 keV unbinned image.
+                    </div>
                 </div>
             </div>
         </section>
@@ -339,6 +403,20 @@
             function formatValue(value) {
                 if (value === null || value === undefined || value === "") {
                     return "None";
+                }
+                return value;
+            }
+
+            function formatRedshift(value) {
+                if (value === null || value === undefined || value === "") {
+                    return "None";
+                }
+                const numeric = Number(value);
+                if (
+                    !Number.isNaN(numeric) &&
+                    (numeric === 0 || numeric === 0.05)
+                ) {
+                    return "N/A";
                 }
                 return value;
             }
@@ -367,7 +445,10 @@
                     cluster.Name;
 
                 const stats = [
-                    { label: "Redshift", value: cluster.redshift },
+                    {
+                        label: "Redshift",
+                        value: formatRedshift(cluster.redshift),
+                    },
                     { label: "Right Asc", value: cluster.RightAsc },
                     { label: "Declination", value: cluster.Declination },
                 ];
@@ -385,10 +466,11 @@
                     .join("");
 
                 const downloadRow = document.getElementById("fits-download");
+                const downloadUrl =
+                    data.fits_download_url ||
+                    `/api/fits/${encodeURIComponent(cluster.Name)}/download`;
                 downloadRow.innerHTML = `
-                    <a class="download-btn" href="/api/fits/${encodeURIComponent(
-                        cluster.Name,
-                    )}/download">
+                    <a class="download-btn" href="${downloadUrl}">
                         Download FITS
                         <i class="fa fa-download" aria-hidden="true"></i>
                     </a>
@@ -417,6 +499,62 @@
                     <span>Obsids</span>
                     ${obsidsText}
                 `;
+
+                const navEl = document.getElementById("cluster-nav");
+                try {
+                    const listResp = await fetch("/api/clusters");
+                    if (!listResp.ok) {
+                        throw new Error("Failed to fetch cluster list.");
+                    }
+                    const list = await listResp.json();
+                    const names = Array.isArray(list)
+                        ? list.map((item) => item.Name).filter(Boolean)
+                        : [];
+                    const currentIndex = names.findIndex(
+                        (n) =>
+                            String(n).toLowerCase() ===
+                            String(cluster.Name).toLowerCase(),
+                    );
+
+                    const prevName =
+                        currentIndex > 0 ? names[currentIndex - 1] : null;
+                    const nextName =
+                        currentIndex >= 0 && currentIndex < names.length - 1
+                            ? names[currentIndex + 1]
+                            : null;
+
+                    const prevHtml = prevName
+                        ? `
+                            <a href="/cluster/${encodeURIComponent(prevName)}" aria-label="Previous cluster: ${prevName}">
+                                <span class="nav-label">&larr; Previous</span>
+                                <span class="nav-name">${prevName}</span>
+                            </a>
+                        `
+                        : `
+                            <div class="nav-disabled" aria-disabled="true">
+                                <span class="nav-label">&larr; Previous</span>
+                                <span class="nav-name">None</span>
+                            </div>
+                        `;
+
+                    const nextHtml = nextName
+                        ? `
+                            <a href="/cluster/${encodeURIComponent(nextName)}" aria-label="Next cluster: ${nextName}">
+                                <span class="nav-label">Next &rarr;</span>
+                                <span class="nav-name">${nextName}</span>
+                            </a>
+                        `
+                        : `
+                            <div class="nav-disabled" aria-disabled="true">
+                                <span class="nav-label">Next &rarr;</span>
+                                <span class="nav-name">None</span>
+                            </div>
+                        `;
+
+                    navEl.innerHTML = prevHtml + nextHtml;
+                } catch (err) {
+                    navEl.innerHTML = "";
+                }
             }
 
             loadCluster();

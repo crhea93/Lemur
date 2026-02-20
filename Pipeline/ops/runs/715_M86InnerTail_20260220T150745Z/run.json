@@ -1,0 +1,9 @@
+{
+  "run_id": 715,
+  "cluster": "M86 Inner Tail",
+  "obsids": [
+    "15149"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150745Z"
+}

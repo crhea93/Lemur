@@ -1,0 +1,11 @@
+{
+  "run_id": 1461,
+  "cluster": "Triangulum Australis Cluster",
+  "obsids": [
+    "1227",
+    "1281",
+    "17481"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150741Z"
+}

@@ -1,0 +1,14 @@
+{
+  "run_id": 915,
+  "cluster": "PLCKESZ G200.9-28.2",
+  "obsids": [
+    "19566",
+    "20852",
+    "20853",
+    "20854",
+    "20855",
+    "20858"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150738Z"
+}

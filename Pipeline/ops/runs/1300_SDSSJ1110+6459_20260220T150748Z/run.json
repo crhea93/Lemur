@@ -1,0 +1,10 @@
+{
+  "run_id": 1300,
+  "cluster": "SDSSJ1110+6459",
+  "obsids": [
+    "20568",
+    "22099"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150748Z"
+}

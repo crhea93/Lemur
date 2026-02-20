@@ -1,0 +1,10 @@
+{
+  "run_id": 688,
+  "cluster": "IRAS 15205+5021",
+  "obsids": [
+    "25469",
+    "27727"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150737Z"
+}

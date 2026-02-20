@@ -110,6 +110,16 @@
                 color: var(--ink-2);
             }
 
+            .search-hint {
+                display: none;
+                margin: 10px auto 0;
+                max-width: 760px;
+                color: #7c667a;
+                font-size: 0.9rem;
+                line-height: 1.4;
+                text-align: center;
+            }
+
             .page-header {
                 position: relative;
                 overflow: hidden;
@@ -164,10 +174,18 @@
                 line-height: 1.7;
             }
 
+            .fits-note {
+                color: var(--ink-2);
+                max-width: 760px;
+                margin: 2px auto 0;
+                font-size: 0.96rem;
+                line-height: 1.5;
+            }
+
             .table-shell {
                 max-width: 1250px;
-                margin: 0 auto 80px;
-                padding: 0 24px;
+                margin: 0 auto 140px;
+                padding: 0 24px 80px;
             }
 
             .table-card {
@@ -260,6 +278,10 @@
                 placeholder="Search names..."
             />
         </div>
+        <div id="search-hint" class="search-hint">
+            Name resolver unavailable. Search currently matches local cluster
+            names only.
+        </div>
 
         <section class="page-header">
             <div class="page-header-content">
@@ -267,6 +289,9 @@
                 <p>
                     Browse the full catalog of X-ray galaxy clusters, filter by
                     name, and scan the key parameters that define each entry.
+                </p>
+                <p class="fits-note">
+                    FITS downloads are cleaned 0.5-7.0 keV unbinned images.
                 </p>
             </div>
         </section>
@@ -283,9 +308,128 @@
         </div>
 
         <script>
+            const resolvedNameCache = new Map();
+            let searchSeq = 0;
+            let resolverHealthy = true;
+
+            function normalizeSearchText(value) {
+                return String(value || "")
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]/g, "");
+            }
+
+            function buildCatalogAliases(name) {
+                const aliases = new Set();
+                const raw = String(name || "").trim();
+                if (!raw) {
+                    return [];
+                }
+
+                aliases.add(raw);
+                aliases.add(raw.replace(/\s+/g, ""));
+
+                // Rule-based Abell/ACO aliases (no per-cluster hardcoding).
+                const abellMatch = raw.match(/^abell\s*0*([0-9]+)$/i);
+                if (abellMatch) {
+                    const num = String(Number(abellMatch[1]));
+                    const num4 = num.padStart(4, "0");
+                    aliases.add(`A${num}`);
+                    aliases.add(`Abell ${num}`);
+                    aliases.add(`Abell${num}`);
+                    aliases.add(`ACO ${num}`);
+                    aliases.add(`ACO${num}`);
+                    aliases.add(`ACO ${num4}`);
+                    aliases.add(`ACO${num4}`);
+                }
+
+                const acoMatch = raw.match(/^aco\s*0*([0-9]+)$/i);
+                if (acoMatch) {
+                    const num = String(Number(acoMatch[1]));
+                    aliases.add(`Abell ${num}`);
+                    aliases.add(`Abell${num}`);
+                    aliases.add(`A${num}`);
+                }
+
+                const shortAbellMatch = raw.match(/^a0*([0-9]+)$/i);
+                if (shortAbellMatch) {
+                    const num = String(Number(shortAbellMatch[1]));
+                    const num4 = num.padStart(4, "0");
+                    aliases.add(`Abell ${num}`);
+                    aliases.add(`Abell${num}`);
+                    aliases.add(`ACO ${num}`);
+                    aliases.add(`ACO${num}`);
+                    aliases.add(`ACO ${num4}`);
+                    aliases.add(`ACO${num4}`);
+                }
+
+                return Array.from(aliases);
+            }
+
+            function setResolverHint(healthy) {
+                resolverHealthy = healthy;
+                const hint = document.getElementById("search-hint");
+                if (!hint) {
+                    return;
+                }
+                hint.style.display = healthy ? "none" : "block";
+            }
+
+            async function resolveSearchTokens(query) {
+                const raw = String(query || "").trim();
+                const key = normalizeSearchText(raw);
+                if (!key) {
+                    return [];
+                }
+                if (resolvedNameCache.has(key)) {
+                    return resolvedNameCache.get(key);
+                }
+
+                let tokens = [key];
+                try {
+                    const response = await fetch(
+                        `/api/resolve-name?q=${encodeURIComponent(raw)}`,
+                    );
+                    if (response.ok) {
+                        setResolverHint(true);
+                        const data = await response.json();
+                        const names = Array.isArray(data.names)
+                            ? data.names
+                            : [];
+                        const resolved = names
+                            .map((name) => normalizeSearchText(name))
+                            .filter(Boolean);
+                        if (resolved.length) {
+                            tokens = Array.from(new Set([key, ...resolved]));
+                        }
+                    } else {
+                        setResolverHint(false);
+                    }
+                } catch (err) {
+                    // Resolver is best-effort.
+                    setResolverHint(false);
+                }
+
+                resolvedNameCache.set(key, tokens);
+                return tokens;
+            }
+
             function formatValue(value) {
                 if (value === null || value === undefined || value === "") {
                     return "None";
+                }
+                return value;
+            }
+
+            function formatRedshift(value) {
+                if (value === null || value === undefined || value === "") {
+                    return "None";
+                }
+                const numeric = Number(value);
+                if (
+                    !Number.isNaN(numeric) &&
+                    (numeric === 0 || numeric === 0.05)
+                ) {
+                    return "N/A";
                 }
                 return value;
             }
@@ -319,14 +463,20 @@
 
                     const tbody = document.createElement("tbody");
                     clusters.forEach((cluster) => {
+                        const downloadUrl =
+                            cluster.fits_download_url ||
+                            `/api/fits/${encodeURIComponent(cluster.Name)}/download`;
                         const row = document.createElement("tr");
+                        row.dataset.search = buildCatalogAliases(cluster.Name)
+                            .map((alias) => normalizeSearchText(alias))
+                            .join(" ");
                         row.innerHTML = `
                             <td class="column0">
                                 <a href="/cluster.html?name=${encodeURIComponent(
                                     cluster.Name,
                                 )}">${cluster.Name}</a>
                             </td>
-                            <td class="column0">${formatValue(cluster.redshift)}</td>
+                            <td class="column0">${formatRedshift(cluster.redshift)}</td>
                             <td class="column0">${formatValue(cluster.RightAsc)}</td>
                             <td class="column0">${formatValue(cluster.Declination)}</td>
                             <td class="column0">${
@@ -335,9 +485,7 @@
                                     : "None"
                             }</td>
                             <td class="column0">
-                                <a href="/api/fits/${encodeURIComponent(
-                                    cluster.Name,
-                                )}/download">Download</a>
+                                <a href="${downloadUrl}">Download</a>
                             </td>
                         `;
                         tbody.appendChild(row);
@@ -352,12 +500,19 @@
                 }
             }
 
-            function myFunction() {
+            async function myFunction() {
                 var input, filter, table, tr, td, i, txtValue;
                 input = document.getElementById("myInput");
-                filter = input.value.toUpperCase();
+                filter = normalizeSearchText(input.value);
                 table = document.getElementById("Analysis_summary");
                 if (!table) {
+                    return;
+                }
+                const seq = ++searchSeq;
+                const tokens = filter
+                    ? await resolveSearchTokens(input.value)
+                    : [];
+                if (seq !== searchSeq) {
                     return;
                 }
                 tr = table.getElementsByTagName("tr");
@@ -365,8 +520,13 @@
                 for (i = 0; i < tr.length; i++) {
                     td = tr[i].getElementsByTagName("td")[0];
                     if (td) {
-                        txtValue = td.textContent || td.innerText;
-                        if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                        txtValue =
+                            tr[i].dataset.search ||
+                            normalizeSearchText(td.textContent || td.innerText);
+                        const matched = !filter
+                            ? true
+                            : tokens.some((tok) => txtValue.indexOf(tok) > -1);
+                        if (matched) {
                             tr[i].style.display = "";
                         } else {
                             tr[i].style.display = "none";

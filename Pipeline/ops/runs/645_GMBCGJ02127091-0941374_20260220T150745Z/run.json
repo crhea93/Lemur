@@ -1,0 +1,9 @@
+{
+  "run_id": 645,
+  "cluster": "GMBCG J021.27091-09.41374",
+  "obsids": [
+    "15367"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150745Z"
+}

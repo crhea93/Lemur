@@ -1,0 +1,11 @@
+{
+  "run_id": 691,
+  "cluster": "KUG 1255+283",
+  "obsids": [
+    "18236",
+    "19909",
+    "19910"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150737Z"
+}

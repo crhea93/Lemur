@@ -1,0 +1,10 @@
+{
+  "run_id": 1549,
+  "cluster": "[BSG2015] ClG-J083415.3+452418",
+  "obsids": [
+    "21563",
+    "21565"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150749Z"
+}

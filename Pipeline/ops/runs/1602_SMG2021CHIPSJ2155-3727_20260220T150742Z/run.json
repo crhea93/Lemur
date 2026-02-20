@@ -1,0 +1,9 @@
+{
+  "run_id": 1602,
+  "cluster": "[SMG2021] CHIPS J2155-3727",
+  "obsids": [
+    "21548"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150742Z"
+}

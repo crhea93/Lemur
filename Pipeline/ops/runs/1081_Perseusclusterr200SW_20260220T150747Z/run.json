@@ -1,0 +1,9 @@
+{
+  "run_id": 1081,
+  "cluster": "Perseus cluster r200 SW",
+  "obsids": [
+    "20523"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150747Z"
+}

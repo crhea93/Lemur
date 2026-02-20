@@ -1,0 +1,11 @@
+{
+  "run_id": 211,
+  "cluster": "A3528s / A3532 filament",
+  "obsids": [
+    "28307",
+    "29392",
+    "29393"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150734Z"
+}

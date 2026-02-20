@@ -1,0 +1,16 @@
+{
+  "run_id": 606,
+  "cluster": "Cygnus A",
+  "obsids": [
+    "5830",
+    "5831",
+    "6225",
+    "6226",
+    "6228",
+    "6229",
+    "6250",
+    "6252"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150736Z"
+}

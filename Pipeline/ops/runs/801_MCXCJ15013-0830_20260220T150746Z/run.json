@@ -1,0 +1,9 @@
+{
+  "run_id": 801,
+  "cluster": "MCXC J1501.3-0830",
+  "obsids": [
+    "13987"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150746Z"
+}

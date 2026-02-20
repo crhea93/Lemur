@@ -47,9 +47,16 @@
                 --shadow-hard: 0 24px 56px rgba(56, 38, 88, 0.2);
             }
 
+            html {
+                font-size: 16px !important;
+                -webkit-text-size-adjust: 100%;
+                text-size-adjust: 100%;
+            }
+
             body {
-                font-family: "DM Sans", "IBM Plex Sans", sans-serif;
-                font-size: 16px;
+                font-family: "IBM Plex Sans", "Ubuntu", sans-serif;
+                font-size: 18px !important;
+                line-height: 1.55;
                 background:
                     radial-gradient(
                         1200px 640px at 14% 10%,
@@ -127,7 +134,7 @@
             }
 
             .hero-subtitle {
-                font-size: 1rem;
+                font-size: 1.08rem;
                 color: var(--ink-2);
                 text-transform: uppercase;
                 letter-spacing: 0.22em;
@@ -144,7 +151,7 @@
             }
 
             .hero-card h2 {
-                font-size: 1rem;
+                font-size: 1.08rem;
                 margin-bottom: 12px;
                 text-transform: uppercase;
                 letter-spacing: 0.18em;
@@ -154,7 +161,7 @@
             .hero-card p {
                 color: var(--ink-1);
                 line-height: 1.72;
-                font-size: 1.08rem;
+                font-size: 1.18rem;
                 margin: 0;
             }
 
@@ -229,7 +236,7 @@
             }
 
             .info-panel h3 {
-                font-size: 1rem;
+                font-size: 1.08rem;
                 margin-bottom: 14px;
                 color: var(--accent-deep);
                 text-transform: uppercase;
@@ -239,7 +246,7 @@
             .info-panel p {
                 color: var(--ink-1);
                 line-height: 1.7;
-                font-size: 1.04rem;
+                font-size: 1.14rem;
             }
 
             #counter {
@@ -260,7 +267,7 @@
                 color: var(--ink-2);
                 text-transform: uppercase;
                 letter-spacing: 0.16em;
-                font-size: 0.88rem;
+                font-size: 0.94rem;
             }
 
             .counter .title {
@@ -270,7 +277,7 @@
             }
 
             .section-label {
-                font-size: 1rem;
+                font-size: 1.12rem;
                 letter-spacing: 0.04em;
                 text-transform: uppercase;
                 color: var(--ink-2);
@@ -331,11 +338,11 @@
         <section class="hero">
             <div class="hero-content">
                 <div>
-                    <div class="hero-subtitle">Universite de Montreal</div>
+                    <div class="hero-subtitle">Open Chandra Archive</div>
                     <h1 class="hero-title">X-ray Galaxy Cluster Archive</h1>
                     <p class="section-label">
-                        Precision cataloging of cool-core and non cool-core
-                        clusters
+                        Browse Chandra cluster observations and download cleaned
+                        FITS products in one place
                     </p>
                     <div class="cta-row">
                         <a class="cta-btn" href="Table/index_table.html">
@@ -347,11 +354,10 @@
                 <div class="hero-card">
                     <h2>Archive mission</h2>
                     <p>
-                        Welcome to the X-ray Galaxy Cluster Archive a
-                        l'Universite de Montreal. This archive was built so
-                        researchers have a coherent, comprehensive view of
-                        cluster data, enabling statistical studies and rapid
-                        discovery of cluster properties.
+                        This archive is designed to make Chandra cluster data
+                        easy to browse and easy to use. Find observations
+                        quickly, inspect key metadata, and download cleaned FITS
+                        files without extra setup.
                     </p>
                     <div id="counter">
                         <div class="counter">
@@ -375,13 +381,13 @@
             <div class="info-panel">
                 <h3>Cluster table</h3>
                 <p>
-                    Search a curated collection of clusters with key parameters
-                    like cooling radius and surface brightness coefficients.
+                    Search the catalog by target name and browse each cluster's
+                    Chandra ObsIDs and coordinates.
                 </p>
                 <p>
                     Jump into the
                     <a href="Table/index_table.html">Cluster Table</a> to sort,
-                    filter, and explore the full archive.
+                    filter, and download cleaned FITS files.
                 </p>
             </div>
         </section>

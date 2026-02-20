@@ -1,0 +1,9 @@
+{
+  "run_id": 1304,
+  "cluster": "SHELS J0918.6+2953",
+  "obsids": [
+    "12186"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150748Z"
+}

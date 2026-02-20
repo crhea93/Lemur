@@ -1,0 +1,9 @@
+{
+  "run_id": 58,
+  "cluster": "2PIGG s1935",
+  "obsids": [
+    "5798"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260217T062505Z"
+}

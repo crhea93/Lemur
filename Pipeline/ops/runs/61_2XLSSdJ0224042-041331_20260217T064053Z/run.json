@@ -1,0 +1,14 @@
+{
+  "run_id": 61,
+  "cluster": "2XLSSd J022404.2-041331",
+  "obsids": [
+    "6390",
+    "6394",
+    "7182",
+    "7183",
+    "7184",
+    "7185"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260217T064053Z"
+}

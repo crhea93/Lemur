@@ -1,34 +1,114 @@
 function json(data, status = 200) {
-    return new Response(JSON.stringify(data), {
-        status,
-        headers: { "content-type": "application/json; charset=utf-8" },
-    });
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
 }
 
 function decodeSegment(value) {
-    try {
-        return decodeURIComponent(value);
-    } catch {
-        return value;
-    }
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
 }
 
 function splitObsids(obsids) {
-    if (!obsids) {
-        return [];
+  if (!obsids) {
+    return [];
+  }
+  return String(obsids)
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+let zenodoLinksCache = null;
+
+async function loadZenodoLinks(env, origin) {
+  if (zenodoLinksCache) {
+    return zenodoLinksCache;
+  }
+
+  try {
+    const req = new Request(
+      new URL("/zenodo_fits_links.json", origin).toString(),
+      {
+        method: "GET",
+      },
+    );
+    const resp = await env.ASSETS.fetch(req);
+    if (!resp.ok) {
+      zenodoLinksCache = {};
+      return zenodoLinksCache;
     }
-    return String(obsids)
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
+    const payload = await resp.json();
+    zenodoLinksCache = payload && typeof payload === "object" ? payload : {};
+    return zenodoLinksCache;
+  } catch {
+    zenodoLinksCache = {};
+    return zenodoLinksCache;
+  }
+}
+
+async function getZenodoFitsUrl(env, request, name) {
+  const url = new URL(request.url);
+  const links = await loadZenodoLinks(env, url.origin);
+  if (typeof links[name] === "string") {
+    return links[name];
+  }
+  const target = String(name).toLowerCase();
+  for (const [key, value] of Object.entries(links)) {
+    if (String(key).toLowerCase() === target && typeof value === "string") {
+      return value;
+    }
+  }
+  return null;
+}
+
+function fitsDownloadPath(name) {
+  return `/api/fits/${encodeURIComponent(name)}/download`;
 }
 
 async function handleHealth() {
-    return json({ status: "ok" });
+  return json({ status: "ok" });
+}
+
+async function handleResolveName(request) {
+  const url = new URL(request.url);
+  const q = (url.searchParams.get("q") || "").trim();
+  if (!q) {
+    return json({ query: "", names: [] });
+  }
+
+  const names = new Set([q]);
+  try {
+    const sesameUrl = `https://cds.unistra.fr/cgi-bin/nph-sesame/-oI/SNV?${encodeURIComponent(q)}`;
+    const resp = await fetch(sesameUrl, {
+      headers: { "user-agent": "LemurArchive/1.0" },
+    });
+    if (resp.ok) {
+      const text = await resp.text();
+      for (const line of text.split("\n")) {
+        const match = line.match(/^%I\S*\s+(.+)$/);
+        if (!match) {
+          continue;
+        }
+        const candidate = String(match[1] || "").trim();
+        if (candidate) {
+          names.add(candidate);
+        }
+      }
+    }
+  } catch {
+    // Best-effort resolver endpoint; fallback to raw query.
+  }
+
+  return json({ query: q, names: Array.from(names) });
 }
 
 async function handleListClusters(env) {
-    const sql = `
+  const sql = `
         SELECT
             c.ID,
             c.Name,
@@ -47,173 +127,155 @@ async function handleListClusters(env) {
         ORDER BY c.Name COLLATE NOCASE
     `;
 
-    const res = await env.DB.prepare(sql).all();
-    const rows = res.results || [];
+  const res = await env.DB.prepare(sql).all();
+  const rows = res.results || [];
 
-    const out = rows.map((row) => ({
-        ID: row.ID,
-        Name: row.Name,
-        redshift: row.redshift,
-        RightAsc: row.RightAsc,
-        Declination: row.Declination,
-        R_cool_3: row.R_cool_3,
-        R_cool_7: row.R_cool_7,
-        csb_ct: row.csb_ct,
-        csb_pho: row.csb_pho,
-        csb_flux: row.csb_flux,
-        Obsids: splitObsids(row.Obsids),
-    }));
+  const out = rows.map((row) => ({
+    ID: row.ID,
+    Name: row.Name,
+    redshift: row.redshift,
+    RightAsc: row.RightAsc,
+    Declination: row.Declination,
+    R_cool_3: row.R_cool_3,
+    R_cool_7: row.R_cool_7,
+    csb_ct: row.csb_ct,
+    csb_pho: row.csb_pho,
+    csb_flux: row.csb_flux,
+    Obsids: splitObsids(row.Obsids),
+    fits_download_url: fitsDownloadPath(row.Name),
+  }));
 
-    return json(out);
+  return json(out);
 }
 
 async function assetExists(env, origin, path) {
-    const req = new Request(new URL(path, origin).toString(), {
-        method: "GET",
-    });
-    const res = await env.ASSETS.fetch(req);
-    return res.ok;
+  const req = new Request(new URL(path, origin).toString(), {
+    method: "GET",
+  });
+  const res = await env.ASSETS.fetch(req);
+  return res.ok;
 }
 
 async function handleClusterDetail(env, request, name) {
-    const cluster = await env.DB.prepare(
-        "SELECT * FROM Clusters WHERE Name = ?",
-    )
-        .bind(name)
-        .first();
+  const cluster = await env.DB.prepare("SELECT * FROM Clusters WHERE Name = ?")
+    .bind(name)
+    .first();
 
-    if (!cluster) {
-        return json({ detail: "Cluster not found" }, 404);
-    }
+  if (!cluster) {
+    return json({ detail: "Cluster not found" }, 404);
+  }
 
-    const obsRes = await env.DB.prepare(
-        "SELECT Obsid FROM Obsids WHERE ClusterNumber = ?",
-    )
-        .bind(cluster.ID)
-        .all();
-    const obsids = (obsRes.results || []).map((r) => r.Obsid);
+  const obsRes = await env.DB.prepare(
+    "SELECT Obsid FROM Obsids WHERE ClusterNumber = ?",
+  )
+    .bind(cluster.ID)
+    .all();
+  const obsids = (obsRes.results || []).map((r) => r.Obsid);
 
-    const regionRes = await env.DB.prepare(
-        "SELECT * FROM Region WHERE idCluster = ? ORDER BY idRegion",
-    )
-        .bind(cluster.ID)
-        .all();
-    const regions = regionRes.results || [];
+  const regionRes = await env.DB.prepare(
+    "SELECT * FROM Region WHERE idCluster = ? ORDER BY idRegion",
+  )
+    .bind(cluster.ID)
+    .all();
+  const regions = regionRes.results || [];
 
-    const url = new URL(request.url);
-    const baseUrl = `/Cluster_plots/${encodeURIComponent(name)}`;
-    const maybeMain = `${baseUrl}/bkgsub_exp.png`;
-    const files = (await assetExists(env, url.origin, maybeMain))
-        ? ["bkgsub_exp.png"]
-        : [];
+  const url = new URL(request.url);
+  const baseUrl = `/Cluster_plots/${encodeURIComponent(name)}`;
+  const maybeMain = `${baseUrl}/bkgsub_exp.png`;
+  const files = (await assetExists(env, url.origin, maybeMain))
+    ? ["bkgsub_exp.png"]
+    : [];
 
-    return json({
-        cluster,
-        obsids,
-        regions,
-        plots: {
-            base_url: baseUrl,
-            files,
-        },
-    });
+  return json({
+    cluster,
+    obsids,
+    regions,
+    fits_download_url: fitsDownloadPath(name),
+    plots: {
+      base_url: baseUrl,
+      files,
+    },
+  });
 }
 
-async function handleFitsDownload(env, name) {
-    const keyCandidates = [
-        `fits/${name}.zip`,
-        `${name}.zip`,
-        `${name}/${name}.zip`,
-    ];
-
-    let object = null;
-    for (const key of keyCandidates) {
-        object = await env.FITS_BUCKET.get(key);
-        if (object) {
-            break;
-        }
-    }
-
-    if (!object) {
-        return json(
-            { detail: "FITS archive not found in R2 for this cluster" },
-            404,
-        );
-    }
-
-    const headers = new Headers();
-    object.writeHttpMetadata(headers);
-    headers.set("etag", object.httpEtag);
-    headers.set("content-type", "application/zip");
-    headers.set(
-        "content-disposition",
-        `attachment; filename="${name}_fits.zip"`,
+async function handleFitsDownload(env, request, name) {
+  const zenodoUrl = await getZenodoFitsUrl(env, request, name);
+  if (!zenodoUrl) {
+    return json(
+      {
+        detail:
+          "FITS archive not found in Zenodo links manifest for this cluster",
+      },
+      404,
     );
-    headers.set("cache-control", "public, max-age=3600");
-
-    return new Response(object.body, { headers });
+  }
+  return Response.redirect(zenodoUrl, 302);
 }
 
 async function handleApi(env, request, pathname) {
-    if (request.method !== "GET") {
-        return json({ detail: "Method not allowed" }, 405);
-    }
+  if (request.method !== "GET") {
+    return json({ detail: "Method not allowed" }, 405);
+  }
 
-    if (pathname === "/api/health") {
-        return handleHealth();
-    }
-    if (pathname === "/api/clusters") {
-        return handleListClusters(env);
-    }
+  if (pathname === "/api/health") {
+    return handleHealth();
+  }
+  if (pathname === "/api/clusters") {
+    return handleListClusters(env);
+  }
+  if (pathname === "/api/resolve-name") {
+    return handleResolveName(request);
+  }
 
-    const clusterMatch = pathname.match(/^\/api\/clusters\/(.+)$/);
-    if (clusterMatch) {
-        const name = decodeSegment(clusterMatch[1]);
-        return handleClusterDetail(env, request, name);
-    }
+  const clusterMatch = pathname.match(/^\/api\/clusters\/(.+)$/);
+  if (clusterMatch) {
+    const name = decodeSegment(clusterMatch[1]);
+    return handleClusterDetail(env, request, name);
+  }
 
-    const fitsMatch = pathname.match(/^\/api\/fits\/(.+)\/download$/);
-    if (fitsMatch) {
-        const name = decodeSegment(fitsMatch[1]);
-        return handleFitsDownload(env, name);
-    }
+  const fitsMatch = pathname.match(/^\/api\/fits\/(.+)\/download$/);
+  if (fitsMatch) {
+    const name = decodeSegment(fitsMatch[1]);
+    return handleFitsDownload(env, request, name);
+  }
 
-    return json({ detail: "Not found" }, 404);
+  return json({ detail: "Not found" }, 404);
 }
 
 function rewriteClusterPath(request) {
-    const url = new URL(request.url);
-    if (url.pathname === "/") {
-        url.pathname = "/index.html";
-        return new Request(url, request);
-    }
-    if (url.pathname === "/cluster.html") {
-        return request;
-    }
-    if (url.pathname.startsWith("/cluster/")) {
-        url.pathname = "/cluster.html";
-        return new Request(url, request);
-    }
+  const url = new URL(request.url);
+  if (url.pathname === "/") {
+    url.pathname = "/index.html";
+    return new Request(url, request);
+  }
+  if (url.pathname === "/cluster.html") {
     return request;
+  }
+  if (url.pathname.startsWith("/cluster/")) {
+    url.pathname = "/cluster.html";
+    return new Request(url, request);
+  }
+  return request;
 }
 
 export default {
-    async fetch(request, env) {
-        const url = new URL(request.url);
+  async fetch(request, env) {
+    const url = new URL(request.url);
 
-        try {
-            if (url.pathname.startsWith("/api/")) {
-                return await handleApi(env, request, url.pathname);
-            }
+    try {
+      if (url.pathname.startsWith("/api/")) {
+        return await handleApi(env, request, url.pathname);
+      }
 
-            return env.ASSETS.fetch(rewriteClusterPath(request));
-        } catch (err) {
-            return json(
-                {
-                    detail: "Internal server error",
-                    error: String(err && err.message ? err.message : err),
-                },
-                500,
-            );
-        }
-    },
+      return env.ASSETS.fetch(rewriteClusterPath(request));
+    } catch (err) {
+      return json(
+        {
+          detail: "Internal server error",
+          error: String(err && err.message ? err.message : err),
+        },
+        500,
+      );
+    }
+  },
 };

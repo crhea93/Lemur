@@ -1,0 +1,14 @@
+{
+  "run_id": 544,
+  "cluster": "CSWA 26",
+  "obsids": [
+    "18217",
+    "24743",
+    "24813",
+    "24814",
+    "26338",
+    "26347"
+  ],
+  "redshift_override": null,
+  "claimed_at_utc": "20260220T150736Z"
+}

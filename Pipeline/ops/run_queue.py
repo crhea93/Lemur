@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import argparse
+import csv
+import hashlib
 import json
 import os
 import re
@@ -63,6 +65,17 @@ def sanitize_name(name):
     return re.sub(r"[^A-Za-z0-9+_-]", "", name.strip())
 
 
+def pipeline_safe_cluster_name(name, run_id):
+    safe = re.sub(r"[^A-Za-z0-9_-]", "", name.strip().replace(" ", ""))
+    if not safe:
+        safe = f"Cluster_{run_id}"
+    # Clusters.Name in schema is VARCHAR(20); keep names DB-safe and stable.
+    if len(safe) > 20:
+        digest = hashlib.sha1(safe.encode("utf-8")).hexdigest()[:5]
+        safe = f"{safe[:14]}_{digest}"
+    return safe
+
+
 def connect(args):
     password = args.db_password or os.environ.get("DB_PASSWORD")
     return mysql.connector.connect(
@@ -78,23 +91,34 @@ def ensure_tables(cur):
     cur.execute(CREATE_OBSID_TABLE_SQL)
 
 
-def claim_next_run(db, include_failed):
+def claim_next_run(db, include_failed, max_attempts):
     cur = db.cursor(dictionary=True)
     db.start_transaction()
     try:
-        statuses = ("queued", "failed") if include_failed else ("queued",)
-        placeholders = ",".join(["%s"] * len(statuses))
-        cur.execute(
-            f"""
-            SELECT run_id, cluster_name, obsids_csv, redshift_override, status
-            FROM pipeline_run
-            WHERE status IN ({placeholders})
-            ORDER BY run_id ASC
-            LIMIT 1
-            FOR UPDATE
-            """,
-            statuses,
-        )
+        if include_failed:
+            cur.execute(
+                """
+                SELECT run_id, cluster_name, obsids_csv, redshift_override, status
+                FROM pipeline_run
+                WHERE status='queued'
+                   OR (status='failed' AND attempts < %s)
+                ORDER BY CASE WHEN status='queued' THEN 0 ELSE 1 END, run_id ASC
+                LIMIT 1
+                FOR UPDATE
+                """,
+                (max_attempts,),
+            )
+        else:
+            cur.execute(
+                """
+                SELECT run_id, cluster_name, obsids_csv, redshift_override, status
+                FROM pipeline_run
+                WHERE status='queued'
+                ORDER BY run_id ASC
+                LIMIT 1
+                FOR UPDATE
+                """
+            )
         row = cur.fetchone()
         if not row:
             db.commit()
@@ -206,9 +230,7 @@ def recover_interrupted_runs(db):
 def download_obsid(obsid, data_root, template, log_handle):
     obsid_dir = data_root / obsid
     if obsid_dir.exists():
-        print(
-            f"[download] obsid {obsid} already exists at {obsid_dir}", file=log_handle
-        )
+        log_line(f"[download] obsid {obsid} already exists at {obsid_dir}", log_handle)
         return
 
     cmd_text = template.format(obsid=obsid, dest=str(data_root))
@@ -216,10 +238,8 @@ def download_obsid(obsid, data_root, template, log_handle):
     if not cmd:
         raise RuntimeError("Download command template expanded to empty command.")
 
-    print(f"[download] running: {' '.join(cmd)} (cwd={data_root})", file=log_handle)
-    subprocess.run(
-        cmd, cwd=str(data_root), check=True, stdout=log_handle, stderr=log_handle
-    )
+    log_line(f"[download] running: {' '.join(cmd)} (cwd={data_root})", log_handle)
+    run_command_tee(cmd, str(data_root), log_handle)
 
 
 def run_pipeline(repo_root, defaults, cluster_name, obsids, redshift, log_handle):
@@ -236,16 +256,77 @@ def run_pipeline(repo_root, defaults, cluster_name, obsids, redshift, log_handle
     if redshift is not None:
         cmd.extend(["--redshift", str(redshift)])
 
-    print(f"[pipeline] running: {' '.join(cmd)}", file=log_handle)
-    subprocess.run(
-        cmd, cwd=str(repo_root), check=True, stdout=log_handle, stderr=log_handle
+    log_line(f"[pipeline] running: {' '.join(cmd)}", log_handle)
+    run_command_tee(cmd, str(repo_root), log_handle)
+
+
+def run_command_tee(cmd, cwd, log_handle):
+    process = subprocess.Popen(
+        cmd,
+        cwd=cwd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
     )
+    assert process.stdout is not None
+    for line in process.stdout:
+        print(line, end="")
+        log_handle.write(line)
+        log_handle.flush()
+    return_code = process.wait()
+    if return_code != 0:
+        raise subprocess.CalledProcessError(return_code, cmd)
+
+
+def log_line(message, log_handle=None):
+    print(message, flush=True)
+    if log_handle is not None:
+        log_handle.write(message + "\n")
+        log_handle.flush()
+
+
+def append_failure_record(args, run_row, exc):
+    failed_list_path = Path(args.failed_list)
+    failed_list_path.parent.mkdir(parents=True, exist_ok=True)
+    message = str(exc)
+    failure_type = (
+        "redshift_lookup_failed"
+        if "Unable to resolve redshift" in message
+        else "pipeline_failed"
+    )
+    should_write_header = not failed_list_path.exists()
+    with open(failed_list_path, "a", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        if should_write_header:
+            writer.writerow(
+                [
+                    "failed_at_utc",
+                    "run_id",
+                    "cluster_name",
+                    "obsids_csv",
+                    "failure_type",
+                    "error_text",
+                ]
+            )
+        writer.writerow(
+            [
+                datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                run_row["run_id"],
+                run_row["cluster_name"],
+                run_row["obsids_csv"],
+                failure_type,
+                message,
+            ]
+        )
 
 
 def process_one_run(args, db, run_row, defaults_values):
     run_id = run_row["run_id"]
     cluster = run_row["cluster_name"]
+    cluster_pipeline = pipeline_safe_cluster_name(cluster, run_id)
     redshift = run_row["redshift_override"]
+    redshift_to_use = redshift if redshift is not None else args.default_redshift
     obsids = get_obsids(db, run_id)
     if not obsids:
         raise RuntimeError(f"run_id={run_id} has no obsids in pipeline_run_obsid.")
@@ -274,10 +355,20 @@ def process_one_run(args, db, run_row, defaults_values):
         raise RuntimeError(f"home_dir does not exist: {data_root}")
 
     with open(log_path, "a", encoding="utf-8") as log_handle:
-        print(
+        log_line(
             f"[run] run_id={run_id} cluster={cluster} obsids={','.join(obsids)}",
-            file=log_handle,
+            log_handle,
         )
+        if cluster_pipeline != cluster:
+            log_line(
+                f"[run] using pipeline-safe cluster name: {cluster_pipeline}",
+                log_handle,
+            )
+        if redshift is None and redshift_to_use is not None:
+            log_line(
+                f"[run] using default redshift={redshift_to_use} (no redshift_override in queue)",
+                log_handle,
+            )
 
         if not args.skip_download:
             for obsid in obsids:
@@ -294,7 +385,14 @@ def process_one_run(args, db, run_row, defaults_values):
                 set_obsid_download_status(db, run_id, obsid, "done")
 
         update_run_status(db, run_id, "processing")
-        run_pipeline(repo_root, args.defaults, cluster, obsids, redshift, log_handle)
+        run_pipeline(
+            repo_root,
+            args.defaults,
+            cluster_pipeline,
+            obsids,
+            redshift_to_use,
+            log_handle,
+        )
         set_processing_status_for_all_obsids(db, run_id, "done")
         update_run_status(db, run_id, "completed")
 
@@ -319,7 +417,11 @@ def run(args):
 
     processed = 0
     while True:
-        run_row = claim_next_run(db, include_failed=args.retry_failed)
+        run_row = claim_next_run(
+            db,
+            include_failed=args.retry_failed,
+            max_attempts=args.max_attempts,
+        )
         if not run_row:
             break
 
@@ -330,6 +432,7 @@ def run(args):
         except Exception as exc:
             set_processing_status_for_all_obsids(db, run_id, "failed")
             update_run_status(db, run_id, "failed", error_text=str(exc))
+            append_failure_record(args, run_row, exc)
             print(f"Failed run_id={run_id}: {exc}")
             if args.stop_on_error:
                 break
@@ -377,7 +480,23 @@ def build_parser():
     parser.add_argument("--db-user", default="carterrhea")
     parser.add_argument("--db-name", default="carterrhea")
     parser.add_argument(
+        "--default-redshift",
+        type=float,
+        help="Fallback redshift for runs without redshift_override (skips online lookup).",
+    )
+    parser.add_argument(
         "--db-password", help="DB password. Defaults to DB_PASSWORD env var."
+    )
+    parser.add_argument(
+        "--max-attempts",
+        type=int,
+        default=3,
+        help="Maximum total attempts per run_id when retrying failed runs.",
+    )
+    parser.add_argument(
+        "--failed-list",
+        default=str(repo_root / "Pipeline" / "ops" / "failed_clusters.csv"),
+        help="CSV path where failed runs are appended.",
     )
     return parser
 
