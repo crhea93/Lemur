@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 import argparse
 import hashlib
+import http.client
 import json
+import random
 import tempfile
+import time
 import urllib.parse
 import urllib.request
 import zipfile
@@ -10,6 +13,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 FITS_SUFFIXES = {".fits", ".fit", ".fts", ".gz"}
+
+
+def format_bytes(num_bytes):
+    units = ["B", "KB", "MB", "GB", "TB"]
+    value = float(num_bytes)
+    for unit in units:
+        if value < 1024.0 or unit == units[-1]:
+            return f"{value:.1f} {unit}"
+        value /= 1024.0
+    return f"{num_bytes} B"
 
 
 def utc_now():
@@ -82,14 +95,115 @@ def request_json(method, url, token=None, payload=None):
     return json.loads(body) if body else {}
 
 
-def request_binary_put(url, token, file_path):
-    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/zip"}
-    req = urllib.request.Request(url=url, method="PUT", headers=headers)
-    with open(file_path, "rb") as handle:
-        data = handle.read()
-    req.data = data
-    with urllib.request.urlopen(req):
-        return
+def _backoff_sleep(attempt, base_delay):
+    delay = base_delay * (2 ** max(0, attempt - 1))
+    jitter = random.uniform(0, min(1.0, delay * 0.2))
+    time.sleep(delay + jitter)
+
+
+def _is_retryable_status(status_code):
+    return status_code in {408, 409, 425, 429, 500, 502, 503, 504, 520, 521, 522, 524}
+
+
+def request_binary_put(
+    url,
+    token,
+    file_path,
+    max_retries=5,
+    base_delay_seconds=2.0,
+    timeout_seconds=120,
+    progress_label="",
+):
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme != "https":
+        raise RuntimeError(f"Expected HTTPS upload URL, got: {url}")
+    host = parsed.netloc
+    target = parsed.path or "/"
+    if parsed.query:
+        target = f"{target}?{parsed.query}"
+
+    size = file_path.stat().st_size
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/zip",
+        "Content-Length": str(size),
+    }
+    label = progress_label or file_path.name
+
+    last_error = None
+    for attempt in range(1, max_retries + 1):
+        conn = http.client.HTTPSConnection(host, timeout=timeout_seconds)
+        try:
+            conn.putrequest("PUT", target)
+            for key, value in headers.items():
+                conn.putheader(key, value)
+            conn.endheaders()
+
+            sent = 0
+            next_report_pct = 5
+            print(
+                f"[upload] {label}: attempt {attempt}/{max_retries}, "
+                f"size={format_bytes(size)}"
+            )
+            with open(file_path, "rb") as handle:
+                while True:
+                    chunk = handle.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    conn.send(chunk)
+                    sent += len(chunk)
+                    if size > 0:
+                        pct = int((sent * 100) / size)
+                        if pct >= next_report_pct:
+                            print(
+                                f"[upload] {label}: {pct}% "
+                                f"({format_bytes(sent)}/{format_bytes(size)})"
+                            )
+                            next_report_pct += 5
+
+            if sent >= size:
+                print(
+                    f"[upload] {label}: 100% "
+                    f"({format_bytes(sent)}/{format_bytes(size)})"
+                )
+
+            response = conn.getresponse()
+            response.read()
+            status = response.status
+            if 200 <= status < 300:
+                print(f"[upload] {label}: complete (HTTP {status})")
+                return
+            if _is_retryable_status(status) and attempt < max_retries:
+                print(
+                    f"[retry] {label} failed with HTTP {status}; "
+                    f"attempt {attempt}/{max_retries}"
+                )
+                _backoff_sleep(attempt, base_delay_seconds)
+                continue
+            raise RuntimeError(f"Upload failed with HTTP {status}: {response.reason}")
+        except (
+            BrokenPipeError,
+            ConnectionError,
+            TimeoutError,
+            OSError,
+            http.client.HTTPException,
+        ) as exc:
+            last_error = exc
+            if attempt >= max_retries:
+                break
+            print(
+                f"[retry] {label} connection error: {exc}; "
+                f"attempt {attempt}/{max_retries}"
+            )
+            _backoff_sleep(attempt, base_delay_seconds)
+        finally:
+            conn.close()
+
+    if last_error is not None:
+        raise RuntimeError(
+            f"Upload failed after {max_retries} attempts: {last_error}"
+        ) from last_error
+    raise RuntimeError(f"Upload failed after {max_retries} attempts.")
 
 
 def infer_download_url(zenodo_api_base, record_id, filename, published_payload):
@@ -128,6 +242,10 @@ def upload_cluster_zip(zip_path, cluster_name, args):
         f"{bucket_url}/{urllib.parse.quote(filename)}",
         token=args.zenodo_token,
         file_path=zip_path,
+        max_retries=args.upload_retries,
+        base_delay_seconds=args.upload_retry_base_delay_seconds,
+        timeout_seconds=args.upload_timeout_seconds,
+        progress_label=cluster_name,
     )
 
     metadata = {
@@ -191,6 +309,24 @@ def parse_args():
         "--zenodo-community",
         default="",
         help="Optional Zenodo community identifier.",
+    )
+    parser.add_argument(
+        "--upload-retries",
+        type=int,
+        default=5,
+        help="Maximum upload retry attempts for transient failures.",
+    )
+    parser.add_argument(
+        "--upload-retry-base-delay-seconds",
+        type=float,
+        default=2.0,
+        help="Base delay in seconds for exponential backoff between upload retries.",
+    )
+    parser.add_argument(
+        "--upload-timeout-seconds",
+        type=int,
+        default=120,
+        help="Socket timeout in seconds for each upload attempt.",
     )
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
