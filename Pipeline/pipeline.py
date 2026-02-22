@@ -54,7 +54,6 @@ from surface_brightness import run_surface_brightness
 from web_export import export_web
 
 # ------------------------------------------------------------------------------#
-DB_PASSWORD = "REDACTED_DB_PASSWORD"
 
 
 # ------------------------------------PROGRAM-----------------------------------#
@@ -212,7 +211,7 @@ def run_pipeline_with_config(inputs, merge_bool, env_vars):
     global Temp_min, Temp_max, Ab_min, Ab_max, Norm_min, Norm_max
     global mydb, mycursor
     # ---------------------------Read in data----------------------------------#
-    db_password = resolve_db_password(inputs, env_vars, DB_PASSWORD)
+    db_password = resolve_db_password(inputs, env_vars)
     mydb, mycursor, db_user, db_host, db_name = connect_db(inputs, db_password)
     ctx = PipelineContext(
         inputs=inputs,

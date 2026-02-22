@@ -3,10 +3,10 @@
 
 
 
-$servername = "localhost";
-$username = "id9499302_carterrhea";
-$password = "REDACTED_DB_PASSWORD";
-$dbname = "id9499302_lemur_db";
+$servername = getenv('DB_HOST') ?: "localhost";
+$username = getenv('DB_USER') ?: "";
+$password = getenv('DB_PASSWORD') ?: "";
+$dbname = getenv('DB_NAME') ?: "id9499302_lemur_db";
 
 // Create connection
 $conn = new mysqli($servername, $username, $password, $dbname);
@@ -60,4 +60,3 @@ if ($result->num_rows > 0) {
 }
 //echo json_encode(array('test'=>$search2));
 $conn->close();
-

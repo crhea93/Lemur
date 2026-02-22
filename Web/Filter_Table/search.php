@@ -4,10 +4,10 @@
 $text2 = $_POST['Name'];
 
 
-$servername = "localhost";
-$username = "carterrhea";
-$password = "REDACTED_DB_PASSWORD";
-$dbname = "Lemur_DB";
+$servername = getenv('DB_HOST') ?: "localhost";
+$username = getenv('DB_USER') ?: "";
+$password = getenv('DB_PASSWORD') ?: "";
+$dbname = getenv('DB_NAME') ?: "Lemur_DB";
 
 // Create connection
 $conn = new mysqli($servername, $username, $password, $dbname);

@@ -25,11 +25,17 @@ def load_config(input_path):
     return inputs, merge_bool, env_vars
 
 
-def resolve_db_password(inputs, env_vars, default_password):
-    db_password = env_vars.get("DB_PASSWORD", default_password)
+def resolve_db_password(inputs, env_vars, default_password=None):
+    db_password = env_vars.get("DB_PASSWORD", default_password or "")
     if inputs.get("database_password"):
         try:
             db_password = read_password(inputs["database_password"])
         except Exception:
             pass
+
+    if not db_password:
+        raise ValueError(
+            "DB password is not configured. Set DB_PASSWORD in your env file or provide database_password in the input file."
+        )
+
     return db_password

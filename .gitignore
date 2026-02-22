@@ -69,3 +69,5 @@ cloudflare/zenodo_fits_manifest.json
 .env
 **/.env
 **/.env/
+
+node_modules/

@@ -1,6 +1,10 @@
 # Lemur
 X-ray Galaxy Cluster Archive with a FastAPI backend and a modern web UI.
 
+[![DOI](https://zenodo.org/badge/166745110.svg)](https://doi.org/10.5281/zenodo.18728228)
+
+
+
 ## Overview
 This repository contains:
 - A processing pipeline that generates a MySQL `.sql` dump of cluster data.
@@ -181,3 +185,8 @@ make sync-d1
 make sync-fits
 make dry-run
 ```
+
+## AI Disclosure
+The frontend of this website and the FastAPI compilation/integration work were developed with assistance from Claude Code and ChatGPT Codex.
+
+All scientific analysis code in this repository was written without the aid of AI.
