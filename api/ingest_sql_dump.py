@@ -5,7 +5,7 @@ import sqlite3
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
-DEFAULT_SQL = BASE_DIR.parent / "Pipeline" / "Lemur_DB.sql"
+DEFAULT_SQL = BASE_DIR.parent / "lemur.sql"
 DEFAULT_DATA_DIR = Path(
     os.getenv("LEMUR_DATA_DIR", str(BASE_DIR / "data"))
 ).expanduser()
@@ -71,7 +71,7 @@ def parse_value(text):
 
 def load_inserts(sql_text, table_name):
     pattern = re.compile(
-        r"INSERT INTO `" + re.escape(table_name) + r"` VALUES (.*?);",
+        r"INSERT INTO `" + re.escape(table_name) + r"`\s+VALUES\s+(.*?);",
         re.DOTALL,
     )
     all_rows = []
@@ -155,7 +155,7 @@ def main():
     parser.add_argument(
         "--sql",
         default=str(DEFAULT_SQL),
-        help="Path to MySQL dump (default: Pipeline/Lemur_DB.sql)",
+        help="Path to MySQL dump (default: lemur.sql)",
     )
     parser.add_argument(
         "--db",

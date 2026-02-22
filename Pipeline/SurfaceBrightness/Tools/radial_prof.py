@@ -1,4 +1,4 @@
-'''
+"""
 Create Radial Surface Brightness Profile
 
 Be sure to have already merged using Merge.py, created annuli using annuli_create.py,
@@ -7,19 +7,20 @@ and chosen a background region using ds9
 OUTPUTS:
     rprofile_nonincl_r_data.fits - Fits file containing SB information of independent annuli
     rprofile_r_data.fits- Fits file containing SB information of compounded annuli
-'''
+"""
+
 import os
 from ciao_contrib.runtool import *
 
 
-def calc_profs(evt_file,exposure_map,bkg_region):
+def calc_profs(evt_file, exposure_map, bkg_region):
     dmextract.punlearn()
-    dmextract.infile = evt_file+"[bin sky=@annuli.reg]"
+    dmextract.infile = evt_file + "[bin sky=@annuli.reg]"
     dmextract.outfile = "rprofile.fits"
-    dmextract.bkg = evt_file+"[bin sky=region("+bkg_region+")]"
+    dmextract.bkg = evt_file + "[bin sky=region(" + bkg_region + ")]"
     dmextract.exp = exposure_map
     dmextract.bkgexp = exposure_map
-    dmextract.opt = 'generic'
+    dmextract.opt = "generic"
     dmextract.clobber = True
     dmextract()
 

@@ -1,12 +1,11 @@
 ###### IO ##########################
-outfile = open("Results_table.js",'w')
-infile = open("Results.csv","r")
-Header = infile.readline().split(',')
+outfile = open("Results_table.js", "w")
+infile = open("Results.csv", "r")
+Header = infile.readline().split(",")
 
 
 ####### PATH TOWARDS THE CLUSTER PAGES HTML FILES #################
-cluster_pages_path='./Web/Testing/Artificial_results/Cluster_pages'
-
+cluster_pages_path = "./Web/Testing/Artificial_results/Cluster_pages"
 
 
 ######## WRITTING ON JS SCRIPT ###########
@@ -14,12 +13,13 @@ cluster_pages_path='./Web/Testing/Artificial_results/Cluster_pages'
 outfile.write("var full_Table = '")
 
 # begin table
-outfile.write('<table id="Analysis_summary">');outfile.write("'+\n")
+outfile.write('<table id="Analysis_summary">')
+outfile.write("'+\n")
 
 # column headers
 outfile.write("'<th>'+\n")
 for Header_name in Header[1:]:
-    outfile.write("'<td>"+Header_name.rstrip()+"</td>'+\n")
+    outfile.write("'<td>" + Header_name.rstrip() + "</td>'+\n")
 outfile.write("'</th>'+\n")
 
 # column data
@@ -28,8 +28,13 @@ for line in infile:
     outfile.write("'<tr>'+\n")
     outfile.write("'")
     for i in range(len(row)):
-        if i==1:
-            outfile.write('<td><a href="Web/Testing/Artificial_results/Cluster_pages/{}.html">%s</a></td>'.format(row[i]) % row[i].rstrip())
+        if i == 1:
+            outfile.write(
+                '<td><a href="Web/Testing/Artificial_results/Cluster_pages/{}.html">%s</a></td>'.format(
+                    row[i]
+                )
+                % row[i].rstrip()
+            )
         else:
             outfile.write("<td>%s</td>" % row[i].rstrip())
     outfile.write("'+\n")

@@ -56,7 +56,7 @@ class DatabaseService:
 
         pipeline_dir = Path(__file__).resolve().parent
         repo_root = pipeline_dir.parent
-        sql_dump = inputs.get("sql_dump_path") or str(pipeline_dir / "Lemur_DB.sql")
+        sql_dump = inputs.get("sql_dump_path") or str(repo_root / "lemur.sql")
         sqlite_db = inputs.get("sqlite_db_path") or str(
             repo_root / "api" / "data" / "lemur.db"
         )

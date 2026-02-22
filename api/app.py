@@ -7,7 +7,7 @@ import zipfile
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from .db import DATA_DIR, DB_PATH, get_conn
@@ -18,57 +18,10 @@ BASE_DIR = Path(__file__).resolve().parent
 WEB_DIR = BASE_DIR.parent / "Web"
 PLOTS_DIR = WEB_DIR / "Cluster_plots"
 FITS_DIR = Path(os.getenv("LEMUR_FITS_DIR", str(DATA_DIR / "fits"))).expanduser()
-ZENODO_LINKS_PATH = Path(
-    os.getenv(
-        "LEMUR_ZENODO_LINKS_PATH",
-        str((BASE_DIR.parent / "Web" / "zenodo_fits_links.json")),
-    )
-).expanduser()
-
-_zenodo_links_cache = {"mtime": None, "data": {}}
 
 
-def load_zenodo_links():
-    try:
-        stat = ZENODO_LINKS_PATH.stat()
-    except FileNotFoundError:
-        _zenodo_links_cache["mtime"] = None
-        _zenodo_links_cache["data"] = {}
-        return {}
-
-    if _zenodo_links_cache["mtime"] == stat.st_mtime:
-        return _zenodo_links_cache["data"]
-
-    try:
-        import json
-
-        with open(ZENODO_LINKS_PATH, encoding="utf-8") as handle:
-            payload = json.load(handle)
-    except Exception:
-        payload = {}
-
-    data = payload if isinstance(payload, dict) else {}
-    _zenodo_links_cache["mtime"] = stat.st_mtime
-    _zenodo_links_cache["data"] = data
-    return data
-
-
-def zenodo_url_for_cluster(name: str):
-    links = load_zenodo_links()
-    if name in links and isinstance(links[name], str):
-        return links[name]
-
-    lower_name = str(name).lower()
-    for key, value in links.items():
-        if str(key).lower() == lower_name and isinstance(value, str):
-            return value
-    return None
-
-
-def fits_download_url(name: str):
-    return (
-        zenodo_url_for_cluster(name) or f"/api/fits/{urllib.parse.quote(name)}/download"
-    )
+def fits_download_url(name: str) -> str:
+    return f"/api/fits/{urllib.parse.quote(name)}/download"
 
 
 def ensure_db():
@@ -229,10 +182,6 @@ def cluster_page_direct():
 
 @app.get("/api/fits/{name}/download")
 def download_fits(name: str):
-    zenodo_url = zenodo_url_for_cluster(name)
-    if zenodo_url:
-        return RedirectResponse(url=zenodo_url, status_code=307)
-
     fits_dir = FITS_DIR / name
     if not fits_dir.exists() or not fits_dir.is_dir():
         raise HTTPException(status_code=404, detail="FITS directory not found")

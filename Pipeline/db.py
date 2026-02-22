@@ -58,7 +58,7 @@ def connect_db(inputs, db_password):
     print(" Connected to Database!")
 
     sql_dump_path = inputs.get("sql_dump_path") or str(
-        Path(__file__).resolve().parent / "Lemur_DB.sql"
+        Path(__file__).resolve().parent.parent / "lemur.sql"
     )
     ensure_schema(mycursor, db_name, sql_dump_path)
 

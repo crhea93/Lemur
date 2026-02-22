@@ -133,30 +133,32 @@ def main():
                     f"dir_list = {','.join(str(o) for o in obsids)}",
                     f"name = {name}",
                     "#-----Parameter info-----#",
-                    f\"redshift = {z}\",
+                    f"redshift = {z}",
                     "#-----Additional Info----#",
-                    f\"merge = {merge}\",
-                    \"cleaning = false\",
-                    \"surface_brightness_calc = false\",
-                    \"\",
-                    \"# API update options\",
-                    \"update_api = true\",
-                    \"sql_dump_path = /home/carterrhea/Documents/Lemur/Pipeline/Lemur_DB.sql\",
-                    \"sqlite_db_path = /home/carterrhea/Documents/Lemur/api/data/lemur.db\",
-                    \"\",
-                    \"# Optional API restart (uvicorn)\",
-                    \"api_restart = false\",
-                    \"api_health_url = http://localhost:8000/api/health\",
-                    'api_restart_cmd = pkill -f \"uvicorn api.app:app\" || true; uvicorn api.app:app --reload --host 0.0.0.0 --port 8000 &',
+                    f"merge = {merge}",
+                    "cleaning = false",
+                    "surface_brightness_calc = false",
+                    "",
+                    "# API update options",
+                    "update_api = true",
+                    "sql_dump_path = /home/carterrhea/Documents/Lemur/lemur.sql",
+                    "sqlite_db_path = /home/carterrhea/Documents/Lemur/api/data/lemur.db",
+                    "",
+                    "# Optional API restart (uvicorn)",
+                    "api_restart = false",
+                    "api_health_url = http://localhost:8000/api/health",
+                    'api_restart_cmd = pkill -f "uvicorn api.app:app" || true; uvicorn api.app:app --reload --host 0.0.0.0 --port 8000 &',
                 ]
             )
-            + \"\\n\"
+            + "\n"
         )
 
     save_cache(cache)
-    print(f\"Wrote {len(clusters)} input files to {OUT_DIR}\")
+    print(f"Wrote {len(clusters)} input files to {OUT_DIR}")
     if missing_redshift:
-        print(\"Missing redshifts (set to 0.0). Example:\")\n        print(\"  \" + \", \".join(missing_redshift[:10]))\n
+        print("Missing redshifts (set to 0.0). Example:")
+        print("  " + ", ".join(missing_redshift[:10]))
 
 
-if __name__ == \"__main__\":\n    main()
+if __name__ == "__main__":
+    main()

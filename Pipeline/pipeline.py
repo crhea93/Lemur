@@ -34,24 +34,9 @@ import sys
 import urllib.parse
 import urllib.request
 from pathlib import Path
+from typing import Any
 
-from ciao_contrib.runtool import *
 from config import load_config, resolve_db_password
-from context import PipelineContext
-from db import connect_db
-
-# ---------------------------------DATABASE IMPORTS-----------------------------#
-from db_service import DatabaseService
-from imaging import create_src_img
-from Misc.R_cool import R_cool_calc
-from preprocessing import (
-    generate_ccds,
-    init_cluster,
-    run_merge_observations,
-    run_single_observation,
-)
-from surface_brightness import run_surface_brightness
-from web_export import export_web
 
 # ------------------------------------------------------------------------------#
 
@@ -205,11 +190,20 @@ def load_inputs_from_cli(cluster_name, obsid_args, defaults_path, redshift_overr
 
 
 def run_pipeline_with_config(inputs, merge_bool, env_vars):
-    # ---------------------------Global Imports--------------------------------#
-    global max_rad, cen_x, cen_y, edge_x, edge_y, filenames, annuli_data
-    global Temperatures, Abundances, Norms, Fluxes, obsid_, main_out
-    global Temp_min, Temp_max, Ab_min, Ab_max, Norm_min, Norm_max
-    global mydb, mycursor
+    from context import PipelineContext
+    from db import connect_db
+    from db_service import DatabaseService
+    from imaging import create_src_img
+    from Misc.R_cool import R_cool_calc
+    from preprocessing import (
+        generate_ccds,
+        init_cluster,
+        run_merge_observations,
+        run_single_observation,
+    )
+    from surface_brightness import run_surface_brightness
+    from web_export import export_web
+
     # ---------------------------Read in data----------------------------------#
     db_password = resolve_db_password(inputs, env_vars)
     mydb, mycursor, db_user, db_host, db_name = connect_db(inputs, db_password)
@@ -238,7 +232,8 @@ def run_pipeline_with_config(inputs, merge_bool, env_vars):
     main_out = init_cluster(ctx.inputs)
     ccds = generate_ccds(ctx.inputs)
 
-    if ctx.merge_bool == False:
+    filenames: dict[str, Any]
+    if ctx.merge_bool is False:
         filenames, cen_ra, cen_dec, edge_ra, edge_dec, agn_ = run_single_observation(
             ctx.inputs, ccds, main_out, db_service
         )

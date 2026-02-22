@@ -4,17 +4,14 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 D1_DB_NAME="lemur-db"
-SQL_DUMP_PATH="$ROOT_DIR/Pipeline/Lemur_DB.sql"
+SQL_DUMP_PATH="$ROOT_DIR/lemur.sql"
 SQLITE_DB_PATH="$ROOT_DIR/api/data/lemur.db"
 SCHEMA_FILE="$ROOT_DIR/cloudflare/sql/d1_schema.sql"
 FITS_ROOT="$ROOT_DIR/api/data/fits"
-ZENODO_LINKS_FILE="$ROOT_DIR/Web/zenodo_fits_links.json"
-ZENODO_STATE_FILE="$ROOT_DIR/cloudflare/zenodo_fits_manifest.json"
-ZENODO_API_BASE="${ZENODO_API_BASE:-https://zenodo.org/api}"
-ZENODO_TOKEN=REDACTED_ZENODO_TOKEN
+R2_BUCKET_NAME="lemur-fits"
 
 SKIP_D1=0
-SKIP_ZENODO=0
+SKIP_FITS=0
 SKIP_SCHEMA=0
 DRY_RUN=0
 KEEP_SQL_DUMP=0
@@ -27,26 +24,18 @@ Usage:
 
 Options:
   --d1-db <name>            D1 database name (default: lemur-db)
-  --sql-dump <path>         MySQL dump path (default: Pipeline/Lemur_DB.sql)
+  --sql-dump <path>         MySQL dump path (default: lemur.sql)
   --sqlite-db <path>        SQLite output path (default: api/data/lemur.db)
   --schema-file <path>      D1 schema SQL file (default: cloudflare/sql/d1_schema.sql)
   --fits-root <path>        Directory containing per-cluster FITS dirs (default: api/data/fits)
-  --zenodo-links-file <p>   Output JSON map consumed by API/Worker (default: Web/zenodo_fits_links.json)
-  --zenodo-state-file <p>   State JSON for change detection (default: cloudflare/zenodo_fits_manifest.json)
-  --zenodo-api-base <url>   Zenodo API base URL (default: https://zenodo.org/api)
-  --zenodo-token <token>    Zenodo personal access token (or set ZENODO_TOKEN env var)
+  --r2-bucket <name>        R2 bucket name for FITS ZIPs (default: lemur-fits)
   --d1-data-sql <path>      Save generated SQLite dump SQL to this path
   --skip-d1                 Skip D1 sync
-  --skip-zenodo             Skip Zenodo FITS upload + manifest generation
+  --skip-fits               Skip FITS ZIP upload to R2
   --skip-schema             Skip schema apply (only import data into D1)
   --keep-sql-dump           Keep temp D1 data SQL file when --d1-data-sql is not set
   --dry-run                 Print commands without executing
   -h, --help                Show this help
-
-Examples:
-  cloudflare/scripts/sync_cloudflare_data.sh
-  cloudflare/scripts/sync_cloudflare_data.sh --skip-zenodo
-  cloudflare/scripts/sync_cloudflare_data.sh --zenodo-api-base https://sandbox.zenodo.org/api --zenodo-token "$ZENODO_TOKEN"
 EOF
 }
 
@@ -90,20 +79,8 @@ while [[ $# -gt 0 ]]; do
             FITS_ROOT="$2"
             shift 2
             ;;
-        --zenodo-links-file)
-            ZENODO_LINKS_FILE="$2"
-            shift 2
-            ;;
-        --zenodo-state-file)
-            ZENODO_STATE_FILE="$2"
-            shift 2
-            ;;
-        --zenodo-api-base)
-            ZENODO_API_BASE="$2"
-            shift 2
-            ;;
-        --zenodo-token)
-            ZENODO_TOKEN="$2"
+        --r2-bucket)
+            R2_BUCKET_NAME="$2"
             shift 2
             ;;
         --d1-data-sql)
@@ -114,8 +91,8 @@ while [[ $# -gt 0 ]]; do
             SKIP_D1=1
             shift
             ;;
-        --skip-zenodo)
-            SKIP_ZENODO=1
+        --skip-fits)
+            SKIP_FITS=1
             shift
             ;;
         --skip-schema)
@@ -157,13 +134,8 @@ if [[ "$SKIP_D1" -eq 0 ]]; then
     fi
 fi
 
-if [[ "$SKIP_ZENODO" -eq 0 && ! -d "$FITS_ROOT" ]]; then
+if [[ "$SKIP_FITS" -eq 0 && ! -d "$FITS_ROOT" ]]; then
     echo "FITS root not found: $FITS_ROOT" >&2
-    exit 1
-fi
-
-if [[ "$SKIP_ZENODO" -eq 0 && -z "$ZENODO_TOKEN" && "$DRY_RUN" -eq 0 ]]; then
-    echo "Zenodo token is required. Pass --zenodo-token or set ZENODO_TOKEN." >&2
     exit 1
 fi
 
@@ -211,26 +183,37 @@ if [[ "$SKIP_D1" -eq 0 ]]; then
 
     echo "==> Importing data into D1 '$D1_DB_NAME'"
     run_cmd wrangler d1 execute "$D1_DB_NAME" --file "$D1_DATA_SQL" --remote
-
-    if [[ -n "$CUSTOM_D1_DATA_SQL" || "$KEEP_SQL_DUMP" -eq 1 ]]; then
-        echo "D1 data SQL saved at: $D1_DATA_SQL"
-    fi
 fi
 
-if [[ "$SKIP_ZENODO" -eq 0 ]]; then
-    echo "==> Uploading FITS zips to Zenodo and generating links manifest"
-    zenodo_cmd=(
-        python3 "$ROOT_DIR/cloudflare/scripts/sync_zenodo_fits.py"
-        --fits-root "$FITS_ROOT"
-        --links-file "$ZENODO_LINKS_FILE"
-        --state-file "$ZENODO_STATE_FILE"
-        --zenodo-api-base "$ZENODO_API_BASE"
-        --zenodo-token "$ZENODO_TOKEN"
-    )
-    if [[ "$DRY_RUN" -eq 1 ]]; then
-        zenodo_cmd+=(--dry-run)
-    fi
-    run_cmd "${zenodo_cmd[@]}"
+if [[ "$SKIP_FITS" -eq 0 ]]; then
+    echo "==> Packaging cluster FITS and uploading ZIPs to R2 bucket '$R2_BUCKET_NAME'"
+    for cluster_dir in "$FITS_ROOT"/*; do
+        [[ -d "$cluster_dir" ]] || continue
+        cluster_name="$(basename "$cluster_dir")"
+        tmp_zip="$(mktemp "${TMPDIR:-/tmp}/${cluster_name}.XXXXXX.zip")"
+
+        if [[ "$DRY_RUN" -eq 1 ]]; then
+            echo "[dry-run] build zip from '$cluster_dir' -> '$tmp_zip'"
+            echo "[dry-run] wrangler r2 object put \"$R2_BUCKET_NAME/$cluster_name.zip\" --file \"$tmp_zip\""
+            rm -f "$tmp_zip"
+            continue
+        fi
+
+        python3 - <<PY
+import pathlib
+import zipfile
+
+cluster = pathlib.Path(r"$cluster_dir")
+zip_path = pathlib.Path(r"$tmp_zip")
+extensions = {".fits", ".fit", ".fts", ".gz"}
+with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+    for path in sorted(cluster.iterdir()):
+        if path.is_file() and path.suffix.lower() in extensions:
+            zf.write(path, arcname=path.name)
+PY
+        run_cmd wrangler r2 object put "$R2_BUCKET_NAME/$cluster_name.zip" --file "$tmp_zip"
+        rm -f "$tmp_zip"
+    done
 fi
 
 echo "Done."

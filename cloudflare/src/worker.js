@@ -23,51 +23,20 @@ function splitObsids(obsids) {
     .filter(Boolean);
 }
 
-let zenodoLinksCache = null;
-
-async function loadZenodoLinks(env, origin) {
-  if (zenodoLinksCache) {
-    return zenodoLinksCache;
-  }
-
-  try {
-    const req = new Request(
-      new URL("/zenodo_fits_links.json", origin).toString(),
-      {
-        method: "GET",
-      },
-    );
-    const resp = await env.ASSETS.fetch(req);
-    if (!resp.ok) {
-      zenodoLinksCache = {};
-      return zenodoLinksCache;
-    }
-    const payload = await resp.json();
-    zenodoLinksCache = payload && typeof payload === "object" ? payload : {};
-    return zenodoLinksCache;
-  } catch {
-    zenodoLinksCache = {};
-    return zenodoLinksCache;
-  }
-}
-
-async function getZenodoFitsUrl(env, request, name) {
-  const url = new URL(request.url);
-  const links = await loadZenodoLinks(env, url.origin);
-  if (typeof links[name] === "string") {
-    return links[name];
-  }
-  const target = String(name).toLowerCase();
-  for (const [key, value] of Object.entries(links)) {
-    if (String(key).toLowerCase() === target && typeof value === "string") {
-      return value;
-    }
-  }
-  return null;
-}
-
 function fitsDownloadPath(name) {
   return `/api/fits/${encodeURIComponent(name)}/download`;
+}
+
+function fitsZipKeyCandidates(name) {
+  const compact = String(name).replace(/\s+/g, "");
+  return [
+    `${name}.zip`,
+    `${compact}.zip`,
+    `${name}/fits.zip`,
+    `${name}/${name}.zip`,
+    `${compact}/fits.zip`,
+    `${compact}/${compact}.zip`,
+  ];
 }
 
 async function handleHealth() {
@@ -198,18 +167,29 @@ async function handleClusterDetail(env, request, name) {
   });
 }
 
-async function handleFitsDownload(env, request, name) {
-  const zenodoUrl = await getZenodoFitsUrl(env, request, name);
-  if (!zenodoUrl) {
-    return json(
-      {
-        detail:
-          "FITS archive not found in Zenodo links manifest for this cluster",
-      },
-      404,
-    );
+async function handleFitsDownload(env, _request, name) {
+  if (!env.FITS || typeof env.FITS.get !== "function") {
+    return json({ detail: "FITS storage binding is not configured" }, 500);
   }
-  return Response.redirect(zenodoUrl, 302);
+
+  for (const key of fitsZipKeyCandidates(name)) {
+    const object = await env.FITS.get(key);
+    if (!object) {
+      continue;
+    }
+
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set("etag", object.httpEtag);
+    headers.set("content-type", "application/zip");
+    headers.set(
+      "content-disposition",
+      `attachment; filename="${encodeURIComponent(name)}_fits.zip"`,
+    );
+    return new Response(object.body, { headers });
+  }
+
+  return json({ detail: "FITS archive not found for this cluster" }, 404);
 }
 
 async function handleApi(env, request, pathname) {

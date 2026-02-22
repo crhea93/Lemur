@@ -1,8 +1,12 @@
 import sys
 from pathlib import Path
 
-from config import load_config
-from pipeline import run_pipeline
+try:
+    from .config import load_config
+    from .pipeline import run_pipeline
+except ImportError:
+    from config import load_config
+    from pipeline import run_pipeline
 
 
 def expect_paths(inputs):

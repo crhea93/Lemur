@@ -1,7 +1,8 @@
 # Lemur
 X-ray Galaxy Cluster Archive with a FastAPI backend and a modern web UI.
 
-[![DOI](https://zenodo.org/badge/166745110.svg)](https://doi.org/10.5281/zenodo.18728228)
+[![CI](https://github.com/crhea93/Lemur/actions/workflows/ci.yml/badge.svg)](https://github.com/crhea93/Lemur/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-pytest--cov-blue)](#development)
 
 
 
@@ -12,14 +13,17 @@ This repository contains:
 - A modernized web UI that dynamically builds the cluster table and cluster detail pages.
 
 ## Structure
-- `Pipeline/` - data processing and `Lemur_DB.sql` output.
+- `Pipeline/` - data processing code.
 - `api/` - FastAPI app and SQL dump ingestion.
 - `Web/` - static site assets and dynamic pages.
+- `lemur.sql` - MySQL SQL dump used for API ingest.
 
 ## Quick Start (Web)
 1. Create the SQLite database from the SQL dump:
 ```bash
-python3 api/ingest_sql_dump.py --sql Pipeline/Lemur_DB.sql
+lemur-ingest-sql --sql lemur.sql
+# or script mode:
+python3 api/ingest_sql_dump.py --sql lemur.sql
 ```
 
 2. Run the API server:
@@ -36,6 +40,23 @@ Optional runtime paths (to keep data out of Git):
 - `LEMUR_DB_PATH` - full path to SQLite DB (default: `$LEMUR_DATA_DIR/lemur.db`)
 - `LEMUR_FITS_DIR` - full path to FITS tree (default: `$LEMUR_DATA_DIR/fits`)
 
+## Install (pip)
+From repo root:
+
+```bash
+pip install -e .
+```
+
+Optional extras:
+
+```bash
+pip install -e ".[pipeline,test]"
+```
+
+Installed CLI commands:
+- `lemur-pipeline`
+- `lemur-ingest-sql`
+
 ## Pipeline
 The pipeline is now orchestrated through `Pipeline/pipeline.py` and is split into
 focused modules:
@@ -48,11 +69,17 @@ focused modules:
 
 ### Run the pipeline
 ```bash
+lemur-pipeline /path/to/input.i
+# or module/script mode:
+python -m Pipeline.pipeline /path/to/input.i
 python Pipeline/pipeline.py /path/to/input.i
 ```
 
 You can also run without creating an input file by passing cluster + obsids:
 ```bash
+lemur-pipeline --cluster Abell133 --obsids 2203,9897
+# or module/script mode:
+python -m Pipeline.pipeline --cluster Abell133 --obsids 2203,9897
 python Pipeline/pipeline.py --cluster Abell133 --obsids 2203,9897
 ```
 
@@ -64,8 +91,8 @@ This mode:
 
 Optional flags:
 ```bash
-python Pipeline/pipeline.py --cluster Abell133 --obsids 2203 9897 --defaults /path/to/defaults.i
-python Pipeline/pipeline.py --cluster Abell133 --obsids 2203,9897 --redshift 0.0566
+lemur-pipeline --cluster Abell133 --obsids 2203 9897 --defaults /path/to/defaults.i
+lemur-pipeline --cluster Abell133 --obsids 2203,9897 --redshift 0.0566
 ```
 
 ### Queue-Based Batch Runs (CSV -> Download -> Lemur)
@@ -130,7 +157,7 @@ The smoke test checks:
 - `GET /api/fits/{name}/download` - ZIP of FITS files for the cluster.
 
 ## FITS Downloads
-Local dev fallback (when no Zenodo link exists) still reads FITS files from:
+FITS downloads are served from:
 - `$LEMUR_FITS_DIR/<ClusterName>/<file>.fits` (or `.fit`, `.fts`, `.gz`)
 - If `LEMUR_FITS_DIR` is unset, default is `api/data/fits/<ClusterName>/`
 
@@ -140,8 +167,8 @@ scripts/sync_fits.sh /path/to/fits_source
 scripts/sync_fits.sh s3://my-bucket/fits
 ```
 
-Production FITS download links are generated from `Web/zenodo_fits_links.json`
-and point to Zenodo records.
+If you use external hosted FITS URLs, configure your links source accordingly in
+the API deployment environment.
 
 ## Dynamic Pages
 - Table is rendered from `/api/clusters`.
@@ -149,14 +176,25 @@ and point to Zenodo records.
   - Plots are loaded from `Web/Cluster_plots/{name}/` if present.
 
 ## Notes
-- The SQL dump in `Pipeline/Lemur_DB.sql` is MySQL format; the ingest script converts it to SQLite.
+- The SQL dump in `lemur.sql` is MySQL format; the ingest script converts it to SQLite.
 - Client-side filtering remains in the table page.
 
 ## Development
 If you update the pipeline output:
-1. Regenerate `Pipeline/Lemur_DB.sql` (optional if `update_api = true`).
-2. Re-run `python3 api/ingest_sql_dump.py`.
+1. Regenerate `lemur.sql` (optional if `update_api = true`).
+2. Re-run `lemur-ingest-sql`.
 3. Restart the API if needed.
+
+Code quality checks:
+```bash
+pip install -e ".[dev]"
+ruff check tests api/app.py api/ingest_sql_dump.py Pipeline/config.py
+black --check tests api/app.py api/ingest_sql_dump.py Pipeline/config.py
+mypy api Pipeline/config.py Pipeline/pipeline.py tests
+# with coverage output:
+pytest --junitxml=pytest.xml --cov=api --cov=Pipeline.config --cov=Pipeline.pipeline --cov-report=term-missing --cov-report=xml
+```
+See `CONTRIBUTING.md` for the full contribution workflow.
 
 ## Cloudflare Deployment (Full Stack)
 A starter Cloudflare-native setup has been added:
@@ -169,10 +207,10 @@ This path runs:
 - Static web assets from `Web/`
 - API routes in a Worker
 - Cluster metadata in D1
-- FITS zip downloads from Zenodo (via redirect links map)
+- FITS zip downloads from your configured FITS storage source
 
 Follow `cloudflare/README.md` for provisioning and import steps.
-For automated D1 + Zenodo sync, use:
+For automated D1 + FITS metadata sync, use:
 `./cloudflare/scripts/sync_cloudflare_data.sh`
 
 ### Makefile shortcuts
