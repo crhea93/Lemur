@@ -1,7 +1,6 @@
 import os
 
 import mysql.connector
-import numpy as np
 from mysql.connector import Error
 
 ###### IO ##########################

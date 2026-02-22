@@ -7,8 +7,8 @@ INPUTS:
 """
 
 import numpy as np
-import scipy.integrate as spi
 import scipy.constants as spc
+import scipy.integrate as spi
 from astropy.cosmology import Planck13 as cosmo
 
 

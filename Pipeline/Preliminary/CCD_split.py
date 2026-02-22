@@ -3,6 +3,7 @@ Create ccd specific fits files for each CCD used
 """
 
 import os
+
 from ciao_contrib.runtool import *
 from pycrates import *
 

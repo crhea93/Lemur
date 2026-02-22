@@ -4,13 +4,11 @@ of the pipeline for the sake of expediency. However, we think these plots are us
 """
 
 # ------------------------IMPORTS-----------------------------#
-import os
-import numpy as np
-from astropy.io import fits
-from astropy.table import Table
 import matplotlib.pyplot as plt
-from ciao_contrib.runtool import *
+import numpy as np
 from astropy.convolution import Gaussian2DKernel, convolve
+from astropy.io import fits
+from ciao_contrib.runtool import *
 
 
 # ------------------------------------------------------------#

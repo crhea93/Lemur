@@ -2,10 +2,8 @@
 Python file to create radial profiles
 """
 
-import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-from Misc.LSCalc import ls_calc
+import numpy as np
 
 
 def all_profiles(mydb, mycursor, data_folder, output_folder, redshift, cluster_id):

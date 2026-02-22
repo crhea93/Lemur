@@ -7,7 +7,6 @@ from shutil import copyfile
 
 import numpy as np
 from astropy.io import fits
-from astropy.table import Table
 from ciao_contrib.runtool import *
 
 

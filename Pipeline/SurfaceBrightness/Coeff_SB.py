@@ -3,11 +3,13 @@ Surface Brightness Coefficient Calculation
 """
 
 import os
-from pycrates import *
+from shutil import copy, copyfile
+
 from astropy.io import fits
-from shutil import copyfile, copy
 from ciao_contrib.runtool import *
 from Misc.ASCalc import angle_calc
+from pycrates import *
+
 # ------------------------------------------------------------------------------#
 # ------------------------------------------------------------------------------#
 

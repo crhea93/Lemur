@@ -6,8 +6,6 @@ Calculate all additional parameters for each annulus:
     - Cooling time
 """
 
-import numpy as np
-from Misc.Classes import annulus
 
 
 def PostProcess(annuli_data, redshift, out_dir):

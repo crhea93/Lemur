@@ -3,6 +3,7 @@ Search for flares in data before reprocessing
 """
 
 import os
+
 from ciao_contrib.runtool import *
 
 

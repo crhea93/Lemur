@@ -4,7 +4,7 @@ Main file for testing our database commands
 """
 
 import mysql.connector
-from Add_new import add_obsid_db, add_cluster_db
+from Add_new import add_cluster_db, add_obsid_db
 
 # import data base
 mydb = mysql.connector.connect(

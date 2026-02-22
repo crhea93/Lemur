@@ -3,8 +3,7 @@ Annulus class definition
 """
 
 import numpy as np
-from scipy import interpolate
-from Misc.LSCalc import ls_calc, ds_calc
+from Misc.LSCalc import ds_calc
 
 
 class annulus:

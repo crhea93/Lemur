@@ -3,12 +3,8 @@ Calculate Cooling Radius defined at 3 Gyr for Non AGN fits
 """
 
 import numpy as np
-import pandas as pd
-from scipy import interpolate
-from Misc.LSCalc import ls_calc
 from Database.Add_new import add_r_cool
-
-import matplotlib.pyplot as plt
+from scipy import interpolate
 
 
 def int_rcool(regions, data, val_to_find):

@@ -3,7 +3,6 @@ This small script is used to create a conglomeration of annuli centered about a 
 for use in constructing a radial profile of surface brightness
 """
 
-import os
 import numpy as np
 
 

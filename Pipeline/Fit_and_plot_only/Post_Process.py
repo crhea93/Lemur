@@ -7,7 +7,7 @@ Calculate all additional parameters:
 """
 
 import numpy as np
-from LSCalc import ls_calc, ds_calc
+from LSCalc import ds_calc, ls_calc
 
 
 class annulus:

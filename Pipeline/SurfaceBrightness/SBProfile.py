@@ -5,11 +5,12 @@ surface brightess profile
 
 import os
 import shutil
-import numpy as np
-from SurfaceBrightness.Tools.LSCalc import calc_scale
-from SurfaceBrightness.Tools.fit_rprofile import profile1, profile2
-from SurfaceBrightness.Tools.radial_prof import calc_profs
+
 from SurfaceBrightness.Tools.annuli_create import create_ann
+from SurfaceBrightness.Tools.fit_rprofile import profile1, profile2
+from SurfaceBrightness.Tools.LSCalc import calc_scale
+from SurfaceBrightness.Tools.radial_prof import calc_profs
+
 # --------------------------INPUTS-----------------------------#
 
 

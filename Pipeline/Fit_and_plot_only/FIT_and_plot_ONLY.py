@@ -22,23 +22,19 @@ OUTPUTS:
 """
 
 # from astropy.io import fits
-import os
-import sys
-import subprocess
-from sherpa.optmethods import LevMar
-from sherpa.stats import LeastSq
-from sherpa.plot import DataPlot
-from sherpa.astro.xspec import *
-from sherpa.astro.all import *
-from sherpa.astro.ui import *
-from pychips.all import *
-from sherpa.fit import *
-from sherpa.all import *
-from Profiles import all_profiles
-from Post_Process import PostProcess
-
 # TURN OFF ON-SCREEN OUTPUT FROM SHERPA
 import logging
+import os
+import sys
+
+from Post_Process import PostProcess
+from Profiles import all_profiles
+from pychips.all import *
+from sherpa.all import *
+from sherpa.astro.all import *
+from sherpa.astro.ui import *
+from sherpa.astro.xspec import *
+from sherpa.fit import *
 
 logger = logging.getLogger("sherpa")
 logger.setLevel(logging.WARN)

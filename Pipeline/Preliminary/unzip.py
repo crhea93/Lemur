@@ -12,8 +12,8 @@ Carter Rhea
 06/22/18
 """
 
-import os
 import gzip
+import os
 import shutil
 
 

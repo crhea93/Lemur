@@ -9,7 +9,6 @@ OUTPUTS:
     rprofile_r_data.fits- Fits file containing SB information of compounded annuli
 """
 
-import os
 from ciao_contrib.runtool import *
 
 

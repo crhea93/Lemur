@@ -17,15 +17,14 @@ If running the Flares module assumes that we have already created a background l
 """
 
 import os
-from shutil import copyfile
-from ciao_contrib.runtool import *
+
 import matplotlib.pyplot as plt
-from Preliminary.Astrometric import Astrometric
-from Preliminary.Destreak import Destreak
+from ciao_contrib.runtool import *
+from Misc.filenames import get_filenames
 from Preliminary.BadPixel import BadPixel
+from Preliminary.Destreak import Destreak
 from Preliminary.Flares import Flares
 from Preliminary.Process import Process
-from Misc.filenames import get_filenames
 
 # ----------------INPUTS-------------------#
 output_dir = "repro"
