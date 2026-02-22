@@ -6,6 +6,7 @@ import os
 import pickle
 import re
 from collections import Counter, defaultdict
+from typing import TypedDict
 
 import mysql.connector
 
@@ -64,6 +65,15 @@ CREATE TABLE IF NOT EXISTS pipeline_run_obsid (
 """
 
 
+class GroupEntry(TypedDict):
+    obsids: set[int]
+    redshift: float | None
+
+
+def _new_group_entry() -> GroupEntry:
+    return {"obsids": set(), "redshift": None}
+
+
 def normalize_header(value):
     return re.sub(r"\s+", " ", value.strip().lower())
 
@@ -114,7 +124,7 @@ def ensure_tables(cur):
 
 
 def ingest_rows(args):
-    groups = defaultdict(lambda: {"obsids": set(), "redshift": None})
+    groups: defaultdict[str, GroupEntry] = defaultdict(_new_group_entry)
     with open(args.csv, newline="", encoding="utf-8-sig") as handle:
         reader = csv.DictReader(handle, delimiter=args.delimiter)
         if not reader.fieldnames:
@@ -153,7 +163,7 @@ def _first_present(dct, keys):
 
 
 def load_obsid_name_map(path, obsid_col, name_col, delimiter):
-    mapping = {}
+    mapping: dict[int, str] = {}
     if not path:
         return mapping
     with open(path, newline="", encoding="utf-8-sig") as handle:
@@ -176,7 +186,7 @@ def load_obsid_name_map(path, obsid_col, name_col, delimiter):
 
 
 def load_obsid_redshift_map(path, obsid_col, redshift_col, delimiter):
-    mapping = {}
+    mapping: dict[int, float] = {}
     if not path:
         return mapping
     with open(path, newline="", encoding="utf-8-sig") as handle:
@@ -249,7 +259,7 @@ def infer_redshift_from_obsid_map(obsids, obsid_to_redshift):
 
 
 def ingest_pickle(args):
-    groups = defaultdict(lambda: {"obsids": set(), "redshift": None})
+    groups: defaultdict[str, GroupEntry] = defaultdict(_new_group_entry)
     map_csv = args.name_map_csv
     if not map_csv:
         default_map = os.path.join("survey", "galaxyClusters.csv")
