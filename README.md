@@ -1,6 +1,8 @@
 # Lemur
 X-ray Galaxy Cluster Archive with a FastAPI backend and a modern web UI.
 
+Live cluster website: https://lemur-archive.lemur-xray.workers.dev
+
 [![CI](https://github.com/crhea93/Lemur/actions/workflows/ci.yml/badge.svg)](https://github.com/crhea93/Lemur/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-pytest--cov-blue)](#development)
 
