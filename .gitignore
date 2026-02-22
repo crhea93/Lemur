@@ -71,3 +71,10 @@ cloudflare/zenodo_fits_manifest.json
 **/.env/
 
 node_modules/
+# Local/generated artifacts
+*.py~
+*~
+Pipeline/ops/runs/
+.wrangler/
+api/data/*.db
+pytest.xml
