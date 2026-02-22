@@ -32,7 +32,7 @@ def read_input_file(input_file):
                 pass
         print("Successfully read in input file")
         for key, val in inputs.items():
-            if is_number(val) == True and key != "dir_list":
+            if is_number(val) and key != "dir_list":
                 inputs[key] = float(val)
             if key == "dir_list":
                 # Obtain individual obsids from list

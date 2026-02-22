@@ -58,10 +58,22 @@ include = ["Pipeline*", "api*"]
 [tool.ruff]
 line-length = 88
 target-version = "py310"
+extend-exclude = [
+  ".ruff_cache",
+  ".wrangler",
+  "api/data",
+  "Pipeline/ops/runs",
+  "Web/Filter_Table",
+  "Web/Table",
+  "Web/Testing",
+  "Web/php",
+  "survey",
+  "pytest.xml",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
-ignore = []
+ignore = ["E402", "E501", "F403", "F405"]
 
 [tool.black]
 line-length = 88

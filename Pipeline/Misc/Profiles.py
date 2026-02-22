@@ -60,7 +60,7 @@ def profile(
     r_in = []
     r_out = []
     for row in records:
-        if row[0] != None:
+        if row[0] is not None:
             data.append(row[0])
             min_.append(row[1])
             max_.append(row[2])

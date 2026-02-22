@@ -32,7 +32,7 @@ def unzip(chandra_dir, dir_list):
     Unzip all zipped files in a directory
     """
     for dir in dir_list:
-        path = os.getcwd() + "/" + dir
+        os.getcwd() + "/" + dir
         for dirname in ["primary", "secondary"]:
             os.chdir(chandra_dir + "/" + dir + "/" + dirname)
             for file in os.listdir(os.getcwd()):

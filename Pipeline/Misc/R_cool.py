@@ -34,7 +34,7 @@ def R_cool_calc(
     r_in = []
     r_out = []
     for row in records:
-        if row[0] != None:
+        if row[0] is not None:
             data.append(row[0])
             data_min.append(row[1])
             data_max.append(row[2])
@@ -59,22 +59,22 @@ def R_cool_calc(
     try:
         R_cool_3 = int_rcool(regions, NonAGN_data, 3)
         R_cool_3_l = int_rcool(regions, NonAGN_max, 3)
-    except:
+    except Exception:
         R_cool_3 = 0
         R_cool_3_l = 0
     try:
         R_cool_3_u = int_rcool(regions, NonAGN_min, 3)
-    except:
+    except Exception:
         R_cool_3_u = 0
     try:
         R_cool_7 = int_rcool(regions, NonAGN_data, 7.7)
         R_cool_7_l = int_rcool(regions, NonAGN_max, 7.7)
-    except:
+    except Exception:
         R_cool_7 = 0
         R_cool_7_l = 0
     try:
         R_cool_7_u = int_rcool(regions, NonAGN_min, 7.7)
-    except:
+    except Exception:
         R_cool_7_u = 0
     main_out.write("The Cooling Radius at 3 Gyr is %.2fkpc\n" % R_cool_3)
     main_out.write("We are unable to calculate the 7.7 Gyr Cooling Radius.")

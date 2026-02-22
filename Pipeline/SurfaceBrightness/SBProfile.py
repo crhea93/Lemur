@@ -17,7 +17,6 @@ from SurfaceBrightness.Tools.radial_prof import calc_profs
 def SB_profile(
     merged_dir, evt_file, exposure_map, bkg_region, ra, dec, z, model_type="single"
 ):
-    Flux = False
     # -------------------------------------------------------------#
 
     """try:

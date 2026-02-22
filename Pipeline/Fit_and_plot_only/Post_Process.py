@@ -94,7 +94,7 @@ def PostProcess(
     Annuli = []
     for bound in [Temp_min, Temp_max, Norm_min, Norm_max]:
         for i in range(len(bound)):
-            if bound[i] == None:
+            if bound[i] is None:
                 bound[i] = 0.0
             else:
                 bound[i] = float(bound[i])

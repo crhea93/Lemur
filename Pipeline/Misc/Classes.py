@@ -143,7 +143,7 @@ class annulus:
         """
         # now write to files
         agn_corr = "no"
-        if self.agn_act == True:
+        if self.agn_act:
             agn_corr = "yes"
         file_to_write.write(
             str(self.r_in)

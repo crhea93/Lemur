@@ -15,7 +15,7 @@ def profile1(scaling, model_type="single"):
     load_data(1, "rprofile_rmid_data.fits", 3, ["RMID", "SUR_BRI", "SUR_BRI_ERR"])
     # Single Fit
     set_source("beta1d.src1")
-    data = get_data()
+    get_data()
     set_method("moncar")
     fit()
     data_plot = get_data_plot()
@@ -63,7 +63,7 @@ def profile2(scaling, model_type="single"):
     # Double Fit
     load_data(1, "rprofile_rmid_data.fits", 3, ["RMID", "SUR_BRI", "SUR_BRI_ERR"])
     set_source("beta1d.src1+beta1d.src2")
-    data = get_data()
+    get_data()
     set_method("moncar")
     fit()
     data_plot = get_data_plot()

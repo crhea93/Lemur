@@ -15,7 +15,7 @@ def Energy_func_inv(z, Omega_mass, Omega_lam, Omega_k):
     return 1 / (np.sqrt(Omega_mass * (1 + z) ** 3 + Omega_k * (1 + z) ** 2 + Omega_lam))
 
 
-def calc_ang(z, l, Omega_mass, Omega_lam, Hubble_const):
+def calc_ang(z, length_kpc, Omega_mass, Omega_lam, Hubble_const):
     Omega_K = 1 - Omega_mass - Omega_lam
     d_H = spc.c / Hubble_const
     # print(spi.quad(Energy_func_inv,0,z,args=(Omega_rel,Omega_mass,Omega_lam,Omega_K))[0])
@@ -31,14 +31,14 @@ def calc_ang(z, l, Omega_mass, Omega_lam, Hubble_const):
             np.sqrt(np.abs(Omega_K)) * d_C / d_H
         )
     d_A = d_M / (1 + z)
-    theta_rad = l / d_A
+    theta_rad = length_kpc / d_A
     theta = theta_rad * (648000 / np.pi)  # degree
     return theta
 
 
-def angle_calc(z, l):
+def angle_calc(z, length_kpc):
     Omega_mass = cosmo.Om0
     Omega_lam = cosmo.Ode0
     Hubble_const = cosmo.H0
-    theta = calc_ang(z, l, Omega_mass, Omega_lam, Hubble_const.value)
+    theta = calc_ang(z, length_kpc, Omega_mass, Omega_lam, Hubble_const.value)
     return theta

@@ -57,7 +57,6 @@ def ls_calc(z, theta):
         z - redshift
         theta - angle
     """
-    Omega_rel = cosmo.Onu0
     Omega_mass = cosmo.Om0
     Omega_lam = cosmo.Ode0
     Hubble_const = cosmo.H0

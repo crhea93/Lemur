@@ -49,7 +49,7 @@ def calc_effenergy(region, energy_range2):
 def calc_flux(evt_file, merged_obs, energy_range, region, background, exposure=False):
     # Rearrange energy ranges
     energies = [float(x) for x in energy_range.split(":")]
-    energy_range2 = (
+    (
         str(energies[0] / 1000) + ":" + str(energies[1] / 1000)
     )  # for effective energy (eV)
     energy_range3 = (
@@ -118,7 +118,7 @@ def calc_flux(evt_file, merged_obs, energy_range, region, background, exposure=F
     dmstat()
     E_b = float(dmstat.out_mean)
     # Calculate average photon energies in source and background aperature
-    if exposure == False:
+    if not exposure:
         dmtcalc.punlearn()
         dmtcalc.infile = (
             evt_file
@@ -156,7 +156,7 @@ def calc_flux(evt_file, merged_obs, energy_range, region, background, exposure=F
         # set flux_s,flux_b to zero to ignore exposure
         flux_s = 1
         flux_b = 1
-    if exposure == True:
+    if exposure:
         eff2evt.punlearn()
         eff2evt.infile = (
             evt_file
@@ -293,11 +293,11 @@ def CSB_calc(
         for obsid in obs:
             try:
                 copy(bkg_file, directory_base + "/" + obsid + "/repro")
-            except:
+            except Exception:
                 pass
             try:
                 copy(region + ".reg", directory_base + "/" + obsid + "/repro")
-            except:
+            except Exception:
                 pass
             spec_run(directory_base, obsid, region, energy_range, bkg_file)
         create_arf(

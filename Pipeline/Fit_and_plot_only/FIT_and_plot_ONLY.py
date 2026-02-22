@@ -79,7 +79,7 @@ def read_input_file(input_file, expected_length):
         else:
             print("Successfully read in input file")
             for key, val in inputs.items():
-                if is_number(val) == True and key != "dir_list":
+                if is_number(val) and key != "dir_list":
                     inputs[key] = float(val)
                 if key == "dir_list":
                     # Obtain individual obsids from list
@@ -99,7 +99,7 @@ def set_log_sherpa():
 
 
 def isFloat(string):
-    if string == None:
+    if string is None:
         return False
     try:
         float(string)
@@ -231,9 +231,9 @@ def FitXSPEC(
     mins = list(get_covar_results().parmins)
     maxes = list(get_covar_results().parmaxes)
     for val in range(len(mins)):
-        if isFloat(mins[val]) == False:
+        if not isFloat(mins[val]):
             mins[val] = 0.0
-        if isFloat(maxes[val]) == False:
+        if not isFloat(maxes[val]):
             maxes[val] = 0.0
         else:
             pass
@@ -304,7 +304,7 @@ def PrimeFitting(
     os.chdir(home_dir + "/" + dir[0])
     if not os.path.exists(os.getcwd() + "/Fits"):
         os.makedirs(os.getcwd() + "/Fits")
-    if os.path.isfile(file_name) == True:
+    if os.path.isfile(file_name):
         os.remove(file_name)  # remove it
 
     file_to_write = open(
@@ -327,8 +327,6 @@ def PrimeFitting(
         print("      Fitting model to spectrum number " + str(i + 1))
         spectrum_files = []
         background_files = []
-        arf_files = []
-        resp_file = []
         if i == 0:
             region_ = "0.0-" + str(annuli_data[0])
         if i > 0:
@@ -453,7 +451,7 @@ def main():
         inputs["temp_guess"],
         inputs["sigma"],
     )
-    Annuli = PostProcess(
+    PostProcess(
         annuli_data.keys(),
         list(annuli_data.values()),
         Temperatures,

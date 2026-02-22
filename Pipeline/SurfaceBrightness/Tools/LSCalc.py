@@ -41,8 +41,8 @@ def calc_size(z, theta_rad, Omega_rel, Omega_mass, Omega_lam, Hubble_const):
             np.sqrt(np.abs(Omega_K)) * d_C / d_H
         )
     d_A = d_M / (1 + z)
-    l = d_A * theta_rad
-    return l
+    linear_size = d_A * theta_rad
+    return linear_size
 
 
 def calc_scale(z):
@@ -53,5 +53,7 @@ def calc_scale(z):
 
     theta_rad = np.pi / 648000  # radians per theta
 
-    l = calc_size(z, theta_rad, Omega_rel, Omega_mass, Omega_lam, Hubble_const.value)
-    return l
+    linear_size = calc_size(
+        z, theta_rad, Omega_rel, Omega_mass, Omega_lam, Hubble_const.value
+    )
+    return linear_size
