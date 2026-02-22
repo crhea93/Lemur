@@ -154,8 +154,8 @@ def calc_flux(evt_file, merged_obs, energy_range, region, background, exposure=F
         dmstat()
         eng_b = float(dmstat.out_mean)
         # set flux_s,flux_b to zero to ignore exposure
-        flux_s = 1
-        flux_b = 1
+        flux_s = 1.0
+        flux_b = 1.0
     if exposure:
         eff2evt.punlearn()
         eff2evt.infile = (
@@ -190,8 +190,8 @@ def calc_flux(evt_file, merged_obs, energy_range, region, background, exposure=F
         dmstat()
         flux_b = float(dmstat.out_mean)
         # Conversely set eng_s,eng_b to one to signify we are using effective exposure
-        eng_s = 1
-        eng_b = 1
+        eng_s = 1.0
+        eng_b = 1.0
 
     # Calculate energy flux and bounds
     aprates.punlearn()

@@ -2,6 +2,8 @@
 Add an entry to the database
 """
 
+from typing import Any
+
 
 def add_cluster_db(mydb, mycursor, cluster_name, redshift):
     """
@@ -88,6 +90,7 @@ def add_csb(
     :param csb_pho: coefficient of surface brightness in photons/sec/cm^2
     :return: none
     """
+    val: tuple[Any, ...]
     # update cluster db
     sql = "UPDATE Clusters SET CSB_ct= %s, CSB_pho=%s, csb_flux=%s  WHERE Name = %s"
     val = (str(csb_ct), str(csb_pho), str(csb_flux), cluster_name)
@@ -157,6 +160,7 @@ def add_r_cool(
     :param R_cool_7: Cooling radius at 7.7 Gyr
     :return: none
     """
+    val: tuple[Any, ...]
     sql = "UPDATE Clusters SET R_cool_3= %s, R_cool_7=%s WHERE ID = %s"
     val = (str(round(R_cool_3, 2)), str(round(R_cool_7, 2)), cluster_id)
     mycursor.execute(sql, val)

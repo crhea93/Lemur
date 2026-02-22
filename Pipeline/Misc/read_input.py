@@ -2,6 +2,8 @@
 Simple python subroutine to read in our specializedf input files
 """
 
+from typing import Any
+
 
 def is_number(s):
     """
@@ -22,7 +24,7 @@ def read_input_file(input_file):
     PARAMETERS:
         input_file - name of input file
     """
-    inputs = {}
+    inputs: dict[str, Any] = {}
     with open(input_file) as f:
         # Read file
         for line in f:

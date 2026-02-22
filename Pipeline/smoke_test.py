@@ -1,12 +1,13 @@
+import importlib
 import sys
 from pathlib import Path
 
-try:
-    from .config import load_config
-    from .pipeline import run_pipeline
-except ImportError:
-    from config import load_config
-    from pipeline import run_pipeline
+if __package__:
+    _config_mod = importlib.import_module(".config", package=__package__)
+    _pipeline_mod = importlib.import_module(".pipeline", package=__package__)
+else:
+    _config_mod = importlib.import_module("config")
+    _pipeline_mod = importlib.import_module("pipeline")
 
 
 def expect_paths(inputs):
@@ -25,8 +26,8 @@ def expect_paths(inputs):
 
 
 def smoke(input_path):
-    inputs, _merge, _env = load_config(input_path)
-    run_pipeline(input_path)
+    inputs, _merge, _env = _config_mod.load_config(input_path)
+    _pipeline_mod.run_pipeline(input_path)
     missing = [p for p in expect_paths(inputs) if not p.exists()]
     if missing:
         print("Smoke test failed. Missing outputs:")

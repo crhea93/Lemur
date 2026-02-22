@@ -82,11 +82,11 @@ def display_ccds(ccd_list, obsid, Merge=False):
         except Exception:
             sums[ccd] = float("inf")
 
-    bkg_ccd = min(sums, key=sums.get)
+    bkg_ccd = min(sums, key=lambda ccd: sums[ccd])
     if Merge:
         return bkg_ccd
 
-    src_ccd = max(sums, key=sums.get)
+    src_ccd = max(sums, key=lambda ccd: sums[ccd])
     return bkg_ccd, src_ccd
 
 

@@ -51,7 +51,7 @@ def calc_bounds(mydb, mycursor, cluster_id, region1, region2, cluster_name):
             if count < 35:
                 val = line.split(",")[3]
                 if not isfloat(val):
-                    data.append(0)
+                    data.append("0")
                 else:
                     data.append(val)
             count += 1
@@ -62,7 +62,7 @@ def calc_bounds(mydb, mycursor, cluster_id, region1, region2, cluster_name):
             if count < 35:
                 val = line.split(",")[3]
                 if not isfloat(val):
-                    data2.append(0)
+                    data2.append("0")
                 else:
                     data2.append(val)
             count += 1

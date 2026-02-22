@@ -26,6 +26,7 @@ OUTPUTS:
 import logging
 import os
 import sys
+from typing import Any
 
 from Post_Process import PostProcess
 from Profiles import all_profiles
@@ -65,7 +66,7 @@ def is_number(s):
 
 
 def read_input_file(input_file, expected_length):
-    inputs = {}
+    inputs: dict[str, Any] = {}
     with open(input_file) as f:
         for line in f:
             if "=" in line:
@@ -200,8 +201,8 @@ def FitXSPEC(
     # ---------------Set source with background------------#
     cflux.emin = energy_flux_min
     cflux.emax = energy_flux_max
-    src_model_dict = {}
-    bkg_model_dict = {}
+    src_model_dict: dict[str, Any] = {}
+    bkg_model_dict: dict[str, Any] = {}
     obs_count = 1
     for spec_pha in spectrum_files:
         obsid_set(

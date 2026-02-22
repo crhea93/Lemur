@@ -32,6 +32,8 @@ def split_ccds(chandra_dir, dir_to_split):
             # Get event file name
             if file.endswith("_evt2.fits"):
                 evt2_file = os.getcwd() + "/" + file
+        if evt2_file is None:
+            raise FileNotFoundError(f"No _evt2.fits file found in {os.getcwd()}")
         evt_file_data = read_file(evt2_file)
         ccds = get_keyval(evt_file_data, "DETNAM").split("-")[1]
         ccds = [i for i in ccds]

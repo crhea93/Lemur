@@ -26,7 +26,7 @@ def bkg_image(directory, image, bkg_reg, filenames):
     astropy_conv = convolve(image_data, kernel)
     # get background info
     bkg_cntr = []
-    bkg_rad = 0
+    bkg_rad = 0.0
     with open(bkg_reg, "r") as bkg_file:
         bkg_data = bkg_file.readlines()[-1].split(",")
         bkg_cntr.append(float(bkg_data[0].split("(")[1]))
