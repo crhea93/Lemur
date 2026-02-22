@@ -1,9 +1,0 @@
-{
-  "run_id": 625,
-  "cluster": "ESO 3060170 Offset",
-  "obsids": [
-    "17219"
-  ],
-  "redshift_override": null,
-  "claimed_at_utc": "20260220T150745Z"
-}

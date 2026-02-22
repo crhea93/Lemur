@@ -1,9 +1,0 @@
-{
-  "run_id": 641,
-  "cluster": "GAMA 537303",
-  "obsids": [
-    "14003"
-  ],
-  "redshift_override": null,
-  "claimed_at_utc": "20260220T150736Z"
-}

@@ -1,9 +1,0 @@
-{
-  "run_id": 615,
-  "cluster": "DLSCL J0522.2-4820",
-  "obsids": [
-    "4208"
-  ],
-  "redshift_override": null,
-  "claimed_at_utc": "20260220T150736Z"
-}

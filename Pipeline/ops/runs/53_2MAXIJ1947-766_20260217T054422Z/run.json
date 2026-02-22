@@ -1,9 +1,0 @@
-{
-  "run_id": 53,
-  "cluster": "2MAXI J1947-766",
-  "obsids": [
-    "15102"
-  ],
-  "redshift_override": null,
-  "claimed_at_utc": "20260217T054422Z"
-}

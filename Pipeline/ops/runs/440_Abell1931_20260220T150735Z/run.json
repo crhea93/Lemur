@@ -1,9 +1,0 @@
-{
-  "run_id": 440,
-  "cluster": "Abell 1931",
-  "obsids": [
-    "19569"
-  ],
-  "redshift_override": null,
-  "claimed_at_utc": "20260220T150735Z"
-}

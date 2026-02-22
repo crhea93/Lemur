@@ -1,9 +1,0 @@
-{
-  "run_id": 1545,
-  "cluster": "[BHG2011] SDSS J1138+2754",
-  "obsids": [
-    "20569"
-  ],
-  "redshift_override": null,
-  "claimed_at_utc": "20260220T150741Z"
-}

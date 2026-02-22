@@ -1,9 +1,0 @@
-{
-  "run_id": 685,
-  "cluster": "IGR J02466-4222",
-  "obsids": [
-    "7909"
-  ],
-  "redshift_override": null,
-  "claimed_at_utc": "20260220T150745Z"
-}

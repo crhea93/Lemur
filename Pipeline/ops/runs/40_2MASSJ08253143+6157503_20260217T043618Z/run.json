@@ -1,9 +1,0 @@
-{
-  "run_id": 40,
-  "cluster": "2MASS J08253143+6157503",
-  "obsids": [
-    "3198"
-  ],
-  "redshift_override": null,
-  "claimed_at_utc": "20260217T043618Z"
-}

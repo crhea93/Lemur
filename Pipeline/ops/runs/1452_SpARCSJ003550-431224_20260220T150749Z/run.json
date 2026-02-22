@@ -1,9 +1,0 @@
-{
-  "run_id": 1452,
-  "cluster": "SpARCS J003550-431224",
-  "obsids": [
-    "11721"
-  ],
-  "redshift_override": null,
-  "claimed_at_utc": "20260220T150749Z"
-}

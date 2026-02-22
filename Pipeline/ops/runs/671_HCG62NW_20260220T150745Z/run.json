@@ -1,9 +1,0 @@
-{
-  "run_id": 671,
-  "cluster": "HCG62 NW",
-  "obsids": [
-    "2230"
-  ],
-  "redshift_override": null,
-  "claimed_at_utc": "20260220T150745Z"
-}

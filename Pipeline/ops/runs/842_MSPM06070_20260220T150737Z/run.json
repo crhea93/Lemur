@@ -1,9 +1,0 @@
-{
-  "run_id": 842,
-  "cluster": "MSPM 06070",
-  "obsids": [
-    "20529"
-  ],
-  "redshift_override": null,
-  "claimed_at_utc": "20260220T150737Z"
-}
