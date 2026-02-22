@@ -4,6 +4,8 @@ X-ray Galaxy Cluster Archive with a FastAPI backend and a modern web UI.
 [![CI](https://github.com/crhea93/Lemur/actions/workflows/ci.yml/badge.svg)](https://github.com/crhea93/Lemur/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-pytest--cov-blue)](#development)
 
+[![DOI](https://zenodo.org/badge/166745110.svg)](https://doi.org/10.5281/zenodo.18728228)
+
 
 
 ## Overview
