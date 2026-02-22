@@ -78,3 +78,4 @@ Pipeline/ops/runs/
 .wrangler/
 api/data/*.db
 pytest.xml
+Pipeline/ops/failed_clusters.csv
