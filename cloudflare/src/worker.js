@@ -117,6 +117,24 @@ async function handleListClusters(env) {
   return json(out);
 }
 
+async function handleListStamps(env) {
+  const res = await env.DB.prepare(
+    "SELECT Name FROM Clusters ORDER BY Name COLLATE NOCASE",
+  ).all();
+  const rows = res.results || [];
+
+  const out = rows.map((row) => {
+    const name = row.Name;
+    return {
+      name,
+      cluster_url: `/cluster/${encodeURIComponent(name)}`,
+      preview_url: `/Cluster_plots/${encodeURIComponent(name)}/bkgsub_exp.png`,
+    };
+  });
+
+  return json(out);
+}
+
 async function assetExists(env, origin, path) {
   const req = new Request(new URL(path, origin).toString(), {
     method: "GET",
@@ -203,6 +221,9 @@ async function handleApi(env, request, pathname) {
   if (pathname === "/api/clusters") {
     return handleListClusters(env);
   }
+  if (pathname === "/api/stamps") {
+    return handleListStamps(env);
+  }
   if (pathname === "/api/resolve-name") {
     return handleResolveName(request);
   }
@@ -230,6 +251,10 @@ function rewriteClusterPath(request) {
   }
   if (url.pathname === "/cluster.html") {
     return request;
+  }
+  if (url.pathname === "/stamps") {
+    url.pathname = "/stamps.html";
+    return new Request(url, request);
   }
   if (url.pathname.startsWith("/cluster/")) {
     url.pathname = "/cluster.html";

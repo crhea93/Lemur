@@ -78,8 +78,10 @@ wrangler deploy
 After deploy, the same routes should work:
 - `/`
 - `/Table/index_table.html`
+- `/stamps`
 - `/cluster/<ClusterName>`
 - `/api/clusters`
+- `/api/stamps`
 - `/api/clusters/<ClusterName>`
 - `/api/fits/<ClusterName>/download`
 
