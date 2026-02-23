@@ -117,6 +117,39 @@ def client(tmp_path, monkeypatch):
         yield test_client
 
 
+@pytest.fixture()
+def client_empty_db_with_plots(tmp_path, monkeypatch):
+    db_path = tmp_path / "lemur.db"
+    conn = sqlite3.connect(db_path)
+    try:
+        ingest.create_schema(conn)
+        conn.commit()
+    finally:
+        conn.close()
+
+    plots_dir = tmp_path / "plots"
+    plots_dir.mkdir()
+    cluster_plot_dir = plots_dir / "Abell133"
+    cluster_plot_dir.mkdir()
+    (cluster_plot_dir / "bkgsub_exp.png").write_bytes(b"img")
+
+    @contextmanager
+    def _get_conn():
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            yield conn
+        finally:
+            conn.close()
+
+    monkeypatch.setattr(app_module, "DB_PATH", db_path)
+    monkeypatch.setattr(app_module, "get_conn", _get_conn)
+    monkeypatch.setattr(app_module, "PLOTS_DIR", plots_dir)
+
+    with TestClient(app_module.app) as test_client:
+        yield test_client
+
+
 def test_health(client):
     response = client.get("/api/health")
     assert response.status_code == 200
@@ -164,3 +197,23 @@ def test_fits_download_returns_zip_from_local_files(client):
     with zipfile.ZipFile(buffer) as zf:
         names = sorted(zf.namelist())
     assert names == ["a.fits", "b.fit"]
+
+
+def test_stamps_returns_preview_and_cluster_link(client):
+    response = client.get("/api/stamps")
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == 1
+    assert payload[0]["name"] == "Abell133"
+    assert payload[0]["cluster_url"] == "/cluster/Abell133"
+    assert payload[0]["preview_url"] == "/Cluster_plots/Abell133/bkgsub_exp.png"
+
+
+def test_stamps_falls_back_to_plot_dirs_when_db_is_empty(client_empty_db_with_plots):
+    response = client_empty_db_with_plots.get("/api/stamps")
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == 1
+    assert payload[0]["name"] == "Abell133"
+    assert payload[0]["cluster_url"] == "/cluster/Abell133"
+    assert payload[0]["preview_url"] == "/Cluster_plots/Abell133/bkgsub_exp.png"

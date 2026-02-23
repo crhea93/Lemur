@@ -137,6 +137,52 @@ def cluster_detail(name: str):
     }
 
 
+@app.get("/api/stamps")
+def list_cluster_stamps():
+    rows = []
+    if DB_PATH.exists():
+        with get_conn() as conn:
+            rows = conn.execute(
+                "SELECT Name FROM Clusters ORDER BY Name COLLATE NOCASE"
+            ).fetchall()
+
+    def preview_file(plot_dir: Path) -> str | None:
+        if not plot_dir.exists():
+            return None
+        preferred = plot_dir / "bkgsub_exp.png"
+        if preferred.exists():
+            return preferred.name
+        for filename in sorted(os.listdir(plot_dir)):
+            lower = filename.lower()
+            if lower.endswith((".png", ".jpg", ".jpeg", ".gif", ".svg")):
+                return filename
+        return None
+
+    names = [row["Name"] for row in rows]
+    if not names and PLOTS_DIR.exists():
+        names = sorted(
+            [path.name for path in PLOTS_DIR.iterdir() if path.is_dir()],
+            key=str.lower,
+        )
+
+    stamps = []
+    for name in names:
+        fname = preview_file(PLOTS_DIR / name)
+        preview_url = (
+            f"/Cluster_plots/{urllib.parse.quote(name)}/{urllib.parse.quote(fname)}"
+            if fname
+            else None
+        )
+        stamps.append(
+            {
+                "name": name,
+                "cluster_url": f"/cluster/{urllib.parse.quote(name)}",
+                "preview_url": preview_url,
+            }
+        )
+    return stamps
+
+
 @app.get("/api/resolve-name")
 def resolve_name(q: str = ""):
     q = (q or "").strip()
@@ -178,6 +224,11 @@ def cluster_page(name: str):
 @app.get("/cluster.html")
 def cluster_page_direct():
     return FileResponse(WEB_DIR / "cluster.html")
+
+
+@app.get("/stamps")
+def stamps_page():
+    return FileResponse(WEB_DIR / "stamps.html")
 
 
 @app.get("/api/fits/{name}/download")

@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Lemur Cluster Stamps</title>
+        <link rel="stylesheet" type="text/css" href="css/nav.css" />
+        <link
+            rel="stylesheet"
+            href="https://www.w3schools.com/w3css/4/w3.css"
+        />
+        <style>
+            :root {
+                --bg: #f4f6fb;
+                --panel: #ffffff;
+                --ink: #1f2937;
+                --muted: #5b6777;
+                --line: #dde4ee;
+                --accent: #1677c8;
+            }
+
+            body {
+                margin: 0;
+                font-family: "IBM Plex Sans", Arial, sans-serif;
+                color: var(--ink);
+                background: linear-gradient(180deg, #eef4fb 0%, var(--bg) 100%);
+                min-height: 100vh;
+            }
+
+            .page {
+                max-width: 1280px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+
+            .header {
+                margin: 12px 0 20px;
+            }
+
+            .title {
+                margin: 0;
+                font-size: clamp(1.6rem, 2.5vw, 2.2rem);
+            }
+
+            .subtitle {
+                margin: 8px 0 0;
+                color: var(--muted);
+            }
+
+            .toolbar {
+                display: flex;
+                gap: 12px;
+                align-items: center;
+                margin: 16px 0 20px;
+            }
+
+            .search {
+                width: min(420px, 100%);
+                border: 1px solid var(--line);
+                border-radius: 10px;
+                padding: 10px 12px;
+                font-size: 15px;
+                background: #fff;
+            }
+
+            .count {
+                color: var(--muted);
+                font-size: 14px;
+            }
+
+            .grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+                gap: 14px;
+            }
+
+            .card {
+                background: var(--panel);
+                border: 1px solid var(--line);
+                border-radius: 12px;
+                overflow: hidden;
+                text-decoration: none;
+                color: inherit;
+                box-shadow: 0 5px 16px rgba(15, 34, 58, 0.08);
+                transition: transform 120ms ease, box-shadow 120ms ease;
+            }
+
+            .card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 10px 24px rgba(15, 34, 58, 0.14);
+            }
+
+            .thumb-wrap {
+                background: #e8eef6;
+                aspect-ratio: 1 / 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                overflow: hidden;
+            }
+
+            .thumb {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                display: block;
+            }
+
+            .placeholder {
+                color: #6f7e91;
+                font-size: 14px;
+                text-align: center;
+                padding: 8px;
+            }
+
+            .label {
+                padding: 10px 12px;
+                border-top: 1px solid var(--line);
+                font-weight: 600;
+                font-size: 14px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .loading {
+                color: var(--muted);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="w3-bar" id="nav">
+            <a href="/" class="w3-bar-item w3-button w3-hover-teal">Home</a>
+            <a
+                href="/Table/index_table.html"
+                class="w3-bar-item w3-button w3-hover-teal"
+                >Cluster Table</a
+            >
+            <a href="/stamps" class="w3-bar-item w3-button w3-hover-teal"
+                >Stamps</a
+            >
+        </div>
+
+        <main class="page">
+            <header class="header">
+                <h1 class="title">Cluster Postage Stamps</h1>
+                <p class="subtitle">
+                    Scan all cluster previews quickly, then click a stamp to
+                    open the full cluster detail page.
+                </p>
+            </header>
+
+            <div class="toolbar">
+                <input
+                    id="search"
+                    class="search"
+                    type="search"
+                    placeholder="Filter by cluster name..."
+                />
+                <span id="count" class="count"></span>
+            </div>
+
+            <div id="status" class="loading">Loading stamps...</div>
+            <section id="grid" class="grid" aria-live="polite"></section>
+        </main>
+
+        <script>
+            const grid = document.getElementById("grid");
+            const statusEl = document.getElementById("status");
+            const searchEl = document.getElementById("search");
+            const countEl = document.getElementById("count");
+            let allStamps = [];
+
+            function setCount(items) {
+                countEl.textContent = `${items.length} clusters`;
+            }
+
+            function render(items) {
+                grid.innerHTML = "";
+                setCount(items);
+                if (!items.length) {
+                    statusEl.textContent = "No matching clusters.";
+                    return;
+                }
+                statusEl.textContent = "";
+                for (const item of items) {
+                    const a = document.createElement("a");
+                    a.className = "card";
+                    a.href = item.cluster_url;
+                    a.title = item.name;
+
+                    const thumbWrap = document.createElement("div");
+                    thumbWrap.className = "thumb-wrap";
+
+                    if (item.preview_url) {
+                        const img = document.createElement("img");
+                        img.className = "thumb";
+                        img.loading = "lazy";
+                        img.decoding = "async";
+                        img.src = item.preview_url;
+                        img.alt = `${item.name} preview`;
+                        img.onerror = () => {
+                            img.remove();
+                            const missing = document.createElement("div");
+                            missing.className = "placeholder";
+                            missing.textContent = "Preview unavailable";
+                            thumbWrap.appendChild(missing);
+                        };
+                        thumbWrap.appendChild(img);
+                    } else {
+                        const missing = document.createElement("div");
+                        missing.className = "placeholder";
+                        missing.textContent = "Preview unavailable";
+                        thumbWrap.appendChild(missing);
+                    }
+
+                    const label = document.createElement("div");
+                    label.className = "label";
+                    label.textContent = item.name;
+
+                    a.appendChild(thumbWrap);
+                    a.appendChild(label);
+                    grid.appendChild(a);
+                }
+            }
+
+            function applyFilter() {
+                const q = searchEl.value.trim().toLowerCase();
+                if (!q) {
+                    render(allStamps);
+                    return;
+                }
+                render(
+                    allStamps.filter((item) =>
+                        item.name.toLowerCase().includes(q)
+                    )
+                );
+            }
+
+            async function loadStamps() {
+                try {
+                    const res = await fetch("/api/stamps");
+                    if (!res.ok) {
+                        throw new Error(`HTTP ${res.status}`);
+                    }
+                    allStamps = await res.json();
+                    render(allStamps);
+                } catch (err) {
+                    statusEl.textContent =
+                        "Failed to load stamps. Please refresh.";
+                }
+            }
+
+            searchEl.addEventListener("input", applyFilter);
+            loadStamps();
+        </script>
+    </body>
+</html>
