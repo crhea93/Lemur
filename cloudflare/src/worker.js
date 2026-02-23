@@ -127,7 +127,7 @@ async function handleListStamps(env) {
     const name = row.Name;
     return {
       name,
-      cluster_url: `/cluster/${encodeURIComponent(name)}`,
+      cluster_url: `/cluster.html?name=${encodeURIComponent(name)}`,
       preview_url: `/Cluster_plots/${encodeURIComponent(name)}/bkgsub_exp.png`,
     };
   });

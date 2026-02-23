@@ -205,7 +205,7 @@ def test_stamps_returns_preview_and_cluster_link(client):
     payload = response.json()
     assert len(payload) == 1
     assert payload[0]["name"] == "Abell133"
-    assert payload[0]["cluster_url"] == "/cluster/Abell133"
+    assert payload[0]["cluster_url"] == "/cluster.html?name=Abell133"
     assert payload[0]["preview_url"] == "/Cluster_plots/Abell133/bkgsub_exp.png"
 
 
@@ -215,5 +215,5 @@ def test_stamps_falls_back_to_plot_dirs_when_db_is_empty(client_empty_db_with_pl
     payload = response.json()
     assert len(payload) == 1
     assert payload[0]["name"] == "Abell133"
-    assert payload[0]["cluster_url"] == "/cluster/Abell133"
+    assert payload[0]["cluster_url"] == "/cluster.html?name=Abell133"
     assert payload[0]["preview_url"] == "/Cluster_plots/Abell133/bkgsub_exp.png"

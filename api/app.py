@@ -176,7 +176,7 @@ def list_cluster_stamps():
         stamps.append(
             {
                 "name": name,
-                "cluster_url": f"/cluster/{urllib.parse.quote(name)}",
+                "cluster_url": f"/cluster.html?name={urllib.parse.quote(name)}",
                 "preview_url": preview_url,
             }
         )

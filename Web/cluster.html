@@ -394,7 +394,12 @@
             function getClusterName() {
                 const path = window.location.pathname;
                 if (path.startsWith("/cluster/")) {
-                    return decodeURIComponent(path.replace("/cluster/", ""));
+                    const slug = decodeURIComponent(
+                        path.replace("/cluster/", ""),
+                    );
+                    if (slug) {
+                        return slug;
+                    }
                 }
                 const params = new URLSearchParams(window.location.search);
                 return params.get("name");
@@ -525,7 +530,7 @@
 
                     const prevHtml = prevName
                         ? `
-                            <a href="/cluster/${encodeURIComponent(prevName)}" aria-label="Previous cluster: ${prevName}">
+                            <a href="/cluster.html?name=${encodeURIComponent(prevName)}" aria-label="Previous cluster: ${prevName}">
                                 <span class="nav-label">&larr; Previous</span>
                                 <span class="nav-name">${prevName}</span>
                             </a>
@@ -539,7 +544,7 @@
 
                     const nextHtml = nextName
                         ? `
-                            <a href="/cluster/${encodeURIComponent(nextName)}" aria-label="Next cluster: ${nextName}">
+                            <a href="/cluster.html?name=${encodeURIComponent(nextName)}" aria-label="Next cluster: ${nextName}">
                                 <span class="nav-label">Next &rarr;</span>
                                 <span class="nav-name">${nextName}</span>
                             </a>
