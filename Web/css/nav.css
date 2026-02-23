@@ -34,6 +34,12 @@
     color: var(--ink-0, #21192f) !important;
 }
 
+#nav .w3-bar-item.w3-button.is-active {
+    background-color: var(--accent-soft, rgba(143, 120, 196, 0.2)) !important;
+    color: var(--ink-0, #21192f) !important;
+    box-shadow: inset 0 0 0 1px rgba(113, 89, 166, 0.25);
+}
+
 @media (max-width: 768px) {
     #nav .w3-bar-item.w3-button {
         padding: 11px 12px !important;

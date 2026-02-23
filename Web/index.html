@@ -325,18 +325,8 @@
         </style>
     </head>
 
-    <body>
-        <div class="w3-bar" id="nav">
-            <a href="#" class="w3-bar-item w3-button w3-hover-teal">Home</a>
-            <a
-                href="Table/index_table.html"
-                class="w3-bar-item w3-button w3-hover-teal"
-                >Cluster Table</a
-            >
-            <a href="/stamps" class="w3-bar-item w3-button w3-hover-teal"
-                >Stamps</a
-            >
-        </div>
+    <body data-nav-active="home">
+        <div id="site-nav"></div>
 
         <section class="hero">
             <div class="hero-content">
@@ -399,6 +389,7 @@
         </section>
 
         <script type="text/javascript" src="js/count.js?v=2"></script>
+        <script type="text/javascript" src="/common-js/nav.js"></script>
         <script type="text/javascript" src="common-js/scripts.js"></script>
         <script type="text/javascript" src="js/app.js"></script>
     </body>

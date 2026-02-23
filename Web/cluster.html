@@ -359,17 +359,8 @@
             }
         </style>
     </head>
-    <body>
-        <div class="w3-bar" id="nav">
-            <a href="/index.html" class="w3-bar-item w3-button w3-hover-teal"
-                >Home</a
-            >
-            <a
-                href="/Table/index_table.html"
-                class="w3-bar-item w3-button w3-hover-teal"
-                >Cluster Table</a
-            >
-        </div>
+    <body data-nav-active="table">
+        <div id="site-nav"></div>
 
         <section class="hero">
             <div class="hero-content">
@@ -390,6 +381,7 @@
             </div>
         </section>
 
+        <script type="text/javascript" src="/common-js/nav.js"></script>
         <script>
             function getClusterName() {
                 const path = window.location.pathname;

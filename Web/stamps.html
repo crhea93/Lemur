@@ -82,7 +82,9 @@
                 text-decoration: none;
                 color: inherit;
                 box-shadow: 0 5px 16px rgba(15, 34, 58, 0.08);
-                transition: transform 120ms ease, box-shadow 120ms ease;
+                transition:
+                    transform 120ms ease,
+                    box-shadow 120ms ease;
             }
 
             .card:hover {
@@ -128,18 +130,8 @@
             }
         </style>
     </head>
-    <body>
-        <div class="w3-bar" id="nav">
-            <a href="/" class="w3-bar-item w3-button w3-hover-teal">Home</a>
-            <a
-                href="/Table/index_table.html"
-                class="w3-bar-item w3-button w3-hover-teal"
-                >Cluster Table</a
-            >
-            <a href="/stamps" class="w3-bar-item w3-button w3-hover-teal"
-                >Stamps</a
-            >
-        </div>
+    <body data-nav-active="stamps">
+        <div id="site-nav"></div>
 
         <main class="page">
             <header class="header">
@@ -164,6 +156,7 @@
             <section id="grid" class="grid" aria-live="polite"></section>
         </main>
 
+        <script type="text/javascript" src="/common-js/nav.js"></script>
         <script>
             const grid = document.getElementById("grid");
             const statusEl = document.getElementById("status");
@@ -232,8 +225,8 @@
                 }
                 render(
                     allStamps.filter((item) =>
-                        item.name.toLowerCase().includes(q)
-                    )
+                        item.name.toLowerCase().includes(q),
+                    ),
                 );
             }
 
