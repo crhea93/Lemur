@@ -430,6 +430,119 @@
                 return value;
             }
 
+            const PAGE_SIZE = 50;
+            let allClusters = [];
+            let filteredClusters = [];
+            let currentPage = 1;
+
+            function buildTableSkeleton(container) {
+                const table = document.createElement("table");
+                table.id = "Analysis_summary";
+                const thead = document.createElement("thead");
+                thead.innerHTML = `
+                    <tr class="table100-head">
+                        <th>Cluster Name</th>
+                        <th>Redshift</th>
+                        <th>Right Ascension</th>
+                        <th>Declination</th>
+                        <th>Obsids</th>
+                        <th>FITS</th>
+                    </tr>
+                `;
+                table.appendChild(thead);
+                table.appendChild(document.createElement("tbody"));
+                container.innerHTML = "";
+                container.appendChild(table);
+
+                const pagination = document.createElement("div");
+                pagination.id = "table-pagination";
+                pagination.style.marginTop = "16px";
+                pagination.style.display = "flex";
+                pagination.style.flexWrap = "wrap";
+                pagination.style.gap = "8px";
+                pagination.style.alignItems = "center";
+                container.appendChild(pagination);
+            }
+
+            function renderTable() {
+                const table = document.getElementById("Analysis_summary");
+                const pagination = document.getElementById("table-pagination");
+                if (!table || !pagination) {
+                    return;
+                }
+
+                const tbody = table.querySelector("tbody");
+                const total = filteredClusters.length;
+                const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+                currentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+                const start = (currentPage - 1) * PAGE_SIZE;
+                const pageItems = filteredClusters.slice(
+                    start,
+                    start + PAGE_SIZE,
+                );
+
+                tbody.innerHTML = "";
+                pageItems.forEach((cluster) => {
+                    const downloadUrl =
+                        cluster.fits_download_url ||
+                        `/api/fits/${encodeURIComponent(cluster.Name)}/download`;
+                    const obsids = Array.isArray(cluster.Obsids)
+                        ? cluster.Obsids
+                        : [];
+
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td class="column0">
+                            <a href="/cluster.html?name=${encodeURIComponent(cluster.Name)}">${cluster.Name}</a>
+                        </td>
+                        <td class="column0">${formatRedshift(cluster.redshift)}</td>
+                        <td class="column0">${formatValue(cluster.RightAsc)}</td>
+                        <td class="column0">${formatValue(cluster.Declination)}</td>
+                        <td class="column0">${obsids.length ? obsids.join(", ") : "None"}</td>
+                        <td class="column0">
+                            <a href="${downloadUrl}">Download</a>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                const btnStyle =
+                    "padding:6px 10px;border:1px solid rgba(95,78,131,.25);border-radius:10px;background:#fff;color:#483b5d;cursor:pointer;";
+                const disabledStyle =
+                    "opacity:.45;cursor:not-allowed;background:#f5f2fb;";
+
+                pagination.innerHTML = "";
+                const prev = document.createElement("button");
+                prev.textContent = "Previous";
+                prev.style.cssText =
+                    btnStyle + (currentPage === 1 ? disabledStyle : "");
+                prev.disabled = currentPage === 1;
+                prev.onclick = () => {
+                    currentPage -= 1;
+                    renderTable();
+                };
+                pagination.appendChild(prev);
+
+                const pageInfo = document.createElement("span");
+                pageInfo.textContent = `Page ${currentPage} of ${totalPages} (${total} clusters)`;
+                pageInfo.style.cssText =
+                    "color:#6f6385;font-size:14px;padding:0 4px;";
+                pagination.appendChild(pageInfo);
+
+                const next = document.createElement("button");
+                next.textContent = "Next";
+                next.style.cssText =
+                    btnStyle +
+                    (currentPage === totalPages ? disabledStyle : "");
+                next.disabled = currentPage === totalPages;
+                next.onclick = () => {
+                    currentPage += 1;
+                    renderTable();
+                };
+                pagination.appendChild(next);
+            }
+
             async function loadTable() {
                 const status = document.getElementById("table-status");
                 const container = document.getElementById("table-container");
@@ -439,56 +552,11 @@
                     if (!response.ok) {
                         throw new Error("Failed to load clusters");
                     }
-                    const clusters = await response.json();
-
-                    const table = document.createElement("table");
-                    table.id = "Analysis_summary";
-
-                    const thead = document.createElement("thead");
-                    thead.innerHTML = `
-                        <tr class="table100-head">
-                            <th>Cluster Name</th>
-                            <th>Redshift</th>
-                            <th>Right Ascension</th>
-                            <th>Declination</th>
-                            <th>Obsids</th>
-                            <th>FITS</th>
-                        </tr>
-                    `;
-                    table.appendChild(thead);
-
-                    const tbody = document.createElement("tbody");
-                    clusters.forEach((cluster) => {
-                        const downloadUrl =
-                            cluster.fits_download_url ||
-                            `/api/fits/${encodeURIComponent(cluster.Name)}/download`;
-                        const row = document.createElement("tr");
-                        row.dataset.search = buildCatalogAliases(cluster.Name)
-                            .map((alias) => normalizeSearchText(alias))
-                            .join(" ");
-                        row.innerHTML = `
-                            <td class="column0">
-                                <a href="/cluster.html?name=${encodeURIComponent(
-                                    cluster.Name,
-                                )}">${cluster.Name}</a>
-                            </td>
-                            <td class="column0">${formatRedshift(cluster.redshift)}</td>
-                            <td class="column0">${formatValue(cluster.RightAsc)}</td>
-                            <td class="column0">${formatValue(cluster.Declination)}</td>
-                            <td class="column0">${
-                                cluster.Obsids.length
-                                    ? cluster.Obsids.join(", ")
-                                    : "None"
-                            }</td>
-                            <td class="column0">
-                                <a href="${downloadUrl}">Download</a>
-                            </td>
-                        `;
-                        tbody.appendChild(row);
-                    });
-                    table.appendChild(tbody);
-
-                    container.appendChild(table);
+                    allClusters = await response.json();
+                    filteredClusters = allClusters.slice();
+                    currentPage = 1;
+                    buildTableSkeleton(container);
+                    renderTable();
                     status.remove();
                 } catch (err) {
                     status.textContent = "Unable to load clusters.";
@@ -497,11 +565,9 @@
             }
 
             async function myFunction() {
-                var input, filter, table, tr, td, i, txtValue;
-                input = document.getElementById("myInput");
-                filter = normalizeSearchText(input.value);
-                table = document.getElementById("Analysis_summary");
-                if (!table) {
+                const input = document.getElementById("myInput");
+                const filter = normalizeSearchText(input.value);
+                if (!allClusters.length && filter) {
                     return;
                 }
                 const seq = ++searchSeq;
@@ -511,24 +577,17 @@
                 if (seq !== searchSeq) {
                     return;
                 }
-                tr = table.getElementsByTagName("tr");
-
-                for (i = 0; i < tr.length; i++) {
-                    td = tr[i].getElementsByTagName("td")[0];
-                    if (td) {
-                        txtValue =
-                            tr[i].dataset.search ||
-                            normalizeSearchText(td.textContent || td.innerText);
-                        const matched = !filter
-                            ? true
-                            : tokens.some((tok) => txtValue.indexOf(tok) > -1);
-                        if (matched) {
-                            tr[i].style.display = "";
-                        } else {
-                            tr[i].style.display = "none";
-                        }
+                filteredClusters = allClusters.filter((cluster) => {
+                    if (!filter) {
+                        return true;
                     }
-                }
+                    const txtValue = buildCatalogAliases(cluster.Name)
+                        .map((alias) => normalizeSearchText(alias))
+                        .join(" ");
+                    return tokens.some((tok) => txtValue.indexOf(tok) > -1);
+                });
+                currentPage = 1;
+                renderTable();
             }
 
             loadTable();
