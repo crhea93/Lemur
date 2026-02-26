@@ -24,6 +24,31 @@ def fits_download_url(name: str) -> str:
     return f"/api/fits/{urllib.parse.quote(name)}/download"
 
 
+def _normalize_fits_name(value: str) -> str:
+    # Align display names with sanitized directory names (e.g. "2A0335+096" -> "2a0335096").
+    return re.sub(r"[^a-z0-9]+", "", str(value or "").lower())
+
+
+def _resolve_fits_dir(name: str) -> Path | None:
+    if not FITS_DIR.exists() or not FITS_DIR.is_dir():
+        return None
+
+    # Fast path: exact name first.
+    direct = FITS_DIR / name
+    if direct.exists() and direct.is_dir():
+        return direct
+
+    target = _normalize_fits_name(name)
+    if not target:
+        return None
+
+    for candidate in FITS_DIR.iterdir():
+        if candidate.is_dir() and _normalize_fits_name(candidate.name) == target:
+            return candidate
+
+    return None
+
+
 def ensure_db():
     if not DB_PATH.exists():
         raise HTTPException(
@@ -233,8 +258,8 @@ def stamps_page():
 
 @app.get("/api/fits/{name}/download")
 def download_fits(name: str):
-    fits_dir = FITS_DIR / name
-    if not fits_dir.exists() or not fits_dir.is_dir():
+    fits_dir = _resolve_fits_dir(name)
+    if fits_dir is None:
         raise HTTPException(status_code=404, detail="FITS directory not found")
 
     files = [

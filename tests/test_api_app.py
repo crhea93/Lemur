@@ -98,6 +98,8 @@ def client(tmp_path, monkeypatch):
     (fits_dir / "Abell133").mkdir(parents=True)
     (fits_dir / "Abell133" / "a.fits").write_bytes(b"fits-a")
     (fits_dir / "Abell133" / "b.fit").write_bytes(b"fits-b")
+    (fits_dir / "2A0335096").mkdir(parents=True)
+    (fits_dir / "2A0335096" / "evt.fits").write_bytes(b"fits-c")
 
     @contextmanager
     def _get_conn():
@@ -197,6 +199,17 @@ def test_fits_download_returns_zip_from_local_files(client):
     with zipfile.ZipFile(buffer) as zf:
         names = sorted(zf.namelist())
     assert names == ["a.fits", "b.fit"]
+
+
+def test_fits_download_resolves_sanitized_directory_names(client):
+    response = client.get("/api/fits/2A0335%2B096/download")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/zip"
+
+    buffer = io.BytesIO(response.content)
+    with zipfile.ZipFile(buffer) as zf:
+        names = sorted(zf.namelist())
+    assert names == ["evt.fits"]
 
 
 def test_stamps_returns_preview_and_cluster_link(client):

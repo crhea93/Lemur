@@ -194,7 +194,7 @@ if [[ "$SKIP_FITS" -eq 0 ]]; then
 
         if [[ "$DRY_RUN" -eq 1 ]]; then
             echo "[dry-run] build zip from '$cluster_dir' -> '$tmp_zip'"
-            echo "[dry-run] wrangler r2 object put \"$R2_BUCKET_NAME/$cluster_name.zip\" --file \"$tmp_zip\""
+            echo "[dry-run] wrangler r2 object put \"$R2_BUCKET_NAME/$cluster_name.zip\" --file \"$tmp_zip\" --remote"
             rm -f "$tmp_zip"
             continue
         fi
@@ -211,7 +211,7 @@ with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         if path.is_file() and path.suffix.lower() in extensions:
             zf.write(path, arcname=path.name)
 PY
-        run_cmd wrangler r2 object put "$R2_BUCKET_NAME/$cluster_name.zip" --file "$tmp_zip"
+        run_cmd wrangler r2 object put "$R2_BUCKET_NAME/$cluster_name.zip" --file "$tmp_zip" --remote
         rm -f "$tmp_zip"
     done
 fi

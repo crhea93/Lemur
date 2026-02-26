@@ -27,16 +27,54 @@ function fitsDownloadPath(name) {
   return `/api/fits/${encodeURIComponent(name)}/download`;
 }
 
+function normalizeFitsName(name) {
+  return String(name || "").replace(/[^A-Za-z0-9]+/g, "");
+}
+
+function sanitizeFitsName(name, separator = "") {
+  const cleaned = String(name || "")
+    .replace(/[^A-Za-z0-9]+/g, separator)
+    .replace(new RegExp(`\\${separator}{2,}`, "g"), separator)
+    .replace(new RegExp(`^\\${separator}|\\${separator}$`, "g"), "");
+  return cleaned;
+}
+
 function fitsZipKeyCandidates(name) {
   const compact = String(name).replace(/\s+/g, "");
-  return [
+  const normalized = normalizeFitsName(name);
+  const underscored = sanitizeFitsName(name, "_");
+  const dashed = sanitizeFitsName(name, "-");
+  const normalizedLower = normalized.toLowerCase();
+  const underscoredLower = underscored.toLowerCase();
+  const dashedLower = dashed.toLowerCase();
+  const candidates = [
     `${name}.zip`,
     `${compact}.zip`,
+    `${normalized}.zip`,
+    `${normalizedLower}.zip`,
+    `${underscored}.zip`,
+    `${underscoredLower}.zip`,
+    `${dashed}.zip`,
+    `${dashedLower}.zip`,
     `${name}/fits.zip`,
     `${name}/${name}.zip`,
     `${compact}/fits.zip`,
     `${compact}/${compact}.zip`,
+    `${normalized}/fits.zip`,
+    `${normalized}/${normalized}.zip`,
+    `${normalizedLower}/fits.zip`,
+    `${normalizedLower}/${normalizedLower}.zip`,
+    `${underscored}/fits.zip`,
+    `${underscored}/${underscored}.zip`,
+    `${underscoredLower}/fits.zip`,
+    `${underscoredLower}/${underscoredLower}.zip`,
+    `${dashed}/fits.zip`,
+    `${dashed}/${dashed}.zip`,
+    `${dashedLower}/fits.zip`,
+    `${dashedLower}/${dashedLower}.zip`,
   ];
+
+  return Array.from(new Set(candidates.filter(Boolean)));
 }
 
 async function handleHealth() {
