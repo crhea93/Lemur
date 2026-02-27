@@ -1,6 +1,6 @@
 #INPUT FILE: All lines starting with # will not be read
 #-----Directory Info-----#
-home_dir = /media/carterrhea/MothraData/Chandra
+home_dir = /media/carterrhea/MothraData1/Chandra
 web_dir = /home/carterrhea/Documents/Lemur/Web/Cluster_plots
 dir_list = 12345,67890
 name = ClusterName

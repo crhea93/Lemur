@@ -100,6 +100,36 @@ def test_update_api_db_noop_when_disabled(monkeypatch):
     assert called["run"] == 0
 
 
+def test_update_api_db_sqlite_mode_skips_mysqldump(monkeypatch, tmp_path):
+    source_db = tmp_path / "source.db"
+    source_db.write_bytes(b"sqlite-bytes")
+
+    service = ds.DatabaseService(
+        mydb="db",
+        mycursor="cursor",
+        db_user="user",
+        db_password="pw",
+        db_host="sqlite",
+        db_name="lemur",
+    )
+    called = {"run": 0}
+    monkeypatch.setattr(
+        ds.subprocess,
+        "run",
+        lambda *_a, **_k: called.__setitem__("run", called["run"] + 1),
+    )
+    monkeypatch.setattr(service, "restart_api_if_running", lambda _inputs: None)
+
+    service.update_api_db(
+        {
+            "update_api": "true",
+            "sqlite_db_path": str(source_db),
+        }
+    )
+
+    assert called["run"] == 0
+
+
 def test_update_api_db_runs_dump_and_ingest(monkeypatch, tmp_path):
     service = _service()
     sql_dump = tmp_path / "Lemur_DB.sql"

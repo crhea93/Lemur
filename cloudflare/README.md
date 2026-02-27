@@ -32,14 +32,12 @@ wrangler d1 execute lemur-db --file cloudflare/sql/d1_schema.sql --remote
 ```
 
 ## 4. Import data into D1
-Current production flow generates SQLite in `api/data/lemur.db`.
+Current production flow uses SQLite directly from `api/data/lemur.db`.
 
 One practical path:
-1. Build/update local SQLite from pipeline output:
-   - `lemur-ingest-sql --sql lemur.sql`
-2. Export SQLite to SQL inserts:
+1. Export SQLite to SQL inserts:
    - `sqlite3 api/data/lemur.db .dump > cloudflare/sql/d1_data.sql`
-3. Import into D1:
+2. Import into D1:
    - `wrangler d1 execute lemur-db --file cloudflare/sql/d1_data.sql --remote`
 
 If your `.dump` includes SQLite internals, remove lines for `sqlite_sequence` before import.

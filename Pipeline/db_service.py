@@ -1,6 +1,5 @@
-import os
+import shutil
 import subprocess
-import sys
 import urllib.request
 from pathlib import Path
 
@@ -56,48 +55,21 @@ class DatabaseService:
 
         pipeline_dir = Path(__file__).resolve().parent
         repo_root = pipeline_dir.parent
-        sql_dump = inputs.get("sql_dump_path") or str(repo_root / "lemur.sql")
         sqlite_db = inputs.get("sqlite_db_path") or str(
             repo_root / "api" / "data" / "lemur.db"
         )
 
-        print("Updating SQL dump and API database...")
-        try:
-            env = dict(os.environ)
-            if self.db_password:
-                env["MYSQL_PWD"] = self.db_password
-            dump_cmd = [
-                "mysqldump",
-                "--protocol=TCP",
-                "-h",
-                "127.0.0.1" if self.db_host == "localhost" else self.db_host,
-                "-u",
-                self.db_user,
-                self.db_name,
-            ]
-            with open(sql_dump, "w", encoding="utf-8") as handle:
-                subprocess.run(dump_cmd, check=True, stdout=handle, env=env)
-            print(f"  Wrote SQL dump: {sql_dump}")
-        except FileNotFoundError:
-            print(
-                "  mysqldump not found. Skipping dump; using existing SQL file if present."
-            )
-        except subprocess.CalledProcessError as exc:
-            print(f"  mysqldump failed ({exc}). Using existing SQL file if present.")
-
-        ingest_cmd = [
-            sys.executable,
-            str(repo_root / "api" / "ingest_sql_dump.py"),
-            "--sql",
-            sql_dump,
-            "--db",
-            sqlite_db,
-        ]
-        try:
-            subprocess.run(ingest_cmd, check=True)
-            print(f"  Updated SQLite DB: {sqlite_db}")
-        except subprocess.CalledProcessError as exc:
-            print(f"  Failed to update SQLite DB ({exc}).")
+        source_sqlite = inputs.get("sqlite_db_path") or sqlite_db
+        source_path = Path(source_sqlite)
+        target_path = Path(sqlite_db)
+        if not source_path.exists():
+            print(f"  SQLite source DB missing: {source_path}")
+        elif source_path.resolve() != target_path.resolve():
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source_path, target_path)
+            print(f"  Copied SQLite DB: {source_path} -> {target_path}")
+        else:
+            print(f"  SQLite DB already current: {target_path}")
 
         self.restart_api_if_running(inputs)
 

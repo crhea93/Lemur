@@ -1,65 +1,168 @@
+import re
+import sqlite3
 from pathlib import Path
 
-import mysql.connector
+
+class SQLiteCursorAdapter:
+    def __init__(self, cursor):
+        self._cursor = cursor
+
+    @staticmethod
+    def _normalize_sql(sql):
+        # Convert MySQL placeholder style to sqlite3 style.
+        return re.sub(r"%s", "?", sql)
+
+    def execute(self, sql, params=None):
+        normalized = self._normalize_sql(sql)
+        if params is None:
+            return self._cursor.execute(normalized)
+        return self._cursor.execute(normalized, params)
+
+    def executemany(self, sql, seq_of_params):
+        normalized = self._normalize_sql(sql)
+        return self._cursor.executemany(normalized, seq_of_params)
+
+    def fetchone(self):
+        return self._cursor.fetchone()
+
+    def fetchall(self):
+        return self._cursor.fetchall()
+
+    def nextset(self):
+        return None
+
+    def close(self):
+        return self._cursor.close()
+
+    def __getattr__(self, name):
+        return getattr(self._cursor, name)
+
+
+class SQLiteConnectionAdapter:
+    def __init__(self, conn):
+        self._conn = conn
+
+    def cursor(self):
+        return SQLiteCursorAdapter(self._conn.cursor())
+
+    def commit(self):
+        return self._conn.commit()
+
+    def close(self):
+        return self._conn.close()
+
+    def __getattr__(self, name):
+        return getattr(self._conn, name)
+
+
+def ensure_sqlite_schema(conn):
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS Clusters (
+            ID INTEGER NOT NULL,
+            Name TEXT NOT NULL,
+            redshift REAL NOT NULL DEFAULT 0,
+            RightAsc TEXT,
+            Declination TEXT,
+            R_cool_3 REAL,
+            R_cool_7 REAL,
+            CSB_ct REAL,
+            CSB_pho REAL,
+            csb_flux REAL
+        );
+
+        CREATE TABLE IF NOT EXISTS Obsids (
+            ClusterNumber INTEGER,
+            Obsid INTEGER
+        );
+
+        CREATE TABLE IF NOT EXISTS Region (
+            idCluster INTEGER NOT NULL,
+            idRegion INTEGER NOT NULL,
+            Area REAL NOT NULL,
+            Temp REAL NOT NULL,
+            Temp_min REAL NOT NULL,
+            Temp_max REAL NOT NULL,
+            Abundance REAL NOT NULL,
+            Ab_min REAL NOT NULL,
+            Ab_max REAL NOT NULL,
+            Norm REAL NOT NULL,
+            Norm_min REAL NOT NULL,
+            Norm_max REAL NOT NULL,
+            Flux REAL NOT NULL,
+            Luminosity REAL,
+            ReducedChiSquare REAL NOT NULL,
+            Agn_bool INTEGER,
+            Density REAL,
+            Dens_min REAL,
+            Dens_max REAL,
+            Pressure REAL,
+            Press_min REAL,
+            Press_max REAL,
+            Entropy REAL,
+            Entropy_min REAL,
+            Entropy_max REAL,
+            T_cool REAL,
+            T_cool_min REAL,
+            T_cool_max REAL,
+            AGN INTEGER,
+            R_in REAL,
+            R_out REAL
+        );
+
+        CREATE TABLE IF NOT EXISTS csb (
+            ClusterName TEXT,
+            ID INTEGER,
+            csb_ct REAL,
+            csb_ct_l REAL,
+            csb_ct_u REAL,
+            csb_pho REAL,
+            csb_pho_l REAL,
+            csb_pho_u REAL,
+            csb_flux REAL,
+            csb_flux_l REAL,
+            csb_flux_u REAL
+        );
+
+        CREATE TABLE IF NOT EXISTS r_cool (
+            ID INTEGER,
+            ClusterName TEXT,
+            R_cool_3 REAL,
+            R_cool_3_l REAL,
+            R_cool_3_u REAL,
+            R_cool_7 REAL,
+            R_cool_7_l REAL,
+            R_cool_7_u REAL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_clusters_name ON Clusters (Name);
+        CREATE INDEX IF NOT EXISTS idx_clusters_id ON Clusters (ID);
+        CREATE INDEX IF NOT EXISTS idx_obsids_cluster ON Obsids (ClusterNumber);
+        CREATE INDEX IF NOT EXISTS idx_region_cluster ON Region (idCluster);
+        """
+    )
+    conn.commit()
 
 
 def ensure_schema(mycursor, db_name, sql_path):
-    mycursor.execute(
-        """
-        SELECT COUNT(*)
-        FROM information_schema.tables
-        WHERE table_schema = %s AND table_name = 'Clusters'
-        """,
-        (db_name,),
-    )
-    exists = mycursor.fetchone()[0] > 0
-    if exists:
-        return
-
-    if not sql_path or not Path(sql_path).exists():
-        raise RuntimeError(f"SQL dump not found for schema init: {sql_path}")
-
-    statements = []
-    current = []
-    with open(sql_path, "r", encoding="utf-8", errors="ignore") as handle:
-        for raw in handle:
-            line = raw.strip()
-            if not line or line.startswith("--"):
-                continue
-            if line.startswith("/*") or line.startswith("/*!"):
-                continue
-            upper = line.upper()
-            if upper.startswith("LOCK TABLES") or upper.startswith("UNLOCK TABLES"):
-                continue
-            if upper.startswith("INSERT INTO"):
-                continue
-            current.append(raw)
-            if ";" in raw:
-                statements.append("".join(current))
-                current = []
-
-    for stmt in statements:
-        stmt_clean = stmt.strip()
-        if not stmt_clean:
-            continue
-        mycursor.execute(stmt_clean)
+    # Kept for compatibility with older call sites/tests.
+    # For SQLite-only mode we ensure schema via ensure_sqlite_schema(connection).
+    return None
 
 
 def connect_db(inputs, db_password):
-    db_user = inputs.get("db_user", "carterrhea")
-    db_host = inputs.get("db_host", "localhost")
-    db_name = inputs.get("db_name", "carterrhea")
-
-    print("Connecting to Database...")
-    mydb = mysql.connector.connect(
-        host=db_host, user=db_user, passwd=db_password, database=db_name
-    )
-    mycursor = mydb.cursor()
-    print(" Connected to Database!")
-
-    sql_dump_path = inputs.get("sql_dump_path") or str(
-        Path(__file__).resolve().parent.parent / "lemur.sql"
-    )
-    ensure_schema(mycursor, db_name, sql_dump_path)
-
-    return mydb, mycursor, db_user, db_host, db_name
+    _ = db_password
+    db_user = inputs.get("db_user", "sqlite")
+    db_name = inputs.get("db_name", "lemur")
+    repo_root = Path(__file__).resolve().parent.parent
+    sqlite_db_path = Path(
+        inputs.get("sqlite_db_path") or (repo_root / "api" / "data" / "lemur.db")
+    ).expanduser()
+    print(f"Connecting to SQLite Database at {sqlite_db_path}...")
+    sqlite_db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(sqlite_db_path))
+    ensure_sqlite_schema(conn)
+    wrapped = SQLiteConnectionAdapter(conn)
+    cur = wrapped.cursor()
+    print(" Connected to SQLite Database!")
+    return wrapped, cur, db_user, "sqlite", db_name

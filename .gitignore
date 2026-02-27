@@ -79,3 +79,10 @@ Pipeline/ops/runs/
 api/data/*.db
 pytest.xml
 Pipeline/ops/failed_clusters.csv
+
+# Pipeline metadata and FITS artifacts
+**/run.json
+**/*.fits
+**/*.fit
+**/*.fts
+**/*.fits.gz

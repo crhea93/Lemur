@@ -19,13 +19,27 @@ def Flares(flare_gti, base_dir, output_dir, filenames):
     os.chdir(os.getcwd() + "/Background")
     # Determine Goodtime intervals
     evt1_name = filenames["evt1"].split(".")[0]
-    dmcopy.punlearn()
-    dmcopy.clobber = True
-    dmcopy.infile = evt1_name + ".fits[@" + flare_gti + "]"
-    dmcopy.outfile = (
+    output_evt1_deflared = (
         base_dir + "/" + output_dir + "/" + evt1_name.split("/")[-1] + "_deflared.fits"
     )
-    dmcopy()
+    dmcopy.punlearn()
+    dmcopy.clobber = True
+    dmcopy.outfile = output_evt1_deflared
+    try:
+        dmcopy.infile = evt1_name + ".fits[@" + flare_gti + "]"
+        dmcopy()
+    except Exception as exc:
+        # Missing/invalid GTI should not abort long reduction batches.
+        print(
+            f"WARNING: flare GTI filtering failed for {evt1_name}. "
+            "Proceeding without flare filtering for this OBSID. "
+            f"Error: {exc}"
+        )
+        dmcopy.punlearn()
+        dmcopy.clobber = True
+        dmcopy.infile = evt1_name + ".fits"
+        dmcopy.outfile = output_evt1_deflared
+        dmcopy()
     # filenames['evt1'].split('.')[1] == .fits
     filenames["evt1_deflared"] = (
         base_dir

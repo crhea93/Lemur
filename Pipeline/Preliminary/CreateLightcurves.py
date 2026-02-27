@@ -21,7 +21,15 @@ def bkg_clean_srcs(bkg_ccd):
     vtpdetect.outfile = bkg_ccd + "_src.fits"
     vtpdetect.regfile = bkg_ccd + "_src.reg"
     vtpdetect.clobber = True
-    vtpdetect()
+    try:
+        vtpdetect()
+    except Exception as exc:
+        # vtpdetect can fail on some deep/complex fields (stack recursion warnings).
+        # Fall back to using the full background CCD rather than aborting the run.
+        print(
+            f"WARNING: vtpdetect failed on {bkg_ccd}. "
+            f"Continuing without source-exclusion regions. Error: {exc}"
+        )
 
     dmcopy.punlearn()
     reg_path = bkg_ccd + "_src.reg"
@@ -98,14 +106,35 @@ def bkg_lightcurve(bkg_ccd, obsid, create_plot=True):
         plt.close()
 
     # Clip image (no plot)
-    lc_sigma_clip(
-        bkg_ccd + "_bkg.lc",
-        bkg_ccd + "_bkg_clean.gti",
-        plot=False,
-        sigma=3,
-        pattern="none",
-        verbose=0,
-    )
+    gti_out = bkg_ccd + "_bkg_clean.gti"
+    try:
+        lc_sigma_clip(
+            bkg_ccd + "_bkg.lc",
+            gti_out,
+            plot=False,
+            sigma=3,
+            pattern="none",
+            verbose=0,
+        )
+    except Exception as exc:
+        # Some backgrounds are so faint they contain no positive count-rate rows.
+        # In this case, keep the pipeline moving by falling back to the existing GTI.
+        print(
+            f"WARNING: lc_sigma_clip failed for {bkg_ccd}_bkg.lc. "
+            f"Falling back to GTI from event file. Error: {exc}"
+        )
+        try:
+            dmcopy.punlearn()
+            dmcopy.infile = bkg_ccd + "_bkg.fits[GTI]"
+            dmcopy.outfile = gti_out
+            dmcopy.clobber = True
+            dmcopy()
+        except Exception as gti_exc:
+            print(
+                f"WARNING: unable to extract GTI block from {bkg_ccd}_bkg.fits. "
+                "Flare filtering will be skipped for this OBSID. "
+                f"Error: {gti_exc}"
+            )
 
     if create_plot:
         plt.figure(figsize=(6, 4))

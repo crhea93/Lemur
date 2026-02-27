@@ -76,7 +76,10 @@ def test_connect_db_uses_defaults_and_calls_ensure_schema(monkeypatch):
     monkeypatch.setattr(db_module.mysql.connector, "connect", fake_connect)
     monkeypatch.setattr(db_module, "ensure_schema", fake_ensure_schema)
 
-    mydb, mycursor, db_user, db_host, db_name = db_module.connect_db({}, "pw")
+    mydb, mycursor, db_user, db_host, db_name = db_module.connect_db(
+        {"db_engine": "mysql"},
+        "pw",
+    )
 
     assert mydb.__class__.__name__ == "FakeDB"
     assert mycursor == "cursor-obj"
@@ -93,3 +96,17 @@ def test_connect_db_uses_defaults_and_calls_ensure_schema(monkeypatch):
     assert ensure_call[0] == "cursor-obj"
     assert ensure_call[1] == "carterrhea"
     assert Path(ensure_call[2]).name == "lemur.sql"
+
+
+def test_connect_db_sqlite_mode_creates_schema(tmp_path):
+    db_path = tmp_path / "lemur.db"
+    mydb, mycursor, _db_user, db_host, _db_name = db_module.connect_db(
+        {"db_engine": "sqlite", "sqlite_db_path": str(db_path)},
+        "",
+    )
+    assert db_host == "sqlite"
+    mycursor.execute(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='Clusters'"
+    )
+    assert mycursor.fetchone()[0] == 1
+    mydb.close()
