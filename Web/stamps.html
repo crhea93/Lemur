@@ -128,6 +128,37 @@
             .loading {
                 color: var(--muted);
             }
+
+            .pagination {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 10px;
+                margin: 18px 0 4px;
+            }
+
+            .page-btn {
+                border: 1px solid var(--line);
+                background: #fff;
+                color: var(--ink);
+                border-radius: 8px;
+                padding: 6px 10px;
+                font-size: 14px;
+                cursor: pointer;
+            }
+
+            .page-btn:disabled {
+                color: #9aa6b6;
+                background: #f1f4f8;
+                cursor: not-allowed;
+            }
+
+            .page-label {
+                color: var(--muted);
+                font-size: 14px;
+                min-width: 88px;
+                text-align: center;
+            }
         </style>
     </head>
     <body data-nav-active="stamps">
@@ -154,6 +185,15 @@
 
             <div id="status" class="loading">Loading stamps...</div>
             <section id="grid" class="grid" aria-live="polite"></section>
+            <div id="pagination" class="pagination" hidden>
+                <button id="prev-page" class="page-btn" type="button">
+                    Previous
+                </button>
+                <span id="page-label" class="page-label"></span>
+                <button id="next-page" class="page-btn" type="button">
+                    Next
+                </button>
+            </div>
         </main>
 
         <script type="text/javascript" src="/common-js/nav.js"></script>
@@ -162,21 +202,41 @@
             const statusEl = document.getElementById("status");
             const searchEl = document.getElementById("search");
             const countEl = document.getElementById("count");
+            const paginationEl = document.getElementById("pagination");
+            const prevPageEl = document.getElementById("prev-page");
+            const nextPageEl = document.getElementById("next-page");
+            const pageLabelEl = document.getElementById("page-label");
+            const PAGE_SIZE = 100;
             let allStamps = [];
+            let filteredStamps = [];
+            let currentPage = 1;
 
-            function setCount(items) {
-                countEl.textContent = `${items.length} clusters`;
+            function setCount(total, start, end) {
+                if (!total) {
+                    countEl.textContent = "0 clusters";
+                    return;
+                }
+                countEl.textContent = `${total} clusters (showing ${start}-${end})`;
             }
 
-            function render(items) {
+            function renderPage() {
+                const total = filteredStamps.length;
+                const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+                currentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+                const startIndex = (currentPage - 1) * PAGE_SIZE;
+                const endIndex = Math.min(startIndex + PAGE_SIZE, total);
+                const pageItems = filteredStamps.slice(startIndex, endIndex);
+
                 grid.innerHTML = "";
-                setCount(items);
-                if (!items.length) {
+                setCount(total, total ? startIndex + 1 : 0, endIndex);
+                if (!pageItems.length) {
                     statusEl.textContent = "No matching clusters.";
+                    paginationEl.hidden = true;
                     return;
                 }
                 statusEl.textContent = "";
-                for (const item of items) {
+                for (const item of pageItems) {
                     const a = document.createElement("a");
                     a.className = "card";
                     a.href = item.cluster_url;
@@ -215,19 +275,26 @@
                     a.appendChild(label);
                     grid.appendChild(a);
                 }
+
+                paginationEl.hidden = totalPages <= 1;
+                prevPageEl.disabled = currentPage <= 1;
+                nextPageEl.disabled = currentPage >= totalPages;
+                pageLabelEl.textContent = `Page ${currentPage} / ${totalPages}`;
             }
 
             function applyFilter() {
                 const q = searchEl.value.trim().toLowerCase();
                 if (!q) {
-                    render(allStamps);
+                    filteredStamps = allStamps;
+                    currentPage = 1;
+                    renderPage();
                     return;
                 }
-                render(
-                    allStamps.filter((item) =>
-                        item.name.toLowerCase().includes(q),
-                    ),
+                filteredStamps = allStamps.filter((item) =>
+                    item.name.toLowerCase().includes(q),
                 );
+                currentPage = 1;
+                renderPage();
             }
 
             async function loadStamps() {
@@ -237,7 +304,9 @@
                         throw new Error(`HTTP ${res.status}`);
                     }
                     allStamps = await res.json();
-                    render(allStamps);
+                    filteredStamps = allStamps;
+                    currentPage = 1;
+                    renderPage();
                 } catch (err) {
                     statusEl.textContent =
                         "Failed to load stamps. Please refresh.";
@@ -245,6 +314,14 @@
             }
 
             searchEl.addEventListener("input", applyFilter);
+            prevPageEl.addEventListener("click", () => {
+                currentPage -= 1;
+                renderPage();
+            });
+            nextPageEl.addEventListener("click", () => {
+                currentPage += 1;
+                renderPage();
+            });
             loadStamps();
         </script>
     </body>
