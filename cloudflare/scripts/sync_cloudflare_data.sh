@@ -4,9 +4,10 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 D1_DB_NAME="lemur-db"
-SQLITE_DB_PATH="$ROOT_DIR/api/data/lemur.db"
+DATA_ROOT="${LEMUR_DATA_DIR:-$ROOT_DIR/api/data}"
+SQLITE_DB_PATH="${LEMUR_DB_PATH:-$DATA_ROOT/lemur.db}"
 SCHEMA_FILE="$ROOT_DIR/cloudflare/sql/d1_schema.sql"
-FITS_ROOT="$ROOT_DIR/api/data/fits"
+FITS_ROOT="${LEMUR_FITS_DIR:-$DATA_ROOT/fits}"
 R2_BUCKET_NAME="lemur-fits"
 MAX_R2_UPLOAD_BYTES=$((300 * 1024 * 1024))
 

@@ -1,5 +1,9 @@
 .PHONY: help deploy sync-all sync-d1 sync-fits dry-run
 
+# Load local runtime env vars if present.
+-include .env.local
+export LEMUR_DATA_DIR LEMUR_DB_PATH LEMUR_FITS_DIR
+
 SYNC_SCRIPT := ./cloudflare/scripts/sync_cloudflare_data.sh
 
 help:
