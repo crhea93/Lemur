@@ -111,7 +111,7 @@ def _extract_fits_value(raw):
 
 
 def _read_fits_header(path, max_blocks=64):
-    header = {}
+    header: dict[str, str] = {}
     with open(path, "rb") as handle:
         for _ in range(max_blocks):
             block = handle.read(2880)

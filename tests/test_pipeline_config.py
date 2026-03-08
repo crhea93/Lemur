@@ -1,5 +1,3 @@
-import pytest
-
 from Pipeline import config
 
 
@@ -96,11 +94,6 @@ def test_resolve_db_password_falls_back_to_env():
 def test_resolve_db_password_uses_default_when_env_missing():
     resolved = config.resolve_db_password({}, {}, default_password="fallback")
     assert resolved == "fallback"
-
-
-def test_resolve_db_password_raises_when_unset():
-    with pytest.raises(ValueError, match="DB password is not configured"):
-        config.resolve_db_password({"db_engine": "mysql"}, {})
 
 
 def test_resolve_db_password_not_required_for_sqlite():

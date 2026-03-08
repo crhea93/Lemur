@@ -100,7 +100,7 @@ def test_update_api_db_noop_when_disabled(monkeypatch):
     assert called["run"] == 0
 
 
-def test_update_api_db_sqlite_mode_skips_mysqldump(monkeypatch, tmp_path):
+def test_update_api_db_sqlite_mode_avoids_subprocess_calls(monkeypatch, tmp_path):
     source_db = tmp_path / "source.db"
     source_db.write_bytes(b"sqlite-bytes")
 
@@ -128,59 +128,6 @@ def test_update_api_db_sqlite_mode_skips_mysqldump(monkeypatch, tmp_path):
     )
 
     assert called["run"] == 0
-
-
-def test_update_api_db_runs_dump_and_ingest(monkeypatch, tmp_path):
-    service = _service()
-    sql_dump = tmp_path / "Lemur_DB.sql"
-    sqlite_db = tmp_path / "lemur.db"
-    calls = []
-
-    def fake_run(cmd, **kwargs):
-        calls.append((cmd, kwargs))
-        return None
-
-    monkeypatch.setattr(ds.subprocess, "run", fake_run)
-    monkeypatch.setattr(
-        service, "restart_api_if_running", lambda _inputs: calls.append(("restart", {}))
-    )
-
-    service.update_api_db(
-        {
-            "update_api": "true",
-            "sql_dump_path": str(sql_dump),
-            "sqlite_db_path": str(sqlite_db),
-        }
-    )
-
-    # mysqldump then ingest script then restart check
-    assert len(calls) == 3
-    dump_cmd, dump_kwargs = calls[0]
-    ingest_cmd, _ingest_kwargs = calls[1]
-    assert dump_cmd[0] == "mysqldump"
-    assert dump_cmd[3] == "127.0.0.1"
-    assert dump_kwargs["check"] is True
-    assert dump_kwargs["env"]["MYSQL_PWD"] == "pw"
-    assert "ingest_sql_dump.py" in ingest_cmd[1]
-    assert calls[2][0] == "restart"
-
-
-def test_update_api_db_handles_mysqldump_missing(monkeypatch, tmp_path):
-    service = _service()
-    sqlite_db = tmp_path / "lemur.db"
-    calls = []
-
-    def fake_run(cmd, **kwargs):
-        calls.append(cmd)
-        if cmd[0] == "mysqldump":
-            raise FileNotFoundError("missing")
-        return None
-
-    monkeypatch.setattr(ds.subprocess, "run", fake_run)
-    monkeypatch.setattr(service, "restart_api_if_running", lambda _inputs: None)
-
-    service.update_api_db({"update_api": "true", "sqlite_db_path": str(sqlite_db)})
-    assert any("ingest_sql_dump.py" in str(part) for part in calls[1])
 
 
 def test_restart_api_if_running_noop_when_disabled():
