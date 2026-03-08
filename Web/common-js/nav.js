@@ -8,6 +8,7 @@
   const items = [
     { key: "home", label: "Home", href: "/" },
     { key: "table", label: "Cluster Table", href: "/Table/index_table.html" },
+    { key: "reduction", label: "Data Reduction", href: "/reduction.html" },
     { key: "stamps", label: "Stamps", href: "/stamps" },
     {
       key: "github",

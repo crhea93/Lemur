@@ -268,6 +268,7 @@ def merge_observations(
     merge_obs.infile = merging_files
     merge_obs.outroot = output_dir + "/"
     merge_obs.bands = energy_range2 + ":" + str(mono_energy)
+    merge_obs.binsize = 1
     merge_obs.clobber = True
     merge_obs()
 

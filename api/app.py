@@ -18,6 +18,7 @@ BASE_DIR = Path(__file__).resolve().parent
 WEB_DIR = BASE_DIR.parent / "Web"
 PLOTS_DIR = WEB_DIR / "Cluster_plots"
 FITS_DIR = Path(os.getenv("LEMUR_FITS_DIR", str(DATA_DIR / "fits"))).expanduser()
+IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".svg", ".gif")
 
 
 def fits_download_url(name: str) -> str:
@@ -141,7 +142,7 @@ def cluster_detail(name: str):
         allowed = {"bkgsub_exp.png"}
         for filename in sorted(os.listdir(plot_dir)):
             lower = filename.lower()
-            if not lower.endswith((".png", ".jpg", ".jpeg", ".svg", ".gif")):
+            if not lower.endswith(IMAGE_EXTENSIONS):
                 continue
             if (
                 filename in allowed
@@ -179,7 +180,7 @@ def list_cluster_stamps():
             return preferred.name
         for filename in sorted(os.listdir(plot_dir)):
             lower = filename.lower()
-            if lower.endswith((".png", ".jpg", ".jpeg", ".gif", ".svg")):
+            if lower.endswith(IMAGE_EXTENSIONS):
                 return filename
         return None
 
@@ -242,7 +243,7 @@ def index_page():
 
 
 @app.get("/cluster/{name}")
-def cluster_page(name: str):
+def cluster_page(_name: str):
     return FileResponse(WEB_DIR / "cluster.html")
 
 

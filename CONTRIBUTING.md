@@ -6,6 +6,15 @@
 ```bash
 pip install -e ".[dev]"
 ```
+3. Install git hooks:
+```bash
+pre-commit install
+```
+
+You can run hooks manually at any time:
+```bash
+pre-commit run --all-files
+```
 
 ## Local checks before opening a PR
 Run all checks from repo root:
@@ -24,4 +33,3 @@ pytest --junitxml=pytest.xml --cov=api --cov=Pipeline.config --cov=Pipeline.pipe
 
 ## Branching
 - Open PRs against `master` unless coordinating a release/maintenance branch change.
-
