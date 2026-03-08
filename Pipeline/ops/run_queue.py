@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 import argparse
 import csv
 import hashlib
@@ -6,47 +8,17 @@ import json
 import os
 import re
 import shlex
+import sqlite3
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-import mysql.connector
-
-CREATE_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS pipeline_run (
-  run_id BIGINT NOT NULL AUTO_INCREMENT,
-  cluster_name VARCHAR(128) NOT NULL,
-  obsids_csv TEXT NOT NULL,
-  redshift_override DOUBLE DEFAULT NULL,
-  status ENUM('queued','downloading','processing','completed','failed') NOT NULL DEFAULT 'queued',
-  input_csv_row_hash CHAR(64) NOT NULL,
-  attempts INT NOT NULL DEFAULT 0,
-  started_at DATETIME DEFAULT NULL,
-  finished_at DATETIME DEFAULT NULL,
-  error_text TEXT DEFAULT NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (run_id),
-  UNIQUE KEY uniq_cluster_hash (cluster_name, input_csv_row_hash)
-)
-"""
+from sqlite_queue_schema import ensure_sqlite_queue_schema
 
 
-CREATE_OBSID_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS pipeline_run_obsid (
-  run_id BIGINT NOT NULL,
-  obsid INT NOT NULL,
-  download_status ENUM('pending','done','failed') NOT NULL DEFAULT 'pending',
-  process_status ENUM('pending','done','failed') NOT NULL DEFAULT 'pending',
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (run_id, obsid),
-  KEY idx_pipeline_run_obsid_run_id (run_id),
-  CONSTRAINT fk_pipeline_run_obsid_run_id
-    FOREIGN KEY (run_id) REFERENCES pipeline_run(run_id)
-    ON DELETE CASCADE
-)
-"""
+def utc_now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def parse_input_file(path):
@@ -69,31 +41,24 @@ def pipeline_safe_cluster_name(name, run_id):
     safe = re.sub(r"[^A-Za-z0-9_-]", "", name.strip().replace(" ", ""))
     if not safe:
         safe = f"Cluster_{run_id}"
-    # Clusters.Name in schema is VARCHAR(20); keep names DB-safe and stable.
     if len(safe) > 20:
         digest = hashlib.sha1(safe.encode("utf-8")).hexdigest()[:5]
         safe = f"{safe[:14]}_{digest}"
     return safe
 
 
-def connect(args):
-    password = args.db_password or os.environ.get("DB_PASSWORD")
-    return mysql.connector.connect(
-        host=args.db_host,
-        user=args.db_user,
-        passwd=password,
-        database=args.db_name,
-    )
-
-
-def ensure_tables(cur):
-    cur.execute(CREATE_TABLE_SQL)
-    cur.execute(CREATE_OBSID_TABLE_SQL)
+def connect_sqlite(args):
+    db_path = Path(args.sqlite_db).expanduser()
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    return conn
 
 
 def claim_next_run(db, include_failed, max_attempts):
-    cur = db.cursor(dictionary=True)
-    db.start_transaction()
+    cur = db.cursor()
+    cur.execute("BEGIN IMMEDIATE")
     try:
         if include_failed:
             cur.execute(
@@ -101,10 +66,9 @@ def claim_next_run(db, include_failed, max_attempts):
                 SELECT run_id, cluster_name, obsids_csv, redshift_override, status
                 FROM pipeline_run
                 WHERE status='queued'
-                   OR (status='failed' AND attempts < %s)
+                   OR (status='failed' AND attempts < ?)
                 ORDER BY CASE WHEN status='queued' THEN 0 ELSE 1 END, run_id ASC
                 LIMIT 1
-                FOR UPDATE
                 """,
                 (max_attempts,),
             )
@@ -116,7 +80,6 @@ def claim_next_run(db, include_failed, max_attempts):
                 WHERE status='queued'
                 ORDER BY run_id ASC
                 LIMIT 1
-                FOR UPDATE
                 """
             )
         row = cur.fetchone()
@@ -129,17 +92,17 @@ def claim_next_run(db, include_failed, max_attempts):
             """
             UPDATE pipeline_run
             SET status='downloading',
-                started_at=COALESCE(started_at, UTC_TIMESTAMP()),
+                started_at=COALESCE(started_at, ?),
                 finished_at=NULL,
                 error_text=NULL,
                 attempts=attempts+1
-            WHERE run_id=%s
+            WHERE run_id=?
             """,
-            (row["run_id"],),
+            (utc_now(), row["run_id"]),
         )
         db.commit()
         cur.close()
-        return row
+        return dict(row)
     except Exception:
         db.rollback()
         cur.close()
@@ -149,7 +112,7 @@ def claim_next_run(db, include_failed, max_attempts):
 def get_obsids(db, run_id):
     cur = db.cursor()
     cur.execute(
-        "SELECT obsid FROM pipeline_run_obsid WHERE run_id=%s ORDER BY obsid",
+        "SELECT obsid FROM pipeline_run_obsid WHERE run_id=? ORDER BY obsid",
         (run_id,),
     )
     obsids = [str(r[0]) for r in cur.fetchall()]
@@ -162,8 +125,8 @@ def set_obsid_download_status(db, run_id, obsid, status):
     cur.execute(
         """
         UPDATE pipeline_run_obsid
-        SET download_status=%s
-        WHERE run_id=%s AND obsid=%s
+        SET download_status=?
+        WHERE run_id=? AND obsid=?
         """,
         (status, run_id, int(obsid)),
     )
@@ -176,8 +139,8 @@ def set_processing_status_for_all_obsids(db, run_id, status):
     cur.execute(
         """
         UPDATE pipeline_run_obsid
-        SET process_status=%s
-        WHERE run_id=%s
+        SET process_status=?
+        WHERE run_id=?
         """,
         (status, run_id),
     )
@@ -187,15 +150,16 @@ def set_processing_status_for_all_obsids(db, run_id, status):
 
 def update_run_status(db, run_id, status, error_text=None):
     cur = db.cursor()
+    finished_at = utc_now() if status in {"completed", "failed"} else None
     cur.execute(
         """
         UPDATE pipeline_run
-        SET status=%s,
-            finished_at=CASE WHEN %s IN ('completed','failed') THEN UTC_TIMESTAMP() ELSE finished_at END,
-            error_text=%s
-        WHERE run_id=%s
+        SET status=?,
+            finished_at=COALESCE(?, finished_at),
+            error_text=?
+        WHERE run_id=?
         """,
-        (status, status, error_text, run_id),
+        (status, finished_at, error_text, run_id),
     )
     db.commit()
     cur.close()
@@ -216,10 +180,10 @@ def recover_interrupted_runs(db):
     if recovered:
         cur.execute(
             """
-            UPDATE pipeline_run_obsid o
-            JOIN pipeline_run r ON r.run_id = o.run_id
-            SET o.process_status='pending'
-            WHERE r.status='queued' AND o.process_status='failed'
+            UPDATE pipeline_run_obsid
+            SET process_status='pending'
+            WHERE process_status='failed'
+              AND run_id IN (SELECT run_id FROM pipeline_run WHERE status='queued')
             """
         )
     db.commit()
@@ -255,7 +219,6 @@ def run_pipeline(repo_root, defaults, cluster_name, obsids, redshift, log_handle
     ]
     if redshift is not None:
         cmd.extend(["--redshift", str(redshift)])
-
     log_line(f"[pipeline] running: {' '.join(cmd)}", log_handle)
     run_command_tee(cmd, str(repo_root), log_handle)
 
@@ -311,7 +274,7 @@ def append_failure_record(args, run_row, exc):
             )
         writer.writerow(
             [
-                datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                utc_now(),
                 run_row["run_id"],
                 run_row["cluster_name"],
                 run_row["obsids_csv"],
@@ -404,11 +367,8 @@ def run(args):
     if "home_dir" not in defaults_values:
         raise RuntimeError(f"'home_dir' missing in defaults file: {args.defaults}")
 
-    db = connect(args)
-    cur = db.cursor()
-    ensure_tables(cur)
-    db.commit()
-    cur.close()
+    db = connect_sqlite(args)
+    ensure_sqlite_queue_schema(db)
 
     if args.recover_interrupted:
         recovered = recover_interrupted_runs(db)
@@ -446,7 +406,19 @@ def run(args):
 
 def build_parser():
     repo_root = Path(__file__).resolve().parents[2]
-    parser = argparse.ArgumentParser(description="Process queued Lemur runs.")
+    parser = argparse.ArgumentParser(description="Process queued Lemur runs (SQLite).")
+    parser.add_argument(
+        "--sqlite-db",
+        default=str(
+            Path(
+                os.getenv(
+                    "LEMUR_QUEUE_DB",
+                    repo_root / "Pipeline" / "ops" / "pipeline_queue.sqlite3",
+                )
+            )
+        ),
+        help="Path to SQLite queue DB.",
+    )
     parser.add_argument(
         "--defaults",
         default=str(repo_root / "inputs" / "template.i"),
@@ -476,16 +448,10 @@ def build_parser():
     parser.add_argument(
         "--once", action="store_true", help="Process at most one queued run."
     )
-    parser.add_argument("--db-host", default="localhost")
-    parser.add_argument("--db-user", default="carterrhea")
-    parser.add_argument("--db-name", default="carterrhea")
     parser.add_argument(
         "--default-redshift",
         type=float,
         help="Fallback redshift for runs without redshift_override (skips online lookup).",
-    )
-    parser.add_argument(
-        "--db-password", help="DB password. Defaults to DB_PASSWORD env var."
     )
     parser.add_argument(
         "--max-attempts",

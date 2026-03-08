@@ -11,7 +11,6 @@ The commands and behavior here map directly to:
 
 - ``Pipeline/ops/enqueue_from_csv.py``
 - ``Pipeline/ops/run_queue.py``
-- ``Pipeline/sql/2026_02_16_pipeline_ops.sql``
 
 Overview
 --------
@@ -23,43 +22,34 @@ The queue system separates *planning* from *execution*:
 - Execution step claims queued rows, downloads ObsIDs (unless skipped), runs
   ``Pipeline/pipeline.py``, and marks each run completed or failed.
 
-Step 0: Create queue tables
+Step 0: Queue DB and tables
 ---------------------------
 
-Initialize the queue schema in MySQL:
+Queue orchestration is now SQLite-native. Queue tables are created automatically
+when enqueue/worker scripts run.
 
-.. code-block:: bash
+Default queue DB path:
 
-   mysql -u <user> -p <db_name> < Pipeline/sql/2026_02_16_pipeline_ops.sql
+- ``Pipeline/ops/pipeline_queue.sqlite3``
+- or set ``LEMUR_QUEUE_DB`` to override.
 
 Main tables:
 
 - ``pipeline_run``: one queued run per cluster target.
 - ``pipeline_run_obsid``: child rows with per-obsid download/process status.
 
-SQLite-only option
-------------------
+Optional one-time historical migration
+--------------------------------------
 
-If you are migrating away from MySQL queue orchestration, use the SQLite queue
-tools in ``Pipeline/ops``:
-
-- ``enqueue_from_csv_sqlite.py``
-- ``run_queue_sqlite.py``
-
-Default SQLite queue DB path:
-
-- ``Pipeline/ops/pipeline_queue.sqlite3``
-- or set ``LEMUR_QUEUE_DB`` to override.
-
-For historical queue migration from MySQL to SQLite:
+If you already have historical queue data in MySQL, migrate it once with:
 
 .. code-block:: bash
 
-   python Pipeline/ops/migrate_queue_mysql_to_sqlite.py \
-     --db-host localhost \
-     --db-user <user> \
-     --db-name <db_name> \
-     --sqlite-db Pipeline/ops/pipeline_queue.sqlite3
+   pip install -e ".[queue_migration]"
+
+.. code-block:: bash
+
+   python Pipeline/ops/migrate_queue_mysql_to_sqlite.py --sqlite-db Pipeline/ops/pipeline_queue.sqlite3
 
 Step 1: Prepare the target CSV
 ------------------------------
@@ -92,13 +82,7 @@ Run:
 
 .. code-block:: bash
 
-   python Pipeline/ops/enqueue_from_csv.py --csv /path/to/targets.csv
-
-SQLite variant:
-
-.. code-block:: bash
-
-   python Pipeline/ops/enqueue_from_csv_sqlite.py \
+   python Pipeline/ops/enqueue_from_csv.py \
      --csv /path/to/targets.csv \
      --sqlite-db Pipeline/ops/pipeline_queue.sqlite3
 
@@ -135,13 +119,7 @@ Start the worker:
 
 .. code-block:: bash
 
-   python Pipeline/ops/run_queue.py --defaults inputs/template.i
-
-SQLite variant:
-
-.. code-block:: bash
-
-   python Pipeline/ops/run_queue_sqlite.py \
+   python Pipeline/ops/run_queue.py \
      --defaults inputs/template.i \
      --sqlite-db Pipeline/ops/pipeline_queue.sqlite3
 

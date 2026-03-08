@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 import argparse
 import csv
 import hashlib
 import os
 import pickle
 import re
+import sqlite3
 from collections import Counter, defaultdict
+from pathlib import Path
 from typing import TypedDict
 
-import mysql.connector
+from sqlite_queue_schema import ensure_sqlite_queue_schema
 
 CLUSTER_CANDIDATES = (
     "cluster",
@@ -29,42 +33,6 @@ OBSID_CANDIDATES = (
 REDSHIFT_CANDIDATES = ("redshift", "z")
 
 
-CREATE_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS pipeline_run (
-  run_id BIGINT NOT NULL AUTO_INCREMENT,
-  cluster_name VARCHAR(128) NOT NULL,
-  obsids_csv TEXT NOT NULL,
-  redshift_override DOUBLE DEFAULT NULL,
-  status ENUM('queued','downloading','processing','completed','failed') NOT NULL DEFAULT 'queued',
-  input_csv_row_hash CHAR(64) NOT NULL,
-  attempts INT NOT NULL DEFAULT 0,
-  started_at DATETIME DEFAULT NULL,
-  finished_at DATETIME DEFAULT NULL,
-  error_text TEXT DEFAULT NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (run_id),
-  UNIQUE KEY uniq_cluster_hash (cluster_name, input_csv_row_hash)
-)
-"""
-
-
-CREATE_OBSID_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS pipeline_run_obsid (
-  run_id BIGINT NOT NULL,
-  obsid INT NOT NULL,
-  download_status ENUM('pending','done','failed') NOT NULL DEFAULT 'pending',
-  process_status ENUM('pending','done','failed') NOT NULL DEFAULT 'pending',
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (run_id, obsid),
-  KEY idx_pipeline_run_obsid_run_id (run_id),
-  CONSTRAINT fk_pipeline_run_obsid_run_id
-    FOREIGN KEY (run_id) REFERENCES pipeline_run(run_id)
-    ON DELETE CASCADE
-)
-"""
-
-
 class GroupEntry(TypedDict):
     obsids: set[int]
     redshift: float | None
@@ -74,11 +42,13 @@ def _new_group_entry() -> GroupEntry:
     return {"obsids": set(), "redshift": None}
 
 
-def normalize_header(value):
+def normalize_header(value: str) -> str:
     return re.sub(r"\s+", " ", value.strip().lower())
 
 
-def find_column(headers, explicit, candidates):
+def find_column(
+    headers: dict[str, str], explicit: str | None, candidates: tuple[str, ...]
+):
     if explicit:
         key = normalize_header(explicit)
         if key in headers:
@@ -93,7 +63,7 @@ def find_column(headers, explicit, candidates):
     return None
 
 
-def parse_obsids(value):
+def parse_obsids(value) -> list[int]:
     if value is None:
         return []
     return sorted({int(match) for match in re.findall(r"\d+", str(value))})
@@ -108,19 +78,13 @@ def parse_redshift(value):
         return None
 
 
-def connect(args):
-    password = args.db_password or os.environ.get("DB_PASSWORD")
-    return mysql.connector.connect(
-        host=args.db_host,
-        user=args.db_user,
-        passwd=password,
-        database=args.db_name,
-    )
-
-
-def ensure_tables(cur):
-    cur.execute(CREATE_TABLE_SQL)
-    cur.execute(CREATE_OBSID_TABLE_SQL)
+def connect_sqlite(args) -> sqlite3.Connection:
+    db_path = Path(args.sqlite_db).expanduser()
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    return conn
 
 
 def ingest_rows(args):
@@ -151,7 +115,6 @@ def ingest_rows(args):
                 groups[cluster]["redshift"] = parse_redshift(
                     row.get(headers[redshift_key])
                 )
-
     return groups
 
 
@@ -327,23 +290,18 @@ def ingest_pickle(args):
             groups[cluster]["redshift"] = infer_redshift_from_obsid_map(
                 obsids, obsid_to_redshift
             )
-
     return groups
 
 
 def run(args):
-    if args.csv:
-        grouped = ingest_rows(args)
-    else:
-        grouped = ingest_pickle(args)
-
+    grouped = ingest_rows(args) if args.csv else ingest_pickle(args)
     if not grouped:
         print("No valid rows found in input manifest.")
         return
 
-    db = connect(args)
+    db = connect_sqlite(args)
+    ensure_sqlite_queue_schema(db)
     cur = db.cursor()
-    ensure_tables(cur)
 
     created = 0
     skipped = 0
@@ -358,10 +316,9 @@ def run(args):
 
         cur.execute(
             """
-            INSERT INTO pipeline_run
+            INSERT OR IGNORE INTO pipeline_run
               (cluster_name, obsids_csv, redshift_override, status, input_csv_row_hash)
-            VALUES (%s, %s, %s, 'queued', %s)
-            ON DUPLICATE KEY UPDATE run_id = run_id
+            VALUES (?, ?, ?, 'queued', ?)
             """,
             (cluster_name, obsids_csv, redshift, digest),
         )
@@ -371,9 +328,8 @@ def run(args):
             for obsid in obsids:
                 cur.execute(
                     """
-                    INSERT INTO pipeline_run_obsid (run_id, obsid)
-                    VALUES (%s, %s)
-                    ON DUPLICATE KEY UPDATE run_id = run_id
+                    INSERT OR IGNORE INTO pipeline_run_obsid (run_id, obsid)
+                    VALUES (?, ?)
                     """,
                     (run_id, obsid),
                 )
@@ -391,12 +347,25 @@ def run(args):
 
 
 def build_parser():
+    repo_root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(
-        description="Queue Lemur runs from a CSV or pickle manifest."
+        description="Queue Lemur runs from a CSV or pickle manifest into SQLite."
     )
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--csv", help="Path to CSV file.")
     source.add_argument("--pickle", help="Path to pickle file.")
+    parser.add_argument(
+        "--sqlite-db",
+        default=str(
+            Path(
+                os.getenv(
+                    "LEMUR_QUEUE_DB",
+                    repo_root / "Pipeline" / "ops" / "pipeline_queue.sqlite3",
+                )
+            )
+        ),
+        help="Path to SQLite queue DB.",
+    )
     parser.add_argument(
         "--delimiter", default=",", help="CSV delimiter (default: ',')."
     )
@@ -423,12 +392,6 @@ def build_parser():
         "--name-map-delimiter",
         default=",",
         help="Delimiter for --name-map-csv (default: ',').",
-    )
-    parser.add_argument("--db-host", default="localhost")
-    parser.add_argument("--db-user", default="carterrhea")
-    parser.add_argument("--db-name", default="carterrhea")
-    parser.add_argument(
-        "--db-password", help="DB password. Defaults to DB_PASSWORD env var."
     )
     return parser
 
