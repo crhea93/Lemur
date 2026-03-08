@@ -37,6 +37,30 @@ Main tables:
 - ``pipeline_run``: one queued run per cluster target.
 - ``pipeline_run_obsid``: child rows with per-obsid download/process status.
 
+SQLite-only option
+------------------
+
+If you are migrating away from MySQL queue orchestration, use the SQLite queue
+tools in ``Pipeline/ops``:
+
+- ``enqueue_from_csv_sqlite.py``
+- ``run_queue_sqlite.py``
+
+Default SQLite queue DB path:
+
+- ``Pipeline/ops/pipeline_queue.sqlite3``
+- or set ``LEMUR_QUEUE_DB`` to override.
+
+For historical queue migration from MySQL to SQLite:
+
+.. code-block:: bash
+
+   python Pipeline/ops/migrate_queue_mysql_to_sqlite.py \
+     --db-host localhost \
+     --db-user <user> \
+     --db-name <db_name> \
+     --sqlite-db Pipeline/ops/pipeline_queue.sqlite3
+
 Step 1: Prepare the target CSV
 ------------------------------
 
@@ -69,6 +93,14 @@ Run:
 .. code-block:: bash
 
    python Pipeline/ops/enqueue_from_csv.py --csv /path/to/targets.csv
+
+SQLite variant:
+
+.. code-block:: bash
+
+   python Pipeline/ops/enqueue_from_csv_sqlite.py \
+     --csv /path/to/targets.csv \
+     --sqlite-db Pipeline/ops/pipeline_queue.sqlite3
 
 If headers are non-standard, pass explicit mappings:
 
@@ -104,6 +136,14 @@ Start the worker:
 .. code-block:: bash
 
    python Pipeline/ops/run_queue.py --defaults inputs/template.i
+
+SQLite variant:
+
+.. code-block:: bash
+
+   python Pipeline/ops/run_queue_sqlite.py \
+     --defaults inputs/template.i \
+     --sqlite-db Pipeline/ops/pipeline_queue.sqlite3
 
 Worker lifecycle per run:
 
