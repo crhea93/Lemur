@@ -66,12 +66,7 @@ def load_config(input_path):
 
 def resolve_db_password(inputs, env_vars, default_password=None):
     db_engine = str(inputs.get("db_engine", "")).strip().lower()
-    sqlite_db_path = inputs.get("sqlite_db_path")
-    if not sqlite_db_path:
-        sqlite_db_path = (
-            Path(__file__).resolve().parent.parent / "api" / "data" / "lemur.db"
-        )
-    if db_engine == "sqlite" or Path(str(sqlite_db_path)).expanduser().exists():
+    if db_engine == "sqlite":
         return ""
     db_password = env_vars.get("DB_PASSWORD", default_password or "")
     if inputs.get("database_password"):

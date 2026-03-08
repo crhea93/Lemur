@@ -84,9 +84,9 @@ def _coerce_coord_value(raw, is_ra=False):
         text = str(raw).strip()
         if not text:
             return None
-        parsed = _first_float(text)
+        parsed = _sexagesimal_to_degrees(text, is_ra=is_ra)
         if parsed is None:
-            parsed = _sexagesimal_to_degrees(text, is_ra=is_ra)
+            parsed = _first_float(text)
             if parsed is None:
                 return None
         value = float(parsed)
