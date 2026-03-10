@@ -66,6 +66,181 @@ def add_coord(mydb, mycursor, cluster_name, ra, dec):
     return None
 
 
+def upsert_center(
+    mydb,
+    mycursor,
+    cluster_name,
+    center_ra,
+    center_dec,
+    center_x,
+    center_y,
+    method,
+    image_path,
+):
+    """Insert or update the canonical center for a cluster."""
+    cluster_id = get_id(mydb, mycursor, cluster_name)
+    mycursor.execute(
+        "SELECT COUNT(*) FROM cluster_center WHERE ClusterName = %s",
+        (cluster_name,),
+    )
+    (number_of_rows,) = mycursor.fetchone()
+    mycursor.nextset()
+
+    if number_of_rows == 0:
+        sql = """
+            INSERT INTO cluster_center
+            (ID, ClusterName, center_ra, center_dec, center_x, center_y, method, image_path)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+        """
+        val = (
+            cluster_id,
+            cluster_name,
+            center_ra,
+            center_dec,
+            center_x,
+            center_y,
+            method,
+            image_path,
+        )
+        mycursor.execute(sql, val)
+        print("Added cluster center to database")
+    else:
+        sql = """
+            UPDATE cluster_center
+            SET ID=%s, center_ra=%s, center_dec=%s, center_x=%s, center_y=%s,
+                method=%s, image_path=%s, updated_at=CURRENT_TIMESTAMP
+            WHERE ClusterName=%s
+        """
+        val = (
+            cluster_id,
+            center_ra,
+            center_dec,
+            center_x,
+            center_y,
+            method,
+            image_path,
+            cluster_name,
+        )
+        mycursor.execute(sql, val)
+        print("Updated cluster center in database")
+    mydb.commit()
+    return None
+
+
+def get_center(mydb, mycursor, cluster_name):
+    """Fetch the canonical center row for a cluster."""
+    sql = """
+        SELECT center_ra, center_dec, center_x, center_y, method, image_path
+        FROM cluster_center
+        WHERE ClusterName = %s
+    """
+    mycursor.execute(sql, (cluster_name,))
+    row = mycursor.fetchone()
+    mycursor.nextset()
+    if row is None:
+        return None
+    return {
+        "center_ra": row[0],
+        "center_dec": row[1],
+        "center_x": row[2],
+        "center_y": row[3],
+        "method": row[4],
+        "image_path": row[5],
+    }
+
+
+def upsert_double_beta_fit(
+    mydb,
+    mycursor,
+    cluster_name,
+    norm_1,
+    core_radius_1,
+    beta_1,
+    norm_2,
+    core_radius_2,
+    beta_2,
+    background,
+    triple_core_radius_2,
+    center_x,
+    center_y,
+    image_path,
+    plot_path,
+    max_radius,
+):
+    """Insert or update the double-beta fit product for a cluster."""
+    cluster_id = get_id(mydb, mycursor, cluster_name)
+    mycursor.execute(
+        "SELECT COUNT(*) FROM double_beta_fit WHERE ClusterName = %s",
+        (cluster_name,),
+    )
+    (number_of_rows,) = mycursor.fetchone()
+    mycursor.nextset()
+
+    if number_of_rows == 0:
+        sql = """
+            INSERT INTO double_beta_fit
+            (ID, ClusterName, norm_1, core_radius_1, beta_1, norm_2, core_radius_2,
+             beta_2, background, triple_core_radius_2, center_x, center_y, image_path,
+             plot_path, max_radius)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        """
+        val = (
+            cluster_id, cluster_name, norm_1, core_radius_1, beta_1, norm_2,
+            core_radius_2, beta_2, background, triple_core_radius_2, center_x, center_y,
+            image_path, plot_path, max_radius,
+        )
+        mycursor.execute(sql, val)
+        print("Added double-beta fit to database")
+    else:
+        sql = """
+            UPDATE double_beta_fit
+            SET ID=%s, norm_1=%s, core_radius_1=%s, beta_1=%s, norm_2=%s,
+                core_radius_2=%s, beta_2=%s, background=%s, triple_core_radius_2=%s,
+                center_x=%s, center_y=%s, image_path=%s, plot_path=%s, max_radius=%s,
+                updated_at=CURRENT_TIMESTAMP
+            WHERE ClusterName=%s
+        """
+        val = (
+            cluster_id, norm_1, core_radius_1, beta_1, norm_2, core_radius_2, beta_2,
+            background, triple_core_radius_2, center_x, center_y, image_path, plot_path,
+            max_radius, cluster_name,
+        )
+        mycursor.execute(sql, val)
+        print("Updated double-beta fit in database")
+    mydb.commit()
+    return None
+
+
+def get_double_beta_fit(mydb, mycursor, cluster_name):
+    sql = """
+        SELECT norm_1, core_radius_1, beta_1, norm_2, core_radius_2, beta_2,
+               background, triple_core_radius_2, center_x, center_y, image_path,
+               plot_path, max_radius
+        FROM double_beta_fit
+        WHERE ClusterName = %s
+    """
+    mycursor.execute(sql, (cluster_name,))
+    row = mycursor.fetchone()
+    mycursor.nextset()
+    if row is None:
+        return None
+    return {
+        'norm_1': row[0],
+        'core_radius_1': row[1],
+        'beta_1': row[2],
+        'norm_2': row[3],
+        'core_radius_2': row[4],
+        'beta_2': row[5],
+        'background': row[6],
+        'triple_core_radius_2': row[7],
+        'center_x': row[8],
+        'center_y': row[9],
+        'image_path': row[10],
+        'plot_path': row[11],
+        'max_radius': row[12],
+    }
+
+
 def add_csb(
     mydb,
     mycursor,

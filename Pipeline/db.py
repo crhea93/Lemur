@@ -135,10 +135,45 @@ def ensure_sqlite_schema(conn):
             R_cool_7_u REAL
         );
 
+        CREATE TABLE IF NOT EXISTS cluster_center (
+            ID INTEGER,
+            ClusterName TEXT NOT NULL,
+            center_ra REAL,
+            center_dec REAL,
+            center_x REAL,
+            center_y REAL,
+            method TEXT,
+            image_path TEXT,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS double_beta_fit (
+            ID INTEGER,
+            ClusterName TEXT NOT NULL,
+            norm_1 REAL,
+            core_radius_1 REAL,
+            beta_1 REAL,
+            norm_2 REAL,
+            core_radius_2 REAL,
+            beta_2 REAL,
+            background REAL,
+            triple_core_radius_2 REAL,
+            center_x REAL,
+            center_y REAL,
+            image_path TEXT,
+            plot_path TEXT,
+            max_radius REAL,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
         CREATE INDEX IF NOT EXISTS idx_clusters_name ON Clusters (Name);
         CREATE INDEX IF NOT EXISTS idx_clusters_id ON Clusters (ID);
         CREATE INDEX IF NOT EXISTS idx_obsids_cluster ON Obsids (ClusterNumber);
         CREATE INDEX IF NOT EXISTS idx_region_cluster ON Region (idCluster);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_center_cluster_name
+            ON cluster_center (ClusterName);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_double_beta_cluster_name
+            ON double_beta_fit (ClusterName);
         """
     )
     conn.commit()

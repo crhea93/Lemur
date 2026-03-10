@@ -10,7 +10,11 @@ from Database.Add_new import (
     add_fit_db,
     add_obsid_db,
     add_r_cool,
+    get_center,
+    get_double_beta_fit,
     get_id,
+    upsert_center,
+    upsert_double_beta_fit,
 )
 
 
@@ -31,6 +35,22 @@ class DatabaseService:
 
     def add_coord(self, cluster_name, ra, dec):
         return add_coord(self.mydb, self.mycursor, cluster_name, ra, dec)
+
+    def upsert_center(self, cluster_name, *args, **kwargs):
+        return upsert_center(
+            self.mydb, self.mycursor, cluster_name, *args, **kwargs
+        )
+
+    def get_center(self, cluster_name):
+        return get_center(self.mydb, self.mycursor, cluster_name)
+
+    def upsert_double_beta_fit(self, cluster_name, *args, **kwargs):
+        return upsert_double_beta_fit(
+            self.mydb, self.mycursor, cluster_name, *args, **kwargs
+        )
+
+    def get_double_beta_fit(self, cluster_name):
+        return get_double_beta_fit(self.mydb, self.mycursor, cluster_name)
 
     def add_r_cool(self, cluster_id, cluster_name, *args, **kwargs):
         return add_r_cool(
