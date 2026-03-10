@@ -9,8 +9,6 @@ redshift = 0.00
 #-----Additional Info----#
 merge = True
 cleaning = False
-surface_brightness_calc = false
-
 # API update options
 update_api = true
 sql_dump_path = /home/carterrhea/Documents/Lemur/Pipeline/Lemur_DB.sql

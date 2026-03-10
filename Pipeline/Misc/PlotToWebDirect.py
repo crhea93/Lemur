@@ -28,10 +28,6 @@ def plots_to_web(dir, obsids, name, web_dir):
     plts = ["Abundance", "Density", "Entropy", "Pressure", "T_Cool", "Temperature"]
     for plt_ in plts:
         shutil.copyfile(plt_ + "_profile.png", web_dir + "/" + plt_ + "_profile.png")
-    # Photometric info
-    os.chdir(dir + "/" + name + "/SurfaceBrightness")
-    shutil.copyfile("Single_Beta.png", web_dir + "/" + "Single_Beta.png")
-    shutil.copyfile("Double_Beta.png", web_dir + "/" + "Double_Beta.png")
     return None
 
 

@@ -136,7 +136,6 @@ def main():
                     "#-----Additional Info----#",
                     f"merge = {merge}",
                     "cleaning = false",
-                    "surface_brightness_calc = false",
                     "",
                     "# API update options",
                     "update_api = true",

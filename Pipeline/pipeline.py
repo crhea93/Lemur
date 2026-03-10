@@ -382,14 +382,12 @@ def run_pipeline_with_config(inputs, merge_bool, env_vars):
     from db_service import DatabaseService
     from double_beta import run_double_beta_fit
     from imaging import create_src_img
-    from Misc.R_cool import R_cool_calc
     from preprocessing import (
         generate_ccds,
         init_cluster,
         run_merge_observations,
         run_single_observation,
     )
-    from surface_brightness import run_surface_brightness
     from web_export import export_web
 
     # ---------------------------Read in data----------------------------------#
