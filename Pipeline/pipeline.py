@@ -479,32 +479,12 @@ def run_pipeline_with_config(inputs, merge_bool, env_vars):
     os.chdir(ctx.inputs["home_dir"] + "/" + ctx.inputs["name"])
     filenames["exp_map"] = os.getcwd() + "/broad_thresh.expmap"
     filenames["bkg"] = os.getcwd() + "/bkg.reg"
-    run_surface_brightness(
-        ctx.inputs,
-        filenames,
-        canonical_ra,
-        canonical_dec,
-        cluster_id,
-        db_service,
-        ctx.merge_bool,
-    )
 
     run_double_beta_fit(
         ctx.inputs["name"],
         filenames["exp_corr"],
         db_service,
         ctx.inputs["home_dir"] + "/" + ctx.inputs["name"],
-    )
-
-    # ---------------------------------Additional Calculations--------------------------------------#
-    R_cool_calc(
-        ctx.mydb,
-        ctx.mycursor,
-        cluster_id,
-        ctx.inputs["name"],
-        ctx.inputs["home_dir"] + "/" + ctx.inputs["name"] + "/Fits",
-        ctx.inputs["redshift"],
-        main_out,
     )
 
     # --------------------------FINISH---------------------------------#
@@ -802,10 +782,16 @@ def parse_args(argv):
     using_recompute_double_beta = bool(args.recompute_double_beta)
     using_legacy = bool(args.input_path)
     using_new = bool(args.cluster or args.obsids)
-    if (using_backfill or using_recompute_centers or using_recompute_double_beta) and using_new:
-        parser.error("Backfill/recompute mode cannot be combined with --cluster/--obsids.")
+    if (
+        using_backfill or using_recompute_centers or using_recompute_double_beta
+    ) and using_new:
+        parser.error(
+            "Backfill/recompute mode cannot be combined with --cluster/--obsids."
+        )
     if sum([using_backfill, using_recompute_centers, using_recompute_double_beta]) > 1:
-        parser.error("Use only one of --backfill-missing-coords, --recompute-centers, or --recompute-double-beta.")
+        parser.error(
+            "Use only one of --backfill-missing-coords, --recompute-centers, or --recompute-double-beta."
+        )
     if using_backfill or using_recompute_centers or using_recompute_double_beta:
         return args
     if using_legacy and using_new:

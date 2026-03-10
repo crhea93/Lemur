@@ -216,6 +216,72 @@ INSERT INTO `pipeline_run_obsid` VALUES (1,22634,'done','done','2026-02-15 19:59
 UNLOCK TABLES;
 
 --
+
+--
+-- Table structure for table `double_beta_fit`
+--
+
+DROP TABLE IF EXISTS `double_beta_fit`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `double_beta_fit` (
+  `ID` int(11) DEFAULT NULL,
+  `ClusterName` varchar(128) NOT NULL,
+  `norm_1` double DEFAULT NULL,
+  `core_radius_1` double DEFAULT NULL,
+  `beta_1` double DEFAULT NULL,
+  `norm_2` double DEFAULT NULL,
+  `core_radius_2` double DEFAULT NULL,
+  `beta_2` double DEFAULT NULL,
+  `background` double DEFAULT NULL,
+  `triple_core_radius_2` double DEFAULT NULL,
+  `center_x` double DEFAULT NULL,
+  `center_y` double DEFAULT NULL,
+  `image_path` text DEFAULT NULL,
+  `plot_path` text DEFAULT NULL,
+  `max_radius` double DEFAULT NULL,
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `double_beta_fit`
+--
+
+LOCK TABLES `double_beta_fit` WRITE;
+/*!40000 ALTER TABLE `double_beta_fit` DISABLE KEYS */;
+/*!40000 ALTER TABLE `double_beta_fit` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `cluster_center`
+--
+
+DROP TABLE IF EXISTS `cluster_center`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `cluster_center` (
+  `ID` int(11) DEFAULT NULL,
+  `ClusterName` varchar(128) NOT NULL,
+  `center_ra` double DEFAULT NULL,
+  `center_dec` double DEFAULT NULL,
+  `center_x` double DEFAULT NULL,
+  `center_y` double DEFAULT NULL,
+  `method` varchar(64) DEFAULT NULL,
+  `image_path` text DEFAULT NULL,
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `cluster_center`
+--
+
+LOCK TABLES `cluster_center` WRITE;
+/*!40000 ALTER TABLE `cluster_center` DISABLE KEYS */;
+/*!40000 ALTER TABLE `cluster_center` ENABLE KEYS */;
+UNLOCK TABLES;
+
 -- Table structure for table `r_cool`
 --
 

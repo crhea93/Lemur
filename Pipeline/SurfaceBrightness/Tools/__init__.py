@@ -1,1 +1,0 @@
-"""Surface brightness helper tools."""
