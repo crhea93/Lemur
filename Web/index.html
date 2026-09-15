@@ -216,6 +216,19 @@
                 font-size: 1.14rem;
             }
 
+            .citation-bibtex {
+                margin: 0;
+                padding: 14px 16px;
+                border-radius: 12px;
+                border: 1px solid var(--line);
+                background: rgba(255, 255, 255, 0.72);
+                color: var(--ink-1);
+                font-size: 0.8rem;
+                line-height: 1.5;
+                white-space: pre;
+                overflow-x: auto;
+            }
+
             .site-disclaimer {
                 margin: 4px auto 60px;
                 max-width: 1100px;
@@ -364,6 +377,26 @@
                     For processing details, see the
                     <a href="reduction.html">Data Reduction</a> page.
                 </p>
+            </div>
+            <div class="info-panel">
+                <h3>Citation</h3>
+                <p>
+                    If you use Lemur or its data products in your work, please
+                    cite the Zenodo record:
+                    <a href="https://doi.org/10.5281/zenodo.18728228"
+                        >doi:10.5281/zenodo.18728228</a
+                    >.
+                </p>
+                <pre class="citation-bibtex">
+@software{rhea_lemur,
+  author    = {Rhea, Carter Lee and Thibeault, Christian},
+  title     = {Lemur: X-ray Galaxy Cluster Archive},
+  publisher = {Zenodo},
+  year      = {2026},
+  doi       = {10.5281/zenodo.18728228},
+  url       = {https://doi.org/10.5281/zenodo.18728228}
+}</pre
+                >
             </div>
         </section>
 

@@ -89,3 +89,18 @@ make dry-run
 ## Development
 For contribution workflow, linting, typing, and test commands, see:
 - `CONTRIBUTING.md`
+
+## Citation
+If you use Lemur or its data products in your work, please cite the Zenodo record:
+[doi:10.5281/zenodo.18728228](https://doi.org/10.5281/zenodo.18728228)
+
+```bibtex
+@software{rhea_lemur,
+  author    = {Rhea, Carter Lee and Thibeault, Christian},
+  title     = {Lemur: X-ray Galaxy Cluster Archive},
+  publisher = {Zenodo},
+  year      = {2026},
+  doi       = {10.5281/zenodo.18728228},
+  url       = {https://doi.org/10.5281/zenodo.18728228}
+}
+```
