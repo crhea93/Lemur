@@ -278,3 +278,9 @@ def test_similar_clusters_returns_ranked_neighbors(client, tmp_path):
             "preview_url": "/Cluster_plots/2A0335%2B096/bkgsub_exp.png",
         }
     ]
+
+
+def test_cluster_page_route_serves_html(client):
+    response = client.get("/cluster/Abell133")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]

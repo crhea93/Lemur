@@ -577,7 +577,9 @@ def backfill_missing_coordinates(
     return None
 
 
-def recompute_centers(input_path=None, defaults_path=None, sqlite_db_path=None):
+def recompute_centers(
+    input_path=None, defaults_path=None, sqlite_db_path=None, home_dir=None
+):
     from center import compute_center
     from db import connect_db
     from db_service import DatabaseService
@@ -593,6 +595,8 @@ def recompute_centers(input_path=None, defaults_path=None, sqlite_db_path=None):
     if sqlite_db_path:
         inputs["db_engine"] = "sqlite"
         inputs["sqlite_db_path"] = sqlite_db_path
+    if home_dir:
+        inputs["home_dir"] = home_dir
 
     db_password = resolve_db_password(inputs, env_vars)
     mydb, mycursor, db_user, db_host, db_name = connect_db(inputs, db_password)
@@ -601,22 +605,31 @@ def recompute_centers(input_path=None, defaults_path=None, sqlite_db_path=None):
     updated = 0
     unresolved = []
     try:
-        mycursor.execute("SELECT Name FROM Clusters")
+        mycursor.execute("SELECT Name, RightAsc, Declination FROM Clusters")
         rows = mycursor.fetchall()
-        names = [row[0] for row in rows if row and row[0]]
-        print(f"Found {len(names)} clusters to recompute canonical centers")
+        print(f"Found {len(rows)} clusters to recompute canonical centers")
 
-        for name in names:
+        for name, stored_ra, stored_dec in rows:
+            if not name:
+                continue
             fallback_paths = _fallback_fits_paths(inputs, name)
             image_path = fallback_paths[-1] if fallback_paths else None
             if image_path is None or not Path(image_path).exists():
                 unresolved.append(name)
                 continue
-            coords = resolve_coordinates(name, fallback_fits_paths=fallback_paths)
-            if coords is None:
-                unresolved.append(name)
-                continue
-            db_service.add_coord(name, coords[0], coords[1])
+            # The stored position is only a prior for the X-ray peak search, so
+            # look it up (NED/CDS/FITS) only when it is missing.
+            if (
+                _coerce_coord_value(stored_ra, is_ra=True) is not None
+                and _coerce_coord_value(stored_dec) is not None
+            ):
+                coords = (stored_ra, stored_dec)
+            else:
+                coords = resolve_coordinates(name, fallback_fits_paths=fallback_paths)
+                if coords is None:
+                    unresolved.append(name)
+                    continue
+                db_service.add_coord(name, coords[0], coords[1])
             compute_center(
                 name,
                 image_path,
@@ -716,6 +729,7 @@ def compute_image_embeddings(
     k=10,
     checkpoint_path=None,
     device=None,
+    home_dir=None,
 ):
     from db import connect_db
     from db_service import DatabaseService
@@ -732,6 +746,8 @@ def compute_image_embeddings(
     if sqlite_db_path:
         inputs["db_engine"] = "sqlite"
         inputs["sqlite_db_path"] = sqlite_db_path
+    if home_dir:
+        inputs["home_dir"] = home_dir
 
     db_password = resolve_db_password(inputs, env_vars)
     mydb, mycursor, db_user, db_host, db_name = connect_db(inputs, db_password)
@@ -861,6 +877,14 @@ def parse_args(argv):
         help="Torch device for --compute-embeddings (default: cuda if available).",
     )
     parser.add_argument(
+        "--home-dir",
+        help=(
+            "Chandra data directory (one folder per cluster with broad_flux.img). "
+            "Overrides home_dir from the input/defaults file for "
+            "--recompute-centers and --compute-embeddings."
+        ),
+    )
+    parser.add_argument(
         "--sqlite-db",
         help=(
             "SQLite DB path override. In backfill mode, this forces SQLite "
@@ -916,6 +940,7 @@ def main(argv=None):
             input_path=args.input_path,
             defaults_path=args.defaults,
             sqlite_db_path=args.sqlite_db,
+            home_dir=args.home_dir,
         )
     if args.recompute_double_beta:
         return recompute_double_beta(
@@ -932,6 +957,7 @@ def main(argv=None):
             k=args.embed_neighbors,
             checkpoint_path=args.embed_checkpoint,
             device=args.embed_device,
+            home_dir=args.home_dir,
         )
     if args.input_path:
         return run_pipeline(args.input_path)

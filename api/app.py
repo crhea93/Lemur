@@ -282,7 +282,7 @@ def index_page():
 
 
 @app.get("/cluster/{name}")
-def cluster_page(_name: str):
+def cluster_page(name: str):
     return FileResponse(WEB_DIR / "cluster.html")
 
 

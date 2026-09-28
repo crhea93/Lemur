@@ -74,23 +74,19 @@ The canonical center (`Pipeline/center.py`) is the X-ray emission peak: a
 band-pass smoothed flux image with chip edges (from `broad_thresh.expmap`) and
 point sources masked, preferring the peak within 4' of the catalog position.
 
-AstroCLIP needs its own environment. Its README pins torch 2.0, which predates
-recent GPUs (e.g. RTX 50xx needs torch>=2.7 with CUDA 12.8); a newer torch works:
+Workflow (set `LEMUR_CHANDRA_DIR` in `.env.local` first, see `.env.example`):
 ```bash
-conda create -n lemur-astroclip python=3.11
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
-pip install lightning omegaconf fvcore iopath jaxtyping huggingface_hub astropy \
-    scipy matplotlib "numpy<2" datasets scikit-image python-dotenv h5py joblib submitit
-pip install --no-deps git+https://github.com/facebookresearch/dinov2.git@2302b6bf46953431b969155307b9bed152754069
-pip install --no-deps git+https://github.com/PolymathicAI/AstroCLIP.git
+make astroclip-env     # once: conda env with torch + AstroCLIP (+ the API server)
+npx wrangler login     # once: Cloudflare auth for pull-db / publish
+make pull-db           # once: copy the live D1 database to api/data/lemur.db
+make similar           # recompute centers, embeddings, and neighbors
+make serve             # preview at http://localhost:8000/cluster/Abell133
+make publish-similar   # push only similar_clusters to D1, then deploy the site
 ```
-
-Then run (the checkpoint downloads from `polymathic-ai/astroclip` on first use):
-```bash
-lemur-pipeline --compute-embeddings --defaults inputs/template.i \
-    --embed-cutout-size 512 --embed-neighbors 10 [--embed-device cuda]
-make sync-d1   # push similar_clusters to Cloudflare D1
-```
+`publish-similar` leaves Clusters/Obsids/Region in D1 untouched. The AstroCLIP
+checkpoint downloads from `polymathic-ai/astroclip` on first use. AstroCLIP's
+README pins torch 2.0, which predates recent GPUs, so `make astroclip-env`
+installs a current CUDA 12.8 torch instead.
 
 ## API
 Primary endpoints:
