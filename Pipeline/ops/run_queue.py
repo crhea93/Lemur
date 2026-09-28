@@ -358,6 +358,17 @@ def process_one_run(args, db, run_row, defaults_values):
         )
         set_processing_status_for_all_obsids(db, run_id, "done")
         update_run_status(db, run_id, "completed")
+        if args.post_run_cmd:
+            post_cmd = args.post_run_cmd.format(
+                cluster=cluster_pipeline,
+                obsids=",".join(obsids),
+                dest=str(data_root),
+            )
+            log_line(f"[post-run] running: {post_cmd}", log_handle)
+            try:
+                run_command_tee(shlex.split(post_cmd), str(repo_root), log_handle)
+            except Exception as exc:
+                log_line(f"[post-run] failed (run still completed): {exc}", log_handle)
 
     print(f"Completed run_id={run_id}. Log: {log_path}")
 
@@ -438,6 +449,13 @@ def build_parser():
         ),
     )
     parser.add_argument("--skip-download", action="store_true")
+    parser.add_argument(
+        "--post-run-cmd",
+        help=(
+            "Command run after each completed run; supports {cluster}, {obsids} "
+            "and {dest}. Failures are logged without failing the run."
+        ),
+    )
     parser.add_argument("--retry-failed", action="store_true")
     parser.add_argument(
         "--recover-interrupted",

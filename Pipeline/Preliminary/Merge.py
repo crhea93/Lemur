@@ -52,7 +52,10 @@ def merge_objects(Obsids, output_name, clean="yes"):
         merged_evt = output_dir / "merged_evt.fits"
         if merged_evt.exists():
             repo_root = Path(__file__).resolve().parents[2]
-            fits_dir = repo_root / "api" / "data" / "fits" / output_dir.name
+            fits_root = Path(
+                os.getenv("LEMUR_FITS_DIR", str(repo_root / "api" / "data" / "fits"))
+            ).expanduser()
+            fits_dir = fits_root / output_dir.name
             fits_dir.mkdir(parents=True, exist_ok=True)
             dest = fits_dir / f"{output_dir.name}.fits"
             shutil.copy2(merged_evt, dest)
