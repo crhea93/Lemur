@@ -1,6 +1,7 @@
 import io
 import os
 import re
+import sqlite3
 import urllib.parse
 import urllib.request
 import zipfile
@@ -160,6 +161,44 @@ def cluster_detail(name: str):
             "base_url": f"/Cluster_plots/{name}",
             "files": plots,
         },
+    }
+
+
+@app.get("/api/clusters/{name}/similar")
+def similar_clusters(name: str, limit: int = 10):
+    ensure_db()
+    limit = max(1, min(limit, 50))
+    query = """
+        SELECT s.NeighborName, s.rank, s.similarity, s.model
+        FROM similar_clusters s
+        JOIN Clusters c ON c.Name = s.NeighborName
+        WHERE s.ClusterName = ?
+        ORDER BY s.rank
+        LIMIT ?
+    """
+    with get_conn() as conn:
+        try:
+            rows = conn.execute(query, (name, limit)).fetchall()
+        except sqlite3.OperationalError:
+            # Table is absent until the pipeline's --compute-embeddings pass runs.
+            rows = []
+
+    neighbors = [
+        {
+            "name": row["NeighborName"],
+            "rank": row["rank"],
+            "similarity": row["similarity"],
+            "cluster_url": f"/cluster.html?name={urllib.parse.quote(row['NeighborName'])}",
+            "preview_url": (
+                f"/Cluster_plots/{urllib.parse.quote(row['NeighborName'])}/bkgsub_exp.png"
+            ),
+        }
+        for row in rows
+    ]
+    return {
+        "name": name,
+        "model": rows[0]["model"] if rows else None,
+        "neighbors": neighbors,
     }
 
 

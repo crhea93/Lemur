@@ -223,6 +223,42 @@ async function handleClusterDetail(env, request, name) {
   });
 }
 
+async function handleSimilarClusters(env, request, name) {
+  const url = new URL(request.url);
+  const requested = Number.parseInt(url.searchParams.get("limit") || "10", 10);
+  const limit = Math.max(1, Math.min(Number.isNaN(requested) ? 10 : requested, 50));
+
+  let rows = [];
+  try {
+    const res = await env.DB.prepare(
+      `SELECT s.NeighborName, s.rank, s.similarity, s.model
+       FROM similar_clusters s
+       JOIN Clusters c ON c.Name = s.NeighborName
+       WHERE s.ClusterName = ?
+       ORDER BY s.rank
+       LIMIT ?`,
+    )
+      .bind(name, limit)
+      .all();
+    rows = res.results || [];
+  } catch {
+    // Table is absent until embeddings have been synced to D1.
+    rows = [];
+  }
+
+  return json({
+    name,
+    model: rows.length ? rows[0].model : null,
+    neighbors: rows.map((row) => ({
+      name: row.NeighborName,
+      rank: row.rank,
+      similarity: row.similarity,
+      cluster_url: `/cluster.html?name=${encodeURIComponent(row.NeighborName)}`,
+      preview_url: `/Cluster_plots/${encodeURIComponent(row.NeighborName)}/bkgsub_exp.png`,
+    })),
+  });
+}
+
 async function handleFitsDownload(env, _request, name) {
   if (!env.FITS || typeof env.FITS.get !== "function") {
     return json({ detail: "FITS storage binding is not configured" }, 500);
@@ -264,6 +300,12 @@ async function handleApi(env, request, pathname) {
   }
   if (pathname === "/api/resolve-name") {
     return handleResolveName(request);
+  }
+
+  const similarMatch = pathname.match(/^\/api\/clusters\/(.+)\/similar$/);
+  if (similarMatch) {
+    const name = decodeSegment(similarMatch[1]);
+    return handleSimilarClusters(env, request, name);
   }
 
   const clusterMatch = pathname.match(/^\/api\/clusters\/(.+)$/);

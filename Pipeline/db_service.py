@@ -12,9 +12,12 @@ from Database.Add_new import (
     add_r_cool,
     get_center,
     get_double_beta_fit,
+    get_embeddings,
     get_id,
+    replace_similar_clusters,
     upsert_center,
     upsert_double_beta_fit,
+    upsert_embedding,
 )
 
 
@@ -51,6 +54,17 @@ class DatabaseService:
 
     def get_double_beta_fit(self, cluster_name):
         return get_double_beta_fit(self.mydb, self.mycursor, cluster_name)
+
+    def upsert_embedding(self, cluster_name, *args, **kwargs):
+        return upsert_embedding(
+            self.mydb, self.mycursor, cluster_name, *args, **kwargs
+        )
+
+    def get_embeddings(self, model):
+        return get_embeddings(self.mydb, self.mycursor, model)
+
+    def replace_similar_clusters(self, model, neighbors):
+        return replace_similar_clusters(self.mydb, self.mycursor, model, neighbors)
 
     def add_r_cool(self, cluster_id, cluster_name, *args, **kwargs):
         return add_r_cool(

@@ -708,6 +708,69 @@ def recompute_double_beta(input_path=None, defaults_path=None, sqlite_db_path=No
     return None
 
 
+def compute_image_embeddings(
+    input_path=None,
+    defaults_path=None,
+    sqlite_db_path=None,
+    cutout_size=512,
+    k=10,
+    checkpoint_path=None,
+    device=None,
+):
+    from db import connect_db
+    from db_service import DatabaseService
+    from embeddings import compute_embeddings, make_astroclip_encoder
+
+    if input_path:
+        inputs, _merge_bool, env_vars = load_config(input_path)
+    else:
+        defaults = defaults_path or str(
+            Path(__file__).resolve().parent.parent / "inputs" / "template.i"
+        )
+        inputs, _merge_bool, env_vars = load_config(defaults)
+
+    if sqlite_db_path:
+        inputs["db_engine"] = "sqlite"
+        inputs["sqlite_db_path"] = sqlite_db_path
+
+    db_password = resolve_db_password(inputs, env_vars)
+    mydb, mycursor, db_user, db_host, db_name = connect_db(inputs, db_password)
+    db_service = DatabaseService(mydb, mycursor, db_user, db_password, db_host, db_name)
+
+    try:
+        mycursor.execute("SELECT Name FROM Clusters")
+        rows = mycursor.fetchall()
+        names = [row[0] for row in rows if row and row[0]]
+        print(f"Found {len(names)} clusters to embed with AstroCLIP")
+
+        encode = make_astroclip_encoder(checkpoint_path=checkpoint_path, device=device)
+        unresolved = compute_embeddings(
+            names,
+            inputs.get("home_dir", ""),
+            db_service,
+            encode,
+            cutout_size=cutout_size,
+            k=k,
+        )
+
+        print(f"Embedding complete. Embedded {len(names) - len(unresolved)} clusters.")
+        if unresolved:
+            print(f"Could not embed {len(unresolved)} clusters.")
+            preview = ", ".join(unresolved[:20])
+            if preview:
+                print(f"Unresolved (first 20): {preview}")
+    finally:
+        try:
+            mycursor.close()
+        except Exception:
+            pass
+        try:
+            mydb.close()
+        except Exception:
+            pass
+    return None
+
+
 def parse_args(argv):
     parser = argparse.ArgumentParser(
         description=(
@@ -767,6 +830,37 @@ def parse_args(argv):
         ),
     )
     parser.add_argument(
+        "--compute-embeddings",
+        action="store_true",
+        help=(
+            "Embed each cluster's broad_flux.img cutout (centered on the canonical "
+            "center) with AstroCLIP and rebuild the similar_clusters table."
+        ),
+    )
+    parser.add_argument(
+        "--embed-cutout-size",
+        type=int,
+        default=512,
+        help="Cutout size in pixels for --compute-embeddings (default: 512).",
+    )
+    parser.add_argument(
+        "--embed-neighbors",
+        type=int,
+        default=10,
+        help="Number of similar clusters stored per cluster (default: 10).",
+    )
+    parser.add_argument(
+        "--embed-checkpoint",
+        help=(
+            "Local AstroCLIP checkpoint path. Defaults to downloading "
+            "polymathic-ai/astroclip from Hugging Face."
+        ),
+    )
+    parser.add_argument(
+        "--embed-device",
+        help="Torch device for --compute-embeddings (default: cuda if available).",
+    )
+    parser.add_argument(
         "--sqlite-db",
         help=(
             "SQLite DB path override. In backfill mode, this forces SQLite "
@@ -778,19 +872,25 @@ def parse_args(argv):
     using_backfill = bool(args.backfill_missing_coords)
     using_recompute_centers = bool(args.recompute_centers)
     using_recompute_double_beta = bool(args.recompute_double_beta)
+    using_embeddings = bool(args.compute_embeddings)
+    maintenance_modes = [
+        using_backfill,
+        using_recompute_centers,
+        using_recompute_double_beta,
+        using_embeddings,
+    ]
     using_legacy = bool(args.input_path)
     using_new = bool(args.cluster or args.obsids)
-    if (
-        using_backfill or using_recompute_centers or using_recompute_double_beta
-    ) and using_new:
+    if any(maintenance_modes) and using_new:
         parser.error(
             "Backfill/recompute mode cannot be combined with --cluster/--obsids."
         )
-    if sum([using_backfill, using_recompute_centers, using_recompute_double_beta]) > 1:
+    if sum(maintenance_modes) > 1:
         parser.error(
-            "Use only one of --backfill-missing-coords, --recompute-centers, or --recompute-double-beta."
+            "Use only one of --backfill-missing-coords, --recompute-centers, "
+            "--recompute-double-beta, or --compute-embeddings."
         )
-    if using_backfill or using_recompute_centers or using_recompute_double_beta:
+    if any(maintenance_modes):
         return args
     if using_legacy and using_new:
         parser.error(
@@ -822,6 +922,16 @@ def main(argv=None):
             input_path=args.input_path,
             defaults_path=args.defaults,
             sqlite_db_path=args.sqlite_db,
+        )
+    if args.compute_embeddings:
+        return compute_image_embeddings(
+            input_path=args.input_path,
+            defaults_path=args.defaults,
+            sqlite_db_path=args.sqlite_db,
+            cutout_size=args.embed_cutout_size,
+            k=args.embed_neighbors,
+            checkpoint_path=args.embed_checkpoint,
+            device=args.embed_device,
         )
     if args.input_path:
         return run_pipeline(args.input_path)

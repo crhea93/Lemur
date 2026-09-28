@@ -166,6 +166,28 @@ def ensure_sqlite_schema(conn):
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
 
+        CREATE TABLE IF NOT EXISTS image_embedding (
+            ID INTEGER,
+            ClusterName TEXT NOT NULL,
+            model TEXT NOT NULL,
+            dim INTEGER NOT NULL,
+            embedding BLOB NOT NULL,
+            cutout_size INTEGER,
+            center_ra REAL,
+            center_dec REAL,
+            image_path TEXT,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS similar_clusters (
+            ClusterName TEXT NOT NULL,
+            NeighborName TEXT NOT NULL,
+            rank INTEGER NOT NULL,
+            similarity REAL NOT NULL,
+            model TEXT NOT NULL,
+            PRIMARY KEY (ClusterName, model, rank)
+        );
+
         CREATE INDEX IF NOT EXISTS idx_clusters_name ON Clusters (Name);
         CREATE INDEX IF NOT EXISTS idx_clusters_id ON Clusters (ID);
         CREATE INDEX IF NOT EXISTS idx_obsids_cluster ON Obsids (ClusterNumber);
@@ -174,6 +196,8 @@ def ensure_sqlite_schema(conn):
             ON cluster_center (ClusterName);
         CREATE UNIQUE INDEX IF NOT EXISTS idx_double_beta_cluster_name
             ON double_beta_fit (ClusterName);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_embedding_cluster_model
+            ON image_embedding (ClusterName, model);
         """
     )
     conn.commit()

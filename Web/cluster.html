@@ -316,6 +316,41 @@
                 font-size: 0.75rem;
             }
 
+            .similar-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+                gap: 16px;
+            }
+
+            .similar-grid a {
+                color: inherit;
+                text-decoration: none;
+            }
+
+            .similar-grid .plot-card img {
+                aspect-ratio: 1;
+                object-fit: cover;
+                background: #000;
+            }
+
+            .similar-grid .plot-card h4 {
+                letter-spacing: 0.08em;
+                overflow-wrap: anywhere;
+            }
+
+            .similar-score {
+                display: block;
+                margin-top: 4px;
+                font-size: 0.75rem;
+                color: var(--ink-2);
+            }
+
+            .section-note {
+                margin: -8px 0 16px;
+                font-size: 0.85rem;
+                color: var(--ink-2);
+            }
+
             @media (max-width: 980px) {
                 .hero-content {
                     grid-template-columns: 1fr;
@@ -346,6 +381,17 @@
                         FITS download: cleaned 0.5-7.0 keV unbinned image.
                     </div>
                 </div>
+            </div>
+        </section>
+
+        <section class="section" id="similar-section" hidden>
+            <h2>Similar clusters</h2>
+            <p class="section-note">
+                Nearest neighbors by AstroCLIP embedding of the Chandra
+                broad-band image around the cluster center.
+            </p>
+            <div class="panel">
+                <div class="similar-grid" id="similar-clusters"></div>
             </div>
         </section>
 
@@ -522,7 +568,45 @@
                 }
             }
 
+            async function loadSimilar(name) {
+                const section = document.getElementById("similar-section");
+                if (!name) {
+                    return;
+                }
+                try {
+                    const response = await fetch(
+                        `/api/clusters/${encodeURIComponent(name)}/similar`,
+                    );
+                    if (!response.ok) {
+                        return;
+                    }
+                    const data = await response.json();
+                    const neighbors = data.neighbors || [];
+                    if (!neighbors.length) {
+                        return;
+                    }
+                    document.getElementById("similar-clusters").innerHTML =
+                        neighbors
+                            .map(
+                                (item) => `
+                                <a href="${item.cluster_url}">
+                                    <div class="plot-card">
+                                        <img src="${item.preview_url}" alt="${item.name}" loading="lazy" />
+                                        <h4>${item.name}</h4>
+                                        <span class="similar-score">cosine similarity ${Number(item.similarity).toFixed(3)}</span>
+                                    </div>
+                                </a>
+                            `,
+                            )
+                            .join("");
+                    section.hidden = false;
+                } catch (err) {
+                    section.hidden = true;
+                }
+            }
+
             loadCluster();
+            loadSimilar(getClusterName());
         </script>
     </body>
 </html>

@@ -161,7 +161,7 @@ trap cleanup EXIT
 if [[ "$SKIP_D1" -eq 0 ]]; then
     echo "==> Exporting SQLite data to SQL for D1 import"
     if [[ "$DRY_RUN" -eq 1 ]]; then
-        echo "[dry-run] generate INSERT-only SQL for Clusters/Obsids/Region into '$D1_DATA_SQL'"
+        echo "[dry-run] generate INSERT-only SQL for Clusters/Obsids/Region/similar_clusters into '$D1_DATA_SQL'"
     else
         {
             echo "DELETE FROM Region;"
@@ -170,6 +170,11 @@ if [[ "$SKIP_D1" -eq 0 ]]; then
             sqlite3 "$SQLITE_DB_PATH" ".mode insert Clusters" "SELECT * FROM Clusters;"
             sqlite3 "$SQLITE_DB_PATH" ".mode insert Obsids" "SELECT * FROM Obsids;"
             sqlite3 "$SQLITE_DB_PATH" ".mode insert Region" "SELECT * FROM Region;"
+            if [[ -n "$(sqlite3 "$SQLITE_DB_PATH" "SELECT name FROM sqlite_master WHERE type='table' AND name='similar_clusters';")" ]]; then
+                echo "DELETE FROM similar_clusters;"
+                sqlite3 "$SQLITE_DB_PATH" ".mode insert similar_clusters" \
+                    "SELECT ClusterName, NeighborName, rank, similarity, model FROM similar_clusters;"
+            fi
         } > "$D1_DATA_SQL"
     fi
 

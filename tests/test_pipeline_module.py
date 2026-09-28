@@ -147,3 +147,25 @@ def test_resolve_coordinates_uses_fits_header_when_services_fail(tmp_path, monke
         "UnknownName", fallback_fits_paths=[str(path)]
     )
     assert result == (200.123, -10.456)
+
+
+def test_parse_args_compute_embeddings_mode():
+    args = pipeline.parse_args(
+        ["--compute-embeddings", "--embed-neighbors", "5", "--sqlite-db", "x.db"]
+    )
+    assert args.compute_embeddings is True
+    assert args.embed_neighbors == 5
+    assert args.embed_cutout_size == 512
+    assert args.sqlite_db == "x.db"
+
+
+def test_parse_args_rejects_multiple_maintenance_modes():
+    with pytest.raises(SystemExit):
+        pipeline.parse_args(["--compute-embeddings", "--recompute-centers"])
+
+
+def test_parse_args_rejects_embeddings_with_new_mode():
+    with pytest.raises(SystemExit):
+        pipeline.parse_args(
+            ["--compute-embeddings", "--cluster", "Abell133", "--obsids", "2203"]
+        )
