@@ -8,7 +8,13 @@ is written to ``similar_clusters`` for the API/website.
 AstroCLIP was trained on DESI Legacy Survey g/r/z cutouts, so Chandra
 broad-band images are out of distribution: the single X-ray band is replicated
 into three channels and the cutout is resampled to the 144x144 input size the
-encoder was trained on. Treat neighbors as morphological similarity, not a
+encoder was trained on.
+
+Cutout sizes are in native ACIS pixels (0.492"), so a 512 pixel cutout always
+covers 4.2' whatever the binning of broad_flux.img. Every cutout is first
+area-resampled onto a common 8x-binned grid (3.936"/px) and only then
+stretched, so 1x- and 8x-binned images look alike to the encoder and the
+stretch percentiles are not dominated by single-photon pixels. Treat neighbors as morphological similarity, not a
 calibrated physical match.
 
 Heavy dependencies (torch, astroclip, astropy, huggingface_hub) are imported
@@ -23,18 +29,35 @@ MODEL_NAME = "astroclip-chandra-broad"
 HF_REPO_ID = "polymathic-ai/astroclip"
 HF_CHECKPOINT = "astroclip.ckpt"
 MODEL_INPUT_SIZE = 144
+ACIS_PIXEL_ARCSEC = 0.492
+COMMON_PIXEL_ARCSEC = 3.936
+# Gaussian smoothing on the common grid before stretching, in grid pixels.
+SMOOTH_SIGMA = 1.5
 DEFAULT_CUTOUT_SIZE = 512
 DEFAULT_NEIGHBORS = 10
 
 
-def make_cutout(image_path, center_ra, center_dec, size=DEFAULT_CUTOUT_SIZE):
-    """Return a ``size`` x ``size`` cutout centered on (RA, Dec) in degrees.
-
-    Regions falling off the detector are zero-filled so every cutout has the
-    same shape and the cluster center stays at the middle pixel.
-    """
+def _sky_coord(ra, dec):
+    """Build a SkyCoord from degrees or sexagesimal strings (``hh:mm:ss``)."""
     from astropy import units as u
     from astropy.coordinates import SkyCoord
+
+    if isinstance(ra, str) and ":" in ra:
+        return SkyCoord(ra, str(dec), unit=(u.hourangle, u.deg), frame="fk5")
+    return SkyCoord(float(ra) * u.deg, float(dec) * u.deg, frame="fk5")
+
+
+def make_cutout(image_path, center_ra, center_dec, size=DEFAULT_CUTOUT_SIZE):
+    """Return a square cutout ``size`` native ACIS pixels on a side.
+
+    The cutout spans ``size * 0.492`` arcsec regardless of the image binning,
+    so its pixel shape depends on the image. RA/Dec may be degrees or
+    sexagesimal strings, as stored in Clusters.
+
+    Regions falling off the detector are zero-filled so the cluster center
+    stays at the middle of the cutout.
+    """
+    from astropy import units as u
     from astropy.io import fits
     from astropy.nddata import Cutout2D
     from astropy.wcs import WCS
@@ -42,16 +65,65 @@ def make_cutout(image_path, center_ra, center_dec, size=DEFAULT_CUTOUT_SIZE):
     with fits.open(image_path) as hdul:
         data = np.array(hdul[0].data, dtype=np.float32)
         wcs = WCS(hdul[0].header)
-    coord = SkyCoord(center_ra * u.deg, center_dec * u.deg, frame="fk5")
+    coord = _sky_coord(center_ra, center_dec)
     cutout = Cutout2D(
         data,
         position=coord,
-        size=(size, size),
-        wcs=wcs,
+        size=u.Quantity((size, size)) * ACIS_PIXEL_ARCSEC * u.arcsec,
+        wcs=wcs.celestial,
         mode="partial",
         fill_value=0.0,
     )
     return np.asarray(cutout.data, dtype=np.float32)
+
+
+def common_grid_size(size=DEFAULT_CUTOUT_SIZE):
+    """Pixels per side of a ``size`` native-pixel cutout on the common grid."""
+    return max(1, int(round(size * ACIS_PIXEL_ARCSEC / COMMON_PIXEL_ARCSEC)))
+
+
+def _area_weights(n_in, n_out):
+    """(n_out, n_in) matrix averaging input pixels by fractional overlap."""
+    edges_in = np.arange(n_in + 1) / n_in
+    edges_out = np.arange(n_out + 1) / n_out
+    lo = np.maximum(edges_out[:-1, None], edges_in[None, :-1])
+    hi = np.minimum(edges_out[1:, None], edges_in[None, 1:])
+    overlap = np.clip(hi - lo, 0.0, None)
+    return overlap / overlap.sum(axis=1, keepdims=True)
+
+
+def area_resample(image, out_size):
+    """Flux-conserving (mean-preserving) resample to ``out_size`` x ``out_size``."""
+    data = np.nan_to_num(np.asarray(image, dtype=np.float64), nan=0.0)
+    rows = _area_weights(data.shape[0], out_size)
+    cols = _area_weights(data.shape[1], out_size)
+    return (rows @ data @ cols.T).astype(np.float32)
+
+
+def gaussian_smooth(image, sigma):
+    """Separable Gaussian smoothing with zero padding (numpy only)."""
+    if sigma <= 0:
+        return np.asarray(image, dtype=np.float32)
+    radius = max(1, int(np.ceil(3 * sigma)))
+    x = np.arange(-radius, radius + 1)
+    kernel = np.exp(-0.5 * (x / sigma) ** 2)
+    kernel /= kernel.sum()
+    data = np.asarray(image, dtype=np.float64)
+    data = np.apply_along_axis(np.convolve, 0, data, kernel, mode="same")
+    data = np.apply_along_axis(np.convolve, 1, data, kernel, mode="same")
+    return data.astype(np.float32)
+
+
+def prepare_image(cutout, grid_size, smooth_sigma=SMOOTH_SIGMA):
+    """Resample onto the common grid, smooth, then stretch into [0, 1].
+
+    Smoothing (as in ``imaging.create_src_img``) turns sparse single-photon
+    pixels into visible diffuse emission; without it low-count observations
+    stretch to near-black frames that all embed identically.
+    """
+    return stretch_image(
+        gaussian_smooth(area_resample(cutout, grid_size), smooth_sigma)
+    )
 
 
 def stretch_image(image, lower_pct=5.0, upper_pct=99.7, asinh_a=0.08):
@@ -78,7 +150,7 @@ def stretch_image(image, lower_pct=5.0, upper_pct=99.7, asinh_a=0.08):
 
 
 def to_model_batch(images, input_size=MODEL_INPUT_SIZE):
-    """Stack stretched 2D images into a (N, 3, input_size, input_size) tensor."""
+    """Stack equally sized 2D images into a (N, 3, input_size, input_size) tensor."""
     import torch
     import torch.nn.functional as F
 
@@ -104,7 +176,11 @@ def load_astroclip(checkpoint_path=None, device=None):
         checkpoint_path = hf_hub_download(HF_REPO_ID, HF_CHECKPOINT)
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = AstroClipModel.load_from_checkpoint(checkpoint_path, map_location=device)
+    # The published checkpoint pickles full modules (e.g. ImageHead), which
+    # torch>=2.6 rejects under its weights_only default. Only load trusted files.
+    model = AstroClipModel.load_from_checkpoint(
+        checkpoint_path, map_location=device, weights_only=False
+    )
     model.eval()
     model.to(device)
     return model, device
@@ -178,6 +254,7 @@ def compute_embeddings(
     ``make_astroclip_encoder()`` in production. Returns the list of clusters
     that could not be embedded.
     """
+    grid_size = common_grid_size(cutout_size)
     embedded_names = []
     images = []
     metadata = []
@@ -202,7 +279,7 @@ def compute_embeddings(
             unresolved.append(name)
             continue
         embedded_names.append(name)
-        images.append(stretch_image(cutout))
+        images.append(prepare_image(cutout, grid_size))
         metadata.append((center["center_ra"], center["center_dec"], str(image_path)))
 
     if images:

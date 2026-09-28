@@ -58,22 +58,31 @@ lemur-pipeline --cluster Abell133 --obsids 2203,9897
 ```
 
 ### Similar clusters (AstroCLIP embeddings)
-`--compute-embeddings` cuts a 512x512 pixel region of each cluster's
-`broad_flux.img` around the canonical center, applies the same asinh stretch as
-the web image, and embeds it with the [AstroCLIP](https://github.com/PolymathicAI/AstroCLIP)
-image encoder (resampled to its 144x144 input, X-ray band copied into 3 channels).
+`--compute-embeddings` cuts a region 512 native ACIS pixels (4.2') on a side
+from each cluster's `broad_flux.img` around the canonical center, whatever the
+image binning. Each cutout is area-resampled onto a common 3.936"/px grid,
+smoothed, and asinh-stretched like the web image, then embedded with the
+[AstroCLIP](https://github.com/PolymathicAI/AstroCLIP) image encoder
+(resampled to its 144x144 input, X-ray band copied into 3 channels).
 Embeddings are stored in `image_embedding`; the cosine top-k neighbors are
 written to `similar_clusters` and served at `GET /api/clusters/{name}/similar`.
 
 AstroCLIP was trained on optical Legacy Survey cutouts, so on Chandra images it
 is out of distribution: treat neighbors as morphological similarity.
 
-AstroCLIP needs its own environment (see its README for the pinned
-torch/DINOv2 versions), e.g.:
+The canonical center (`Pipeline/center.py`) is the X-ray emission peak: a
+band-pass smoothed flux image with chip edges (from `broad_thresh.expmap`) and
+point sources masked, preferring the peak within 4' of the catalog position.
+
+AstroCLIP needs its own environment. Its README pins torch 2.0, which predates
+recent GPUs (e.g. RTX 50xx needs torch>=2.7 with CUDA 12.8); a newer torch works:
 ```bash
+conda create -n lemur-astroclip python=3.11
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+pip install lightning omegaconf fvcore iopath jaxtyping huggingface_hub astropy \
+    scipy matplotlib "numpy<2" datasets scikit-image python-dotenv h5py joblib submitit
 pip install --no-deps git+https://github.com/facebookresearch/dinov2.git@2302b6bf46953431b969155307b9bed152754069
 pip install --no-deps git+https://github.com/PolymathicAI/AstroCLIP.git
-pip install huggingface_hub astropy
 ```
 
 Then run (the checkpoint downloads from `polymathic-ai/astroclip` on first use):

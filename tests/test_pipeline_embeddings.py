@@ -151,3 +151,25 @@ def test_compute_embeddings_rerun_replaces_neighbors(tmp_path):
     assert service.mycursor.fetchone()[0] == 2
     service.mycursor.execute("SELECT COUNT(*) FROM image_embedding")
     assert service.mycursor.fetchone()[0] == 2
+
+
+def test_area_resample_preserves_mean_and_shape():
+    rng = np.random.default_rng(1)
+    image = rng.poisson(0.05, size=(512, 512)).astype(np.float32)
+    out = embeddings.area_resample(image, 64)
+    assert out.shape == (64, 64)
+    assert out.mean() == pytest.approx(image.mean(), rel=1e-5)
+    # Exact block averaging when the factor is an integer.
+    np.testing.assert_allclose(
+        out, image.reshape(64, 8, 64, 8).mean(axis=(1, 3)), rtol=1e-5
+    )
+
+
+def test_area_resample_handles_non_integer_factors():
+    out = embeddings.area_resample(np.ones((65, 70)), 64)
+    assert out.shape == (64, 64)
+    np.testing.assert_allclose(out, 1.0, rtol=1e-6)
+
+
+def test_common_grid_size_matches_eight_times_binning():
+    assert embeddings.common_grid_size(512) == 64
