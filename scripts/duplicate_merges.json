@@ -1,0 +1,379 @@
+[
+  {
+    "canonical": "Abell1240",
+    "survivor": {
+      "id": 98,
+      "name": "A1240"
+    },
+    "dropped": [
+      {
+        "id": 415,
+        "name": "Abell1240"
+      }
+    ]
+  },
+  {
+    "canonical": "Abell1351",
+    "survivor": {
+      "id": 104,
+      "name": "A1351"
+    },
+    "dropped": [
+      {
+        "id": 304,
+        "name": "ACO1351"
+      }
+    ]
+  },
+  {
+    "canonical": "Abell1650",
+    "survivor": {
+      "id": 419,
+      "name": "Abell1650"
+    },
+    "dropped": [
+      {
+        "id": 117,
+        "name": "A1650"
+      }
+    ]
+  },
+  {
+    "canonical": "Abell1682",
+    "survivor": {
+      "id": 424,
+      "name": "Abell1682"
+    },
+    "dropped": [
+      {
+        "id": 120,
+        "name": "A1682"
+      }
+    ]
+  },
+  {
+    "canonical": "Abell1758",
+    "survivor": {
+      "id": 425,
+      "name": "Abell1758"
+    },
+    "dropped": [
+      {
+        "id": 124,
+        "name": "A1758"
+      }
+    ]
+  },
+  {
+    "canonical": "Abell1763",
+    "survivor": {
+      "id": 426,
+      "name": "Abell1763"
+    },
+    "dropped": [
+      {
+        "id": 125,
+        "name": "A1763"
+      }
+    ]
+  },
+  {
+    "canonical": "Abell1835",
+    "survivor": {
+      "id": 131,
+      "name": "A1835"
+    },
+    "dropped": [
+      {
+        "id": 262,
+        "name": "Abell1835"
+      }
+    ]
+  },
+  {
+    "canonical": "Abell1914",
+    "survivor": {
+      "id": 431,
+      "name": "Abell1914"
+    },
+    "dropped": [
+      {
+        "id": 136,
+        "name": "A1914"
+      }
+    ]
+  },
+  {
+    "canonical": "Abell2029",
+    "survivor": {
+      "id": 438,
+      "name": "Abell2029"
+    },
+    "dropped": [
+      {
+        "id": 141,
+        "name": "A2029"
+      }
+    ]
+  },
+  {
+    "canonical": "Abell2034",
+    "survivor": {
+      "id": 439,
+      "name": "Abell2034"
+    },
+    "dropped": [
+      {
+        "id": 145,
+        "name": "A2034"
+      }
+    ]
+  },
+  {
+    "canonical": "Abell2142",
+    "survivor": {
+      "id": 157,
+      "name": "A2142"
+    },
+    "dropped": [
+      {
+        "id": 443,
+        "name": "Abell2142"
+      }
+    ]
+  },
+  {
+    "canonical": "Abell2163",
+    "survivor": {
+      "id": 160,
+      "name": "A2163"
+    },
+    "dropped": [
+      {
+        "id": 270,
+        "name": "Abell2163"
+      }
+    ]
+  },
+  {
+    "canonical": "Abell2256",
+    "survivor": {
+      "id": 162,
+      "name": "A2256"
+    },
+    "dropped": [
+      {
+        "id": 449,
+        "name": "Abell2256"
+      }
+    ]
+  },
+  {
+    "canonical": "Abell2319",
+    "survivor": {
+      "id": 186,
+      "name": "A2319"
+    },
+    "dropped": [
+      {
+        "id": 275,
+        "name": "Abell2319"
+      }
+    ]
+  },
+  {
+    "canonical": "Abell2345",
+    "survivor": {
+      "id": 451,
+      "name": "Abell2345"
+    },
+    "dropped": [
+      {
+        "id": 316,
+        "name": "ACO2345"
+      }
+    ]
+  },
+  {
+    "canonical": "Abell2597",
+    "survivor": {
+      "id": 460,
+      "name": "Abell2597"
+    },
+    "dropped": [
+      {
+        "id": 185,
+        "name": "A2597"
+      }
+    ]
+  },
+  {
+    "canonical": "Abell2667",
+    "survivor": {
+      "id": 193,
+      "name": "A2667"
+    },
+    "dropped": [
+      {
+        "id": 281,
+        "name": "Abell2667"
+      }
+    ]
+  },
+  {
+    "canonical": "Abell2744",
+    "survivor": {
+      "id": 463,
+      "name": "Abell2744"
+    },
+    "dropped": [
+      {
+        "id": 195,
+        "name": "A2744"
+      }
+    ]
+  },
+  {
+    "canonical": "Abell3125",
+    "survivor": {
+      "id": 201,
+      "name": "A3125"
+    },
+    "dropped": [
+      {
+        "id": 282,
+        "name": "Abell3125"
+      }
+    ]
+  },
+  {
+    "canonical": "Abell3411",
+    "survivor": {
+      "id": 468,
+      "name": "Abell3411"
+    },
+    "dropped": [
+      {
+        "id": 335,
+        "name": "ACO3411"
+      }
+    ]
+  },
+  {
+    "canonical": "Abell3667",
+    "survivor": {
+      "id": 286,
+      "name": "Abell3667"
+    },
+    "dropped": [
+      {
+        "id": 216,
+        "name": "A3667"
+      }
+    ]
+  },
+  {
+    "canonical": "Abell399",
+    "survivor": {
+      "id": 225,
+      "name": "A399"
+    },
+    "dropped": [
+      {
+        "id": 288,
+        "name": "Abell399"
+      }
+    ]
+  },
+  {
+    "canonical": "Abell586",
+    "survivor": {
+      "id": 479,
+      "name": "Abell586"
+    },
+    "dropped": [
+      {
+        "id": 234,
+        "name": "A586"
+      }
+    ]
+  },
+  {
+    "canonical": "Abell644",
+    "survivor": {
+      "id": 481,
+      "name": "Abell644"
+    },
+    "dropped": [
+      {
+        "id": 235,
+        "name": "A644"
+      }
+    ]
+  },
+  {
+    "canonical": "Abell665",
+    "survivor": {
+      "id": 237,
+      "name": "A665"
+    },
+    "dropped": [
+      {
+        "id": 482,
+        "name": "Abell665"
+      }
+    ]
+  },
+  {
+    "canonical": "Abell85",
+    "survivor": {
+      "id": 485,
+      "name": "Abell85"
+    },
+    "dropped": [
+      {
+        "id": 250,
+        "name": "A85"
+      }
+    ]
+  },
+  {
+    "canonical": "Cartwheel",
+    "survivor": {
+      "id": 1445,
+      "name": "Cartwheel"
+    },
+    "dropped": [
+      {
+        "id": 1389,
+        "name": "CARTWHEEL"
+      }
+    ]
+  },
+  {
+    "canonical": "ComaCluster",
+    "survivor": {
+      "id": 530,
+      "name": "Comacluster"
+    },
+    "dropped": [
+      {
+        "id": 1846,
+        "name": "ComaCluster"
+      }
+    ]
+  },
+  {
+    "canonical": "SgrA",
+    "survivor": {
+      "id": 2249,
+      "name": "SgrA"
+    },
+    "dropped": [
+      {
+        "id": 2243,
+        "name": "SGRA"
+      }
+    ]
+  }
+]

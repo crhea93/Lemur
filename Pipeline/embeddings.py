@@ -21,9 +21,8 @@ Heavy dependencies (torch, astroclip, astropy, huggingface_hub) are imported
 lazily so the numpy-only helpers stay importable in lightweight environments.
 """
 
-from pathlib import Path
-
 import numpy as np
+from cluster_paths import resolve_cluster_file
 
 MODEL_NAME = "astroclip-chandra-broad"
 HF_REPO_ID = "polymathic-ai/astroclip"
@@ -260,10 +259,10 @@ def compute_embeddings(
     metadata = []
     unresolved = []
     for name in names:
-        image_path = Path(home_dir) / name / "broad_flux.img"
+        image_path = resolve_cluster_file(home_dir, name)
         center = db_service.get_center(name)
         if (
-            not image_path.exists()
+            image_path is None
             or center is None
             or center.get("center_ra") is None
             or center.get("center_dec") is None

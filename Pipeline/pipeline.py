@@ -581,6 +581,7 @@ def recompute_centers(
     input_path=None, defaults_path=None, sqlite_db_path=None, home_dir=None
 ):
     from center import compute_center
+    from cluster_paths import resolve_cluster_file
     from db import connect_db
     from db_service import DatabaseService
 
@@ -612,11 +613,12 @@ def recompute_centers(
         for name, stored_ra, stored_dec in rows:
             if not name:
                 continue
-            fallback_paths = _fallback_fits_paths(inputs, name)
-            image_path = fallback_paths[-1] if fallback_paths else None
-            if image_path is None or not Path(image_path).exists():
+            image_file = resolve_cluster_file(inputs.get("home_dir", ""), name)
+            if image_file is None:
                 unresolved.append(name)
                 continue
+            image_path = str(image_file)
+            fallback_paths = [str(image_file.with_name("merged_evt.fits")), image_path]
             # The stored position is only a prior for the X-ray peak search, so
             # look it up (NED/CDS/FITS) only when it is missing.
             if (
@@ -770,8 +772,15 @@ def compute_image_embeddings(
         )
 
         print(f"Embedding complete. Embedded {len(names) - len(unresolved)} clusters.")
+        missing_path = (
+            Path(inputs.get("sqlite_db_path") or "api/data/lemur.db").parent
+            / "missing_images.txt"
+        )
+        missing_path.write_text("".join(f"{name}\n" for name in unresolved))
         if unresolved:
-            print(f"Could not embed {len(unresolved)} clusters.")
+            print(
+                f"Could not embed {len(unresolved)} clusters (full list: {missing_path})."
+            )
             preview = ", ".join(unresolved[:20])
             if preview:
                 print(f"Unresolved (first 20): {preview}")
