@@ -1,6 +1,6 @@
 .PHONY: help deploy sync-all sync-d1 sync-fits dry-run check-chandra-dir \
 	astroclip-env pull-db centers embeddings similar serve publish-similar \
-	flux-images merge-duplicates publish
+	fetch-obsids flux-images merge-duplicates publish paper-stats
 
 # Load local runtime env vars if present (see .env.example).
 -include .env.local
@@ -26,7 +26,10 @@ help:
 	@echo "  make publish-similar  - Push similar_clusters to D1 and deploy the site"
 	@echo "  make publish          - Push ALL tables to D1, fix merged FITS zips, deploy"
 	@echo ""
+	@echo "  make paper-stats      - Catalog numbers, LaTeX macros and figures for the paper (paper/)"
+	@echo ""
 	@echo "Data maintenance:"
+	@echo "  make fetch-obsids     - Download archive files for clusters missing images"
 	@echo "  make flux-images      - Build broad_flux.img (CIAO) for clusters with raw data"
 	@echo "  make merge-duplicates - Apply scripts/duplicate_merges.json to data folders"
 	@echo ""
@@ -84,6 +87,10 @@ embeddings: check-chandra-dir
 
 similar: centers embeddings
 
+paper-stats:
+	$(ASTROCLIP_PYTHON) -W ignore scripts/paper_stats.py --db "$(LEMUR_DB_PATH)" \
+		--data-dir "$(LEMUR_CHANDRA_DIR)" --out paper
+
 serve:
 	@echo "Open http://localhost:$(PORT)/cluster/Abell133 (Ctrl+C to stop)"
 	$(ASTROCLIP_PYTHON) -m uvicorn api.app:app --host 127.0.0.1 --port $(PORT)
@@ -98,6 +105,11 @@ publish:
 	$(SYNC_SCRIPT) --skip-fits
 	python3 scripts/merge_duplicate_clusters.py r2
 	$(WRANGLER) deploy
+
+fetch-obsids: check-chandra-dir
+	python3 scripts/fetch_chandra_obsids.py --sqlite-db "$(LEMUR_DB_PATH)" \
+		--data-dir "$(firstword $(subst :, ,$(LEMUR_CHANDRA_DIR)))" \
+		--search-dirs "$(LEMUR_CHANDRA_DIR)"
 
 CIAO_ENV ?= ciao
 flux-images: check-chandra-dir

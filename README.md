@@ -83,7 +83,26 @@ make similar           # recompute centers, embeddings, and neighbors
 make serve             # preview at http://localhost:8000/cluster/Abell133
 make publish-similar   # push only similar_clusters to D1, then deploy the site
 ```
-`publish-similar` leaves Clusters/Obsids/Region in D1 untouched. The AstroCLIP
+Clusters without a `broad_flux.img` (listed in `api/data/missing_images.txt`
+after `make embeddings`) can be rebuilt from the Chandra archive:
+```bash
+make fetch-obsids      # evt2/asol/bpix/fov/msk/dtf only (~17 MB per ObsID)
+make flux-images       # merge_obs binsize=1, as Pipeline/Preliminary/Merge.py
+make similar
+```
+`make flux-images` needs a CIAO conda env named `ciao`:
+`conda create -n ciao -c https://cxc.cfa.harvard.edu/conda/ciao -c conda-forge ciao ciao-contrib caldb_main`.
+These images use the archive's standard evt2 files (no chandra_repro or flare
+cleaning); run the full pipeline on a cluster for its spectral products.
+
+Clusters stored twice under equivalent names are merged with
+`scripts/merge_duplicate_clusters.py` (plan saved in
+`scripts/duplicate_merges.json`); `make merge-duplicates` applies the same plan
+to another data drive.
+
+`publish-similar` leaves Clusters/Obsids/Region in D1 untouched; after merging
+duplicates use `make publish`, which replaces them from the local DB (start
+from `make pull-db`). The AstroCLIP
 checkpoint downloads from `polymathic-ai/astroclip` on first use. AstroCLIP's
 README pins torch 2.0, which predates recent GPUs, so `make astroclip-env`
 installs a current CUDA 12.8 torch instead.

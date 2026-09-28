@@ -11,9 +11,12 @@ Run inside a CIAO environment, e.g.:
 
 import argparse
 import glob
+import os
 import sqlite3
 import subprocess
 import sys
+import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "Pipeline"))
@@ -62,14 +65,19 @@ def build(name, event_files, out_dir, dry_run=False):
         "cleanup=yes",
         "verbose=0",
     ]
-    print(f"==> {name}: merging {len(event_files)} ObsID(s) -> {out_dir}", flush=True)
     if dry_run:
-        print("    " + " ".join(cmd))
+        print(f"==> {name}: {len(event_files)} ObsID(s)\n    " + " ".join(cmd))
         return True
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    # Parallel CIAO runs must not share parameter files: give each its own
+    # user PFILES directory in front of the system one.
+    with tempfile.TemporaryDirectory() as pfiles:
+        system_pfiles = os.environ.get("PFILES", "").split(";")[-1]
+        env = {**os.environ, "PFILES": f"{pfiles};{system_pfiles}"}
+        result = subprocess.run(cmd, capture_output=True, text=True, env=env)
+    (out_dir / "merge_obs.log").write_text(result.stdout + result.stderr)
     ok = result.returncode == 0 and (out_dir / "broad_flux.img").exists()
-    if not ok:
-        print(f"    FAILED ({result.returncode}): {result.stderr.strip()[-2000:]}")
+    status = "ok" if ok else f"FAILED ({result.returncode}), see merge_obs.log"
+    print(f"==> {name}: {len(event_files)} ObsID(s) {status}", flush=True)
     return ok
 
 
@@ -83,10 +91,11 @@ def main(argv=None):
     )
     parser.add_argument("clusters", nargs="*", help="Only these clusters")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--workers", type=int, default=6, help="Parallel merges")
     args = parser.parse_args(argv)
 
     search = args.search_dirs or args.data_dir
-    built, failed, skipped = [], [], []
+    jobs, skipped = [], []
     for name, obsids in cluster_obsids(args.sqlite_db).items():
         if args.clusters and name not in args.clusters:
             continue
@@ -98,8 +107,15 @@ def main(argv=None):
             continue
         if len(events) < len(obsids):
             print(f"    {name}: {len(obsids) - len(events)} ObsID(s) not on disk")
-        target = Path(args.data_dir) / name
-        (built if build(name, events, target, args.dry_run) else failed).append(name)
+        jobs.append((name, events, Path(args.data_dir) / name))
+
+    print(f"Building {len(jobs)} clusters with {args.workers} workers", flush=True)
+    with ThreadPoolExecutor(max(1, args.workers)) as pool:
+        results = list(
+            pool.map(lambda job: (job[0], build(*job, dry_run=args.dry_run)), jobs)
+        )
+    built = [name for name, ok in results if ok]
+    failed = [name for name, ok in results if not ok]
 
     print(f"Built {len(built)}; failed {len(failed)}: {failed}")
     print(f"No event files on disk for {len(skipped)} clusters (not built).")
