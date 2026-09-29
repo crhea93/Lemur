@@ -1,6 +1,6 @@
 .PHONY: help deploy sync-all sync-d1 sync-fits dry-run check-chandra-dir \
 	astroclip-env pull-db centers embeddings similar serve publish-similar \
-	fetch-obsids flux-images merge-duplicates publish paper-stats
+	fetch-obsids flux-images merge-duplicates publish paper-stats showcase
 
 # Load local runtime env vars if present (see .env.example).
 -include .env.local
@@ -27,6 +27,7 @@ help:
 	@echo "  make publish          - Push ALL tables to D1, fix merged FITS zips, deploy"
 	@echo ""
 	@echo "  make paper-stats      - Catalog numbers, LaTeX macros and figures for the paper (paper/)"
+	@echo "  make showcase         - Showcase figures + caption macros (paper/showcase_macros.tex)"
 	@echo ""
 	@echo "Data maintenance:"
 	@echo "  make fetch-obsids     - Download archive files for clusters missing images"
@@ -122,3 +123,8 @@ flux-images: check-chandra-dir
 merge-duplicates: check-chandra-dir
 	python3 scripts/merge_duplicate_clusters.py apply --only-data \
 		--data-dir "$(LEMUR_CHANDRA_DIR)"
+
+SHOWCASE ?= NGC4636=ngcFourSixThreeSix:10 1E0657-56=bullet:7
+showcase:
+	$(ASTROCLIP_PYTHON) -W ignore scripts/showcase_figures.py --db "$(LEMUR_DB_PATH)" \
+		--data-dir "$(LEMUR_CHANDRA_DIR)" --out paper $(SHOWCASE)
