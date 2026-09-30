@@ -56,6 +56,40 @@ def bkg_clean_srcs(bkg_ccd):
     return None
 
 
+# If sigma clipping keeps less than this fraction of the event file's good time,
+# the background light curve is unreliable (e.g. a faint background chip), so
+# the event file's own GTI is used instead.
+MIN_GTI_FRACTION = 0.1
+
+
+def _gti_seconds(path):
+    """Total good time in a GTI file (its GTI block; lc_sigma_clip puts it second)."""
+    try:
+        with fits.open(path) as hdul:
+            data = hdul["GTI"].data
+            if data is None or len(data) == 0:
+                return 0.0
+            return float(np.sum(data["STOP"] - data["START"]))
+    except Exception:
+        return 0.0
+
+
+def _event_gti_seconds(event_file):
+    """Good time of an event file: its longest GTI block (one per chip)."""
+    try:
+        with fits.open(event_file) as hdul:
+            return max(
+                (
+                    float(np.sum(h.data["STOP"] - h.data["START"]))
+                    for h in hdul
+                    if h.name.startswith("GTI") and h.data is not None
+                ),
+                default=0.0,
+            )
+    except Exception:
+        return 0.0
+
+
 def bkg_lightcurve(bkg_ccd, obsid, create_plot=True):
     """
     Create and plot background lightcurve. Then create good-time-interval file
@@ -107,6 +141,7 @@ def bkg_lightcurve(bkg_ccd, obsid, create_plot=True):
 
     # Clip image (no plot)
     gti_out = bkg_ccd + "_bkg_clean.gti"
+    fallback_reason = None
     try:
         lc_sigma_clip(
             bkg_ccd + "_bkg.lc",
@@ -116,12 +151,25 @@ def bkg_lightcurve(bkg_ccd, obsid, create_plot=True):
             pattern="none",
             verbose=0,
         )
+        # A "successful" clip can still keep (almost) nothing, e.g. when the
+        # background chip is too faint for a meaningful light curve; applying
+        # that GTI would empty the observation.
+        kept = _gti_seconds(gti_out)
+        total = _event_gti_seconds(bkg_ccd + "_bkg.fits")
+        if total > 0 and kept < MIN_GTI_FRACTION * total:
+            fallback_reason = (
+                f"sigma clipping kept {kept:.0f} s of {total:.0f} s "
+                f"(< {MIN_GTI_FRACTION:.0%})"
+            )
     except Exception as exc:
         # Some backgrounds are so faint they contain no positive count-rate rows.
-        # In this case, keep the pipeline moving by falling back to the existing GTI.
+        fallback_reason = f"lc_sigma_clip failed: {exc}"
+
+    if fallback_reason:
+        # Keep the pipeline moving with the GTI already in the event file.
         print(
-            f"WARNING: lc_sigma_clip failed for {bkg_ccd}_bkg.lc. "
-            f"Falling back to GTI from event file. Error: {exc}"
+            f"WARNING: {bkg_ccd}_bkg.lc: {fallback_reason}. "
+            "Falling back to GTI from event file."
         )
         try:
             dmcopy.punlearn()
