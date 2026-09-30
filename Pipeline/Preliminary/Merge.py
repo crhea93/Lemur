@@ -6,6 +6,7 @@ we only want the image for calculating the centroid, extent of emission, and ann
 
 """
 
+import glob
 import os
 import shutil
 from pathlib import Path
@@ -25,6 +26,16 @@ def merge_objects(Obsids, output_name, clean="yes"):
     id_hyphen = ""
     found = False
     for obsid in Obsids:
+        # Multi-segment (multi-OBI) ObsIDs: CIAO needs one event file per
+        # segment; the merge path's "_uncontam" file is a plain copy anyway.
+        segments = sorted(
+            glob.glob(f"{obsid}/repro/acisf{obsid}_[0-9][0-9][0-9]_repro_evt2.fits")
+        )
+        if segments:
+            id_string += ",".join(segments) + ","
+            found = True
+            id_hyphen += obsid + "-"
+            continue
         preferred = obsid + "/repro/acisf" + obsid + "_repro_evt2_uncontam.fits"
         fallback = obsid + "/repro/acisf" + obsid + "_repro_evt2.fits"
         if os.path.exists(preferred):

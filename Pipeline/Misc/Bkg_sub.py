@@ -34,6 +34,34 @@ def run_bkg_sub(evt_file, image_file, obsid, filenames):
         obsid - current observation
         filenames - list of filenames
     """
+    segments = filenames.get("evt2_repro_segments")
+    if segments:
+        # CIAO's blanksky refuses merged multi-OBI event files, so subtract the
+        # background per segment and add the images; the segments share one
+        # sky frame (same tangent point), so the images share one grid.
+        parts = []
+        for segment_file in segments:
+            tag = os.path.basename(segment_file).split("_repro_evt2")[0][len("acisf") :]
+            print(f"      Segment {tag}:")
+            parts.append(_bkg_sub_one(segment_file, image_file, tag))
+        output = obsid + "_blank_particle_bkgsub.img"
+        dmimgcalc.punlearn()
+        dmimgcalc.infile = ",".join(parts)
+        dmimgcalc.outfile = output
+        dmimgcalc.operation = "imgout=" + "+".join(
+            f"img{i}" for i in range(1, len(parts) + 1)
+        )
+        dmimgcalc.clobber = True
+        dmimgcalc()
+    else:
+        output = _bkg_sub_one(evt_file, image_file, obsid)
+    # Add to file names
+    filenames["evt_bkgsub_img"] = os.getcwd() + "/" + output
+    return None
+
+
+def _bkg_sub_one(evt_file, image_file, obsid):
+    """Blank-sky background subtraction for one event file; returns the image."""
     print("      Creating blanksky event file...")
     # Create Blanksky File
     blanksky.punlearn()
@@ -66,11 +94,7 @@ def run_bkg_sub(evt_file, image_file, obsid, filenames):
     blanksky_image.tmpdir = "./"
     blanksky_image.clobber = True
     blanksky_image()
-    # Add to file names
-    filenames["evt_bkgsub_img"] = (
-        os.getcwd() + "/" + obsid + "_blank_particle_bkgsub.img"
-    )
-    return None
+    return obsid + "_blank_particle_bkgsub.img"
 
 
 def create_clean_img(filenames):

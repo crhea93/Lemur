@@ -63,11 +63,21 @@ def run_single_observation(inputs, ccds, main_out, db_service):
         print(
             "    We will now choose the extent of the source and any point sources on the src ccd..."
         )
-        fluximage(
-            filenames["evt2_repro"],
-            inputs["home_dir"] + "/" + inputs["name"] + "/",
-            clobber="yes",
-        )
+        segments = filenames.get("evt2_repro_segments")
+        if segments:
+            # Multi-OBI ObsID: CIAO wants one event file per segment. merge_obs
+            # defaults to the same binsize (8) as fluximage.
+            merge_obs(
+                ",".join(segments),
+                inputs["home_dir"] + "/" + inputs["name"] + "/",
+                clobber="yes",
+            )
+        else:
+            fluximage(
+                filenames["evt2_repro"],
+                inputs["home_dir"] + "/" + inputs["name"] + "/",
+                clobber="yes",
+            )
         filenames["exp_corr"] = (
             inputs["home_dir"] + "/" + inputs["name"] + "/broad_flux.img"
         )
