@@ -85,19 +85,21 @@ def run_single_observation(inputs, ccds, main_out, db_service):
         print(
             "    We will now choose the extent of the source and any point sources on the src ccd..."
         )
+        # Native ACIS pixels (binsize=1), like merged objects (Merge.py).
         segments = filenames.get("evt2_repro_segments")
         if segments:
-            # Multi-OBI ObsID: CIAO wants one event file per segment. merge_obs
-            # defaults to the same binsize (8) as fluximage.
+            # Multi-OBI ObsID: CIAO wants one event file per segment.
             merge_obs(
                 ",".join(segments),
                 inputs["home_dir"] + "/" + inputs["name"] + "/",
+                binsize=1,
                 clobber="yes",
             )
         else:
             fluximage(
                 filenames["evt2_repro"],
                 inputs["home_dir"] + "/" + inputs["name"] + "/",
+                binsize=1,
                 clobber="yes",
             )
         filenames["exp_corr"] = (
