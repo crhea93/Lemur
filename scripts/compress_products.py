@@ -8,8 +8,9 @@ Per processed ObsID folder:
   * if the run completed, delete intermediates the pipeline regenerates from
     the archive files (Carter approved this on 2026-09-30 to fit the rerun on
     the drive): the evt1 copies in repro/ (*_evt1_deflared.fits,
-    *_evt1_deflared_dstrk.fits, acis_new_evt1.fits), the blank-sky background
-    events (*_blank.evt) and the archive validation-report PDFs.
+    *_evt1_deflared_dstrk.fits, acis_new_evt1.fits) and the archive
+    validation-report PDFs. The blank-sky background events (*_blank.evt) are
+    kept (gzipped): background-subtracted images are built from them.
 In the cluster folder: gzip large intermediate images, keeping the products
 later steps read (broad_flux.img, broad_thresh.*, merged_evt.fits) as they are.
 
@@ -34,7 +35,6 @@ INTERMEDIATES = {
         "*_evt1_deflared.fits*",
         "*_evt1_deflared_dstrk.fits*",
         "acis_new_evt1.fits*",
-        "*_blank.evt*",
     ],
     "secondary": ["*_vv*.pdf*"],
     ".": ["*_vv*.pdf*"],
