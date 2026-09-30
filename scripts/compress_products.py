@@ -34,13 +34,7 @@ import sys
 from pathlib import Path
 
 MIN_BYTES = 1_000_000
-KEEP_IN_CLUSTER = {
-    "broad_flux.img",
-    "broad_thresh.img",
-    "broad_thresh.expmap",
-    "broad_flux_nobkgsub.img",
-    "broad_bkg.img",
-}
+KEEP_IN_CLUSTER = {"broad_flux.img", "broad_thresh.img", "broad_thresh.expmap"}
 KEEP_SUFFIXES = {".gz", ".png", ".reg", ".txt", ".lis", ".log", ".par", ".jpg", ".pdf"}
 INTERMEDIATES = {
     "repro": [

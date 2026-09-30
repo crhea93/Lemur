@@ -121,10 +121,13 @@ def make_bkgsub_flux(cluster_dir, home_dir, obsids, redo=False):
         raw_copy = os.path.join(cluster_dir, RAW_COPY)
         if not redo:
             return True
-        if not os.path.exists(raw_copy):
+        if os.path.exists(raw_copy):
+            shutil.copy2(raw_copy, image_path)
+        elif os.path.exists(raw_copy + ".gz"):  # compressed after the run
+            fits.open(raw_copy + ".gz").writeto(image_path, overwrite=True)
+        else:
             print("    WARNING: cannot redo background subtraction (no raw copy)")
             return False
-        shutil.copy2(raw_copy, image_path)
 
     get_sky_limits.punlearn()
     get_sky_limits(image=counts_path, verbose=0)
