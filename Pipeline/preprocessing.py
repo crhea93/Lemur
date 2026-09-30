@@ -14,7 +14,50 @@ from Preliminary.Merge import merge_objects
 from Preliminary.unzip import unzip
 
 
+def set_aside_previous_reduction(inputs):
+    """Move an object's earlier reduction to <home_dir>/_previous_reductions/.
+
+    Only folders whose broad_flux.img lacks BKGSUB = T (i.e. made before the
+    2026 pipeline) are moved, including folders stored under a variant name;
+    compress_products deletes them once the new run has succeeded.
+    """
+    import shutil
+
+    from astropy.io import fits
+    from cluster_paths import normalize_cluster_name
+
+    home = inputs["home_dir"]
+    name = inputs["name"]
+    previous = os.path.join(home, "_previous_reductions")
+    target = normalize_cluster_name(name)
+    for entry in sorted(os.listdir(home)):
+        folder = os.path.join(home, entry)
+        if (
+            entry.startswith("_")
+            or entry.isdigit()
+            or not os.path.isdir(folder)
+            or normalize_cluster_name(entry) != target
+        ):
+            continue
+        image = os.path.join(folder, "broad_flux.img")
+        if not os.path.exists(image):
+            continue
+        try:
+            if fits.getheader(image).get("BKGSUB") is True:
+                continue
+        except Exception:
+            pass
+        dest = os.path.join(previous, name if entry == name else f"{name}__{entry}")
+        if os.path.exists(dest):
+            print(f"    WARNING: {dest} already exists; not moving {folder}")
+            continue
+        os.makedirs(previous, exist_ok=True)
+        shutil.move(folder, dest)
+        print(f"    Moved earlier reduction {entry} -> _previous_reductions/")
+
+
 def init_cluster(inputs):
+    set_aside_previous_reduction(inputs)
     os.chdir(inputs["home_dir"])
     if not os.path.exists(inputs["home_dir"] + "/" + inputs["name"]):
         os.makedirs(inputs["home_dir"] + "/" + inputs["name"])

@@ -108,11 +108,16 @@ def new_image_complete(cluster_image):
 
 
 def remove_superseded(root, cluster, cluster_image):
-    previous = root / "_previous_reductions" / cluster
-    if not previous.is_dir() or not new_image_complete(cluster_image):
+    """Delete <root>/_previous_reductions/<cluster> (and <cluster>__<alias>)."""
+    parent = root / "_previous_reductions"
+    folders = [parent / cluster, *parent.glob(f"{cluster}__*")]
+    folders = [f for f in folders if f.is_dir()]
+    if not folders or not new_image_complete(cluster_image):
         return 0
-    size = sum(p.stat().st_size for p in previous.rglob("*") if p.is_file())
-    shutil.rmtree(previous)
+    size = 0
+    for folder in folders:
+        size += sum(p.stat().st_size for p in folder.rglob("*") if p.is_file())
+        shutil.rmtree(folder)
     return size
 
 
