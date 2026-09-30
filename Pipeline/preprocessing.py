@@ -28,6 +28,28 @@ def generate_ccds(inputs):
     return split_ccds(inputs["home_dir"], inputs["dir_list"])
 
 
+def background_subtract(inputs):
+    """Make the merged broad_flux.img background-subtracted (see Misc.bkg_flux).
+
+    A failure keeps the image without background subtraction and logs a
+    warning rather than failing the run; such images lack BKGSUB = T.
+    """
+    from Misc.bkg_flux import make_bkgsub_flux
+
+    cwd = os.getcwd()
+    try:
+        print("Subtracting the blank-sky background from the merged image...")
+        make_bkgsub_flux(
+            inputs["home_dir"] + "/" + inputs["name"],
+            inputs["home_dir"],
+            inputs["dir_list"],
+        )
+    except Exception as exc:
+        print(f"    WARNING: background subtraction failed: {exc}")
+    finally:
+        os.chdir(cwd)
+
+
 def run_single_observation(inputs, ccds, main_out, db_service):
     print("#-----Single Observation Mode----#")
     agn_ = AGN(False)
@@ -129,6 +151,7 @@ def run_single_observation(inputs, ccds, main_out, db_service):
         move_files(inputs["home_dir"] + "/" + inputs["name"], filenames)
         os.chdir(inputs["home_dir"] + "/" + inputs["name"])
 
+    background_subtract(inputs)
     return filenames, cen_ra, cen_dec, edge_ra, edge_dec, agn_
 
 
@@ -220,4 +243,5 @@ def run_merge_observations(inputs, ccds, main_out, db_service):
     cen_ra, cen_dec = merged_centroid("broad_flux.img")
     main_out.write("The center point is chosen to be %s,%s \n" % (cen_ra, cen_dec))
 
+    background_subtract(inputs)
     return filenames, cen_ra, cen_dec, edge_ra, edge_dec, agn_
