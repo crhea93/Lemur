@@ -14,6 +14,11 @@ Per processed ObsID folder:
 In the cluster folder: gzip large intermediate images, keeping the products
 later steps read (broad_flux.img, broad_thresh.*, merged_evt.fits) as they are.
 
+Superseded reductions: an object's previous reduction, moved aside to
+<data-dir>/_previous_reductions/<cluster> before it was re-run, is deleted
+once the new broad_flux.img exists with BKGSUB = T (written only by the new
+pipeline), as approved by Carter on 2026-09-30 to fit the re-reduction.
+
 A run counts as completed for an ObsID when its final repro evt2 exists and the
 cluster's broad_flux.img was written after the intermediates. Failed runs keep
 their intermediates (compressed) for debugging. --keep-intermediates disables
@@ -23,12 +28,19 @@ all deletion.
 """
 
 import argparse
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 MIN_BYTES = 1_000_000
-KEEP_IN_CLUSTER = {"broad_flux.img", "broad_thresh.img", "broad_thresh.expmap"}
+KEEP_IN_CLUSTER = {
+    "broad_flux.img",
+    "broad_thresh.img",
+    "broad_thresh.expmap",
+    "broad_flux_nobkgsub.img",
+    "broad_bkg.img",
+}
 KEEP_SUFFIXES = {".gz", ".png", ".reg", ".txt", ".lis", ".log", ".par", ".jpg", ".pdf"}
 INTERMEDIATES = {
     "repro": [
@@ -92,6 +104,24 @@ def run_completed(obsid_dir, obsid, cluster_image, files):
     return cluster_image.stat().st_mtime >= newest
 
 
+def new_image_complete(cluster_image):
+    from astropy.io import fits
+
+    try:
+        return fits.getheader(cluster_image).get("BKGSUB") is True
+    except Exception:
+        return False
+
+
+def remove_superseded(root, cluster, cluster_image):
+    previous = root / "_previous_reductions" / cluster
+    if not previous.is_dir() or not new_image_complete(cluster_image):
+        return 0
+    size = sum(p.stat().st_size for p in previous.rglob("*") if p.is_file())
+    shutil.rmtree(previous)
+    return size
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--data-dir", required=True)
@@ -121,6 +151,8 @@ def main(argv=None):
     cluster_dir = root / args.cluster
     if cluster_dir.is_dir():
         saved += gzip_large(cluster_dir, keep=KEEP_IN_CLUSTER)
+    if not args.keep_intermediates:
+        pruned += remove_superseded(root, args.cluster, cluster_image)
     print(
         f"[compress] {args.cluster}: freed {(saved + pruned) / 1e9:.2f} GB "
         f"({pruned / 1e9:.2f} GB of regenerable intermediates deleted)"
