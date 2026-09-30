@@ -14,6 +14,17 @@ from pathlib import Path
 from ciao_contrib.runtool import *
 
 
+def is_grating(event_file):
+    """True for HETG/LETG observations, which LEMUR excludes (ACIS imaging only)."""
+    from astropy.io import fits
+
+    try:
+        grating = fits.getheader(event_file, "EVENTS").get("GRATING", "NONE")
+    except Exception:
+        return False
+    return str(grating).strip().upper() not in ("NONE", "")
+
+
 def merge_objects(Obsids, output_name, clean="yes"):
     """
     Merge background subtracted event files for photometric analysis
@@ -31,6 +42,10 @@ def merge_objects(Obsids, output_name, clean="yes"):
         segments = sorted(
             glob.glob(f"{obsid}/repro/acisf{obsid}_[0-9][0-9][0-9]_repro_evt2.fits")
         )
+        candidates = segments or glob.glob(f"{obsid}/repro/acisf{obsid}_repro_evt2*.fits")
+        if candidates and is_grating(candidates[0]):
+            print(f"    WARNING: skipping grating ObsID {obsid} (ACIS imaging only)")
+            continue
         if segments:
             id_string += ",".join(segments) + ","
             found = True
