@@ -9,8 +9,19 @@ Functions:
 """
 
 import os
+import re
 
 from ciao_contrib.runtool import *
+
+
+def blanksky_chips(bkg_file):
+    """ACIS chips that have a blank-sky background (its BKGSCALn keywords)."""
+    from astropy.io import fits
+
+    header = fits.getheader(bkg_file, 1)
+    return sorted(
+        int(m.group(1)) for key in header if (m := re.fullmatch(r"BKGSCAL(\d)", key))
+    )
 
 
 def run_bkg_sub(evt_file, image_file, obsid, filenames):
@@ -33,10 +44,25 @@ def run_bkg_sub(evt_file, image_file, obsid, filenames):
     blanksky()
     # Now create background subtracted image
     print("      Creating background-subtracted image")
+    # CIAO 4.18 blanksky_image fails ("tuple.index(x): x not in tuple") when the
+    # image has a chip with no blank-sky background ahead of chips that have
+    # one. Rebin the same events (same full-range sky grid as image_file) using
+    # only the chips the background covers, which is also the only area where
+    # a background can be subtracted.
+    chips = blanksky_chips(obsid + "_blank.evt")
+    reference_image = image_file
+    if chips:
+        reference_image = obsid + "_bkgchips.img"
+        dmcopy.punlearn()
+        dmcopy.infile = f"{evt_file}[ccd_id={','.join(str(c) for c in chips)}]"
+        dmcopy.outfile = reference_image
+        dmcopy.opt = "image"
+        dmcopy.clobber = True
+        dmcopy()
     blanksky_image.punlearn()
     blanksky_image.bkgfile = obsid + "_blank.evt"
     blanksky_image.outroot = obsid + "_blank"
-    blanksky_image.imgfile = image_file
+    blanksky_image.imgfile = reference_image
     blanksky_image.tmpdir = "./"
     blanksky_image.clobber = True
     blanksky_image()
