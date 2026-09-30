@@ -1,12 +1,22 @@
-"""Losslessly shrink a finished pipeline run's working files.
+"""Shrink a finished pipeline run's working files.
 
-Per processed ObsID folder: gzip large files in repro/ and Background/ (mostly
-empty unbinned images, ~10x smaller), and drop the uncompressed copies that
-Preliminary/unzip.py makes of archive files whose .fits.gz originals remain.
+Per processed ObsID folder:
+  * gzip files over 1 MB in repro/, Background/, primary/ and secondary/
+    (Preliminary/unzip.py decompresses archive .fits.gz files again if the
+    ObsID is ever reprocessed), and drop uncompressed copies of archive files
+    whose .fits.gz originals remain;
+  * if the run completed, delete intermediates the pipeline regenerates from
+    the archive files (Carter approved this on 2026-09-30 to fit the rerun on
+    the drive): the evt1 copies in repro/ (*_evt1_deflared.fits,
+    *_evt1_deflared_dstrk.fits, acis_new_evt1.fits), the blank-sky background
+    events (*_blank.evt) and the archive validation-report PDFs.
 In the cluster folder: gzip large intermediate images, keeping the products
 later steps read (broad_flux.img, broad_thresh.*, merged_evt.fits) as they are.
-Nothing is lost: gunzip restores every file, and the pipeline regenerates the
-unzipped copies when an ObsID is processed again.
+
+A run counts as completed for an ObsID when its final repro evt2 exists and the
+cluster's broad_flux.img was written after the intermediates. Failed runs keep
+their intermediates (compressed) for debugging. --keep-intermediates disables
+all deletion.
 
     python scripts/compress_products.py --data-dir DIR --cluster NAME --obsids 1,2
 """
@@ -16,14 +26,25 @@ import subprocess
 import sys
 from pathlib import Path
 
-MIN_BYTES = 20_000_000
+MIN_BYTES = 1_000_000
 KEEP_IN_CLUSTER = {"broad_flux.img", "broad_thresh.img", "broad_thresh.expmap"}
-KEEP_SUFFIXES = {".gz", ".png", ".reg", ".txt", ".lis", ".log", ".par"}
+KEEP_SUFFIXES = {".gz", ".png", ".reg", ".txt", ".lis", ".log", ".par", ".jpg", ".pdf"}
+INTERMEDIATES = {
+    "repro": [
+        "*_evt1_deflared.fits*",
+        "*_evt1_deflared_dstrk.fits*",
+        "acis_new_evt1.fits*",
+        "*_blank.evt*",
+    ],
+    "secondary": ["*_vv*.pdf*"],
+    ".": ["*_vv*.pdf*"],
+}
 
 
-def gzip_large(folder, keep=()):
+def gzip_large(folder, keep=(), recursive=True):
     saved = 0
-    for path in sorted(folder.rglob("*")):
+    paths = folder.rglob("*") if recursive else folder.glob("*")
+    for path in sorted(paths):
         if (
             not path.is_file()
             or path.is_symlink()
@@ -51,27 +72,59 @@ def drop_unzipped_copies(obsid_dir):
     return saved
 
 
+def intermediates(obsid_dir):
+    return [
+        path
+        for sub, patterns in INTERMEDIATES.items()
+        for pattern in patterns
+        for path in (obsid_dir / sub).glob(pattern)
+        if path.is_file()
+    ]
+
+
+def run_completed(obsid_dir, obsid, cluster_image, files):
+    """Final evt2 exists and the cluster image is newer than the intermediates."""
+    repro = obsid_dir / "repro"
+    has_final = any(repro.glob(f"acisf{obsid}*_repro_evt2.fits*"))
+    if not has_final or not cluster_image.is_file():
+        return False
+    newest = max((p.stat().st_mtime for p in files), default=0.0)
+    return cluster_image.stat().st_mtime >= newest
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--data-dir", required=True)
     parser.add_argument("--cluster", required=True)
     parser.add_argument("--obsids", required=True, help="comma-separated")
+    parser.add_argument("--keep-intermediates", action="store_true")
     args = parser.parse_args(argv)
 
     root = Path(args.data_dir)
-    saved = 0
+    cluster_image = root / args.cluster / "broad_flux.img"
+    saved = pruned = 0
     for obsid in [o.strip() for o in args.obsids.split(",") if o.strip()]:
         obsid_dir = root / obsid
         if not obsid_dir.is_dir():
             continue
-        for sub in ("repro", "Background"):
+        files = intermediates(obsid_dir)
+        if not args.keep_intermediates and run_completed(
+            obsid_dir, obsid, cluster_image, files
+        ):
+            for path in files:
+                pruned += path.stat().st_size
+                path.unlink()
+        for sub in ("repro", "Background", "primary", "secondary"):
             if (obsid_dir / sub).is_dir():
                 saved += gzip_large(obsid_dir / sub)
         saved += drop_unzipped_copies(obsid_dir)
     cluster_dir = root / args.cluster
     if cluster_dir.is_dir():
         saved += gzip_large(cluster_dir, keep=KEEP_IN_CLUSTER)
-    print(f"[compress] {args.cluster}: freed {saved / 1e9:.2f} GB")
+    print(
+        f"[compress] {args.cluster}: freed {(saved + pruned) / 1e9:.2f} GB "
+        f"({pruned / 1e9:.2f} GB of regenerable intermediates deleted)"
+    )
     return 0
 
 
