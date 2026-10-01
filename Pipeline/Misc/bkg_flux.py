@@ -24,7 +24,13 @@ import tempfile
 
 import numpy as np
 from astropy.io import fits
-from ciao_contrib.runtool import blanksky, dmcopy, get_sky_limits, reproject_events
+from ciao_contrib.runtool import (
+    acis_bkgrnd_lookup,
+    blanksky,
+    dmcopy,
+    get_sky_limits,
+    reproject_events,
+)
 
 BAND_EV = (500, 7000)  # merge_obs / fluximage "broad" band
 IMAGE = "broad_flux.img"
@@ -73,8 +79,38 @@ def _regenerate_blank(home_dir, obsid, workdir):
         return []
     out = os.path.join(workdir, f"{obsid}_blank.evt")
     blanksky.punlearn()
-    blanksky(evtfile=events[0], outfile=out, tmpdir=workdir, clobber=True)
+    try:
+        blanksky(evtfile=events[0], outfile=out, tmpdir=workdir, clobber=True)
+    except OSError:
+        # Early-mission ObsIDs can have chips with no blank-sky background
+        # (acis_bkgrnd_lookup fails and so does blanksky); use the rest.
+        chips = _chips_with_background(events[0])
+        if not chips:
+            raise
+        print(f"    WARNING: ObsID {obsid} blank-sky background only for chips {chips}")
+        chip_filter = ",".join(str(c) for c in chips)
+        blanksky.punlearn()
+        blanksky(
+            evtfile=f"{events[0]}[ccd_id={chip_filter}]",
+            outfile=out,
+            tmpdir=workdir,
+            clobber=True,
+        )
     return [(obsid, out)]
+
+
+def _chips_with_background(evt_file):
+    """ACIS chips of evt_file for which CALDB has a blank-sky background."""
+    detnam = fits.getheader(evt_file, "EVENTS").get("DETNAM", "")
+    chips = []
+    for chip in (int(c) for c in detnam.split("-")[-1] if c.isdigit()):
+        acis_bkgrnd_lookup.punlearn()
+        try:
+            acis_bkgrnd_lookup(infile=f"{evt_file}[ccd_id={chip}]")
+        except OSError:
+            continue
+        chips.append(chip)
+    return chips
 
 
 def _background_counts(blank_evt, match_evt, xygrid, workdir):
