@@ -25,6 +25,41 @@ def is_grating(event_file):
     return str(grating).strip().upper() not in ("NONE", "")
 
 
+# merge_obs runs one process per ObsID (up to all cores); each holds several
+# float32 images of the full mosaic grid (~13 grid-sized copies measured for
+# dmimgcalc on Centaurus). Wide mosaics at binsize=1 then exceed the worker's
+# 40 GB memory cap, so limit the processes to fit a memory budget.
+MERGE_MEMORY_BUDGET = 30e9
+BYTES_PER_GRID_PIXEL = 13 * 4
+ACIS_FIELD_ARCMIN = 30  # margin around the pointings for the chips' extent
+
+
+def merge_nproc(event_files):
+    """Number of parallel merge_obs processes that fits MERGE_MEMORY_BUDGET."""
+    from astropy.coordinates import SkyCoord
+    from astropy.io import fits
+
+    ra, dec = [], []
+    for event_file in event_files:
+        try:
+            header = fits.getheader(event_file, "EVENTS")
+            ra.append(float(header["RA_PNT"]))
+            dec.append(float(header["DEC_PNT"]))
+        except Exception:
+            continue
+    if not ra:
+        return 1
+    points = SkyCoord(ra, dec, unit="deg")
+    centre = SkyCoord(ra[0], dec[0], unit="deg")
+    offsets = centre.spherical_offsets_to(points)
+    side = [
+        (max(o.arcmin) - min(o.arcmin) + ACIS_FIELD_ARCMIN) * 60 / 0.492
+        for o in offsets
+    ]
+    grid_bytes = side[0] * side[1] * BYTES_PER_GRID_PIXEL
+    return max(1, min(os.cpu_count() or 1, int(MERGE_MEMORY_BUDGET // grid_bytes)))
+
+
 def merge_objects(Obsids, output_name, clean="yes"):
     """
     Merge background subtracted event files for photometric analysis
@@ -63,6 +98,8 @@ def merge_objects(Obsids, output_name, clean="yes"):
 
     if not found:
         raise RuntimeError("merge_obs: no valid event files were found")
+    nproc = merge_nproc([f for f in id_string.split(",") if f])
+    print(f"    merge_obs with nproc={nproc}")
     os.system(
         "merge_obs '"
         + id_string
@@ -70,7 +107,8 @@ def merge_objects(Obsids, output_name, clean="yes"):
         + output_name
         + "/ clobber=yes verbose=0 cleanup="
         + clean
-        + " bin=1 "
+        + " bin=1 nproc="
+        + str(nproc)
     )
     # Copy merged FITS to API download location with standardized name
     try:
