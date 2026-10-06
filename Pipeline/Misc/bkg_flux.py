@@ -84,7 +84,7 @@ def _regenerate_blank(home_dir, obsid, workdir):
     except OSError:
         # Early-mission ObsIDs can have chips with no blank-sky background
         # (acis_bkgrnd_lookup fails and so does blanksky); use the rest.
-        chips = _chips_with_background(events[0])
+        chips = chips_with_background(events[0])
         if not chips:
             raise
         print(f"    WARNING: ObsID {obsid} blank-sky background only for chips {chips}")
@@ -99,7 +99,7 @@ def _regenerate_blank(home_dir, obsid, workdir):
     return [(obsid, out)]
 
 
-def _chips_with_background(evt_file):
+def chips_with_background(evt_file):
     """ACIS chips of evt_file for which CALDB has a blank-sky background."""
     detnam = fits.getheader(evt_file, "EVENTS").get("DETNAM", "")
     chips = []

@@ -69,7 +69,19 @@ def _bkg_sub_one(evt_file, image_file, obsid):
     blanksky.outfile = obsid + "_blank.evt"
     blanksky.tmpdir = "./"
     blanksky.clobber = True
-    blanksky()
+    try:
+        blanksky()
+    except OSError:
+        # Early-mission ObsIDs can have chips with no blank-sky background
+        # (acis_bkgrnd_lookup fails and so does blanksky); use the rest.
+        from Misc.bkg_flux import chips_with_background
+
+        chips = chips_with_background(evt_file)
+        if not chips:
+            raise
+        print(f"      WARNING: blank-sky background only for chips {chips}")
+        blanksky.evtfile = f"{evt_file}[ccd_id={','.join(str(c) for c in chips)}]"
+        blanksky()
     # Now create background subtracted image
     print("      Creating background-subtracted image")
     # CIAO 4.18 blanksky_image fails ("tuple.index(x): x not in tuple") when the
