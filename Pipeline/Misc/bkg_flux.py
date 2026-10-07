@@ -77,26 +77,50 @@ def _regenerate_blank(home_dir, obsid, workdir):
     events = sorted(glob.glob(os.path.join(repro, f"acisf{obsid}_repro_evt2.fits*")))
     if not events:
         return []
+    if not fits.getheader(events[0], "EVENTS").get("EXPOSURE"):
+        # Empty archive observations (e.g. ObsID 963: no events, no GTI)
+        # add nothing to the image, so they need no background either.
+        print(f"    WARNING: ObsID {obsid} has no exposure; no background needed")
+        return []
     out = os.path.join(workdir, f"{obsid}_blank.evt")
-    blanksky.punlearn()
-    try:
-        blanksky(evtfile=events[0], outfile=out, tmpdir=workdir, clobber=True)
-    except OSError:
-        # Early-mission ObsIDs can have chips with no blank-sky background
-        # (acis_bkgrnd_lookup fails and so does blanksky); use the rest.
-        chips = chips_with_background(events[0])
-        if not chips:
-            raise
-        print(f"    WARNING: ObsID {obsid} blank-sky background only for chips {chips}")
-        chip_filter = ",".join(str(c) for c in chips)
-        blanksky.punlearn()
-        blanksky(
-            evtfile=f"{events[0]}[ccd_id={chip_filter}]",
-            outfile=out,
-            tmpdir=workdir,
-            clobber=True,
-        )
+    run_blanksky(events[0], out, workdir)
     return [(obsid, out)]
+
+
+def run_blanksky(evt_file, outfile, tmpdir):
+    """blanksky with fallbacks for data the default call cannot handle.
+
+    - Chips with no CALDB blank-sky background (early-mission ObsIDs) make
+      acis_bkgrnd_lookup, and so blanksky, fail: use the chips that have one.
+    - Short or filtered ObsIDs can have no 9-12 keV events to scale the
+      particle background by: scale by exposure time instead.
+    """
+    source = evt_file
+    weight = "particle"
+    while True:
+        blanksky.punlearn()
+        try:
+            blanksky(
+                evtfile=source,
+                outfile=outfile,
+                tmpdir=tmpdir,
+                weight_method=weight,
+                clobber=True,
+            )
+            return
+        except OSError as exc:
+            message = str(exc)
+            if "Unable to find an ACIS background file" in message and source == evt_file:
+                chips = chips_with_background(evt_file)
+                if not chips:
+                    raise
+                print(f"      WARNING: blank-sky background only for chips {chips}")
+                source = f"{evt_file}[ccd_id={','.join(str(c) for c in chips)}]"
+            elif "zero high-energy counts" in message and weight == "particle":
+                print("      WARNING: no 9-12 keV counts; background scaled by exposure time")
+                weight = "time"
+            else:
+                raise
 
 
 def chips_with_background(evt_file):
@@ -113,7 +137,7 @@ def chips_with_background(evt_file):
     return chips
 
 
-def _background_counts(blank_evt, match_evt, xygrid, workdir):
+def _background_counts(blank_evt, match_evt, xygrid, workdir, band_ev=BAND_EV):
     """Scaled blank-sky counts image on the merged grid for one ObsID/segment."""
     scales = _chip_scales(blank_evt)
     source = blank_evt
@@ -129,7 +153,7 @@ def _background_counts(blank_evt, match_evt, xygrid, workdir):
         image = os.path.join(workdir, f"bkg_chip{chip}.img")
         dmcopy.punlearn()
         dmcopy(
-            infile=f"{source}[energy={BAND_EV[0]}:{BAND_EV[1]},ccd_id={chip}]"
+            infile=f"{source}[energy={band_ev[0]}:{band_ev[1]},ccd_id={chip}]"
             f"[bin {xygrid}]",
             outfile=image,
             option="image",
@@ -140,13 +164,22 @@ def _background_counts(blank_evt, match_evt, xygrid, workdir):
     return total
 
 
-def make_bkgsub_flux(cluster_dir, home_dir, obsids, redo=False):
+def make_bkgsub_flux(
+    cluster_dir, home_dir, obsids, redo=False, band="broad", band_ev=BAND_EV
+):
     """Replace cluster_dir/broad_flux.img by its background-subtracted version.
 
     Returns True on success. Objects already processed (BKGSUB = T) are left
     alone unless redo=True, which starts again from broad_flux_nobkgsub.img;
     on any failure the original image is kept.
     """
+    IMAGE, COUNTS, EXPMAP, RAW_COPY, BKG_IMAGE = (
+        f"{band}_flux.img",
+        f"{band}_thresh.img",
+        f"{band}_thresh.expmap",
+        f"{band}_flux_nobkgsub.img",
+        f"{band}_bkg.img",
+    )
     image_path = os.path.join(cluster_dir, IMAGE)
     counts_path = os.path.join(cluster_dir, COUNTS)
     exp_path = os.path.join(cluster_dir, EXPMAP)
@@ -183,7 +216,11 @@ def make_bkgsub_flux(cluster_dir, home_dir, obsids, redo=False):
             for tag, blank_evt in blanks:
                 match = os.path.join(cluster_dir, f"{tag}_reproj_evt.fits")
                 bkg = _background_counts(
-                    blank_evt, match if os.path.exists(match) else None, xygrid, workdir
+                    blank_evt,
+                    match if os.path.exists(match) else None,
+                    xygrid,
+                    workdir,
+                    band_ev,
                 )
                 if bkg is None:
                     continue
