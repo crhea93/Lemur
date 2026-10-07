@@ -6,18 +6,32 @@ import os
 import re
 
 
+def _files(directory):
+    """Directory listing without the e1 set of interleaved-mode ObsIDs.
+
+    Interleaved (alternating exposure) observations ship two file sets,
+    ..._e1_evt1.fits (short frames) and ..._e2_evt1.fits (long frames, almost
+    all of the exposure). Mixing them (e.g. an e2 evt1 with an e1 flt1)
+    empties the cleaned event file, so use the e2 set only.
+    """
+    files = os.listdir(directory)
+    if any("_e2_" in f for f in files):
+        files = [f for f in files if "_e1_" not in f]
+    return files
+
+
 def get_filenames():
     """
     Collect all relevant files for reduction/analysis and place into a dictionary
     """
     filenames = dict()
     biases = []
-    for file in os.listdir(os.getcwd() + "/primary"):
+    for file in _files(os.getcwd() + "/primary"):
         if file.endswith("_evt2.fits"):
             filenames["evt2"] = os.getcwd() + "/primary/" + file
         if file.endswith("_asol1.fits"):
             filenames["asol1"] = os.getcwd() + "/primary/" + file
-    for file in os.listdir(os.getcwd() + "/secondary"):
+    for file in _files(os.getcwd() + "/secondary"):
         if file.endswith("_msk1.fits"):
             filenames["msk1"] = os.getcwd() + "/secondary/" + file
         if file.endswith("_stat1.fits"):
