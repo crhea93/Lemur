@@ -225,11 +225,32 @@ def resolve_coordinates(cluster_name, fallback_fits_paths=None):
     return None
 
 
-def choose_coordinates(cluster_name, cen_ra, cen_dec, fallback_fits_paths=None):
-    ra = _coerce_coord_value(cen_ra, is_ra=True)
-    dec = _coerce_coord_value(cen_dec, is_ra=False)
-    if ra is not None and dec is not None:
-        return ra, dec
+def target_coordinates(path):
+    """Observer's target position (RA_TARG/DEC_TARG) from a Chandra FITS header."""
+    if not path:
+        return None
+    try:
+        header = _read_fits_header(path)
+    except Exception:
+        return None
+    ra = _coerce_coord_value(header.get("RA_TARG"), is_ra=True)
+    dec = _coerce_coord_value(header.get("DEC_TARG"), is_ra=False)
+    if ra is None or dec is None:
+        return None
+    return ra, dec
+
+
+def choose_coordinates(cluster_name, fallback_fits_paths=None):
+    """Catalog position: the observer's target, else NED/CDS/other header keys.
+
+    The flux-weighted centroid of the merged image is not used: over a multi-chip
+    field it is pulled toward the middle of the array, often arcminutes from the
+    emission.
+    """
+    for candidate in fallback_fits_paths or []:
+        target = target_coordinates(candidate)
+        if target is not None:
+            return target
     resolved = resolve_coordinates(
         cluster_name, fallback_fits_paths=fallback_fits_paths
     )
@@ -420,11 +441,11 @@ def run_pipeline_with_config(inputs, merge_bool, env_vars):
 
     filenames: dict[str, Any]
     if ctx.merge_bool is False:
-        filenames, cen_ra, cen_dec, edge_ra, edge_dec, agn_ = run_single_observation(
+        filenames, _cen_ra, _cen_dec, edge_ra, edge_dec, agn_ = run_single_observation(
             ctx.inputs, ccds, main_out, db_service
         )
     else:
-        filenames, cen_ra, cen_dec, edge_ra, edge_dec, agn_ = run_merge_observations(
+        filenames, _cen_ra, _cen_dec, edge_ra, edge_dec, agn_ = run_merge_observations(
             ctx.inputs, ccds, main_out, db_service
         )
 
@@ -433,11 +454,9 @@ def run_pipeline_with_config(inputs, merge_bool, env_vars):
     )  # Need this defined
     final_ra, final_dec = choose_coordinates(
         ctx.inputs["name"],
-        cen_ra,
-        cen_dec,
         fallback_fits_paths=[
-            filenames.get("evt2_repro"),
             filenames.get("exp_corr"),
+            filenames.get("evt2_repro"),
         ],
     )
     if final_ra is not None and final_dec is not None:
@@ -619,9 +638,14 @@ def recompute_centers(
                 continue
             image_path = str(image_file)
             fallback_paths = [str(image_file.with_name("merged_evt.fits")), image_path]
-            # The stored position is only a prior for the X-ray peak search, so
-            # look it up (NED/CDS/FITS) only when it is missing.
-            if (
+            # The catalog position is the observer's target and is the prior for
+            # the X-ray peak search. Older entries stored the merged-image
+            # centroid instead, so replace it whenever the image has a target.
+            target = target_coordinates(image_path)
+            if target is not None:
+                coords = target
+                db_service.add_coord(name, coords[0], coords[1])
+            elif (
                 _coerce_coord_value(stored_ra, is_ra=True) is not None
                 and _coerce_coord_value(stored_dec) is not None
             ):
