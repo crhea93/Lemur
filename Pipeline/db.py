@@ -191,6 +191,11 @@ def ensure_sqlite_schema(conn):
         CREATE INDEX IF NOT EXISTS idx_clusters_name ON Clusters (Name);
         CREATE INDEX IF NOT EXISTS idx_clusters_id ON Clusters (ID);
         CREATE INDEX IF NOT EXISTS idx_obsids_cluster ON Obsids (ClusterNumber);
+        DELETE FROM Obsids WHERE rowid NOT IN (
+            SELECT MIN(rowid) FROM Obsids GROUP BY ClusterNumber, Obsid
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_obsids_cluster_obsid
+            ON Obsids (ClusterNumber, Obsid);
         CREATE INDEX IF NOT EXISTS idx_region_cluster ON Region (idCluster);
         CREATE UNIQUE INDEX IF NOT EXISTS idx_center_cluster_name
             ON cluster_center (ClusterName);

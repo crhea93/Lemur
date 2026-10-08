@@ -67,4 +67,9 @@ CREATE TABLE IF NOT EXISTS similar_clusters (
 
 CREATE INDEX IF NOT EXISTS idx_clusters_name ON Clusters (Name);
 CREATE INDEX IF NOT EXISTS idx_obsids_cluster ON Obsids (ClusterNumber);
+-- Each (object, ObsID) pair once; drop repeats left by an old double insert.
+DELETE FROM Obsids WHERE rowid NOT IN (
+    SELECT MIN(rowid) FROM Obsids GROUP BY ClusterNumber, Obsid
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_obsids_cluster_obsid ON Obsids (ClusterNumber, Obsid);
 CREATE INDEX IF NOT EXISTS idx_region_cluster ON Region (idCluster);
