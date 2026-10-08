@@ -91,3 +91,4 @@ Pipeline/ops/failed_clusters.csv
 # Generated per-object plots: deployed from disk by wrangler ([assets] ./Web), not from git
 Web/Cluster_plots/
 paper/
+paper/
