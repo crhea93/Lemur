@@ -29,7 +29,7 @@ def is_grating(event_file):
 # float32 images of the full mosaic grid (~13 grid-sized copies measured for
 # dmimgcalc on Centaurus). Wide mosaics at binsize=1 then exceed the worker's
 # 40 GB memory cap, so limit the processes to fit a memory budget.
-MERGE_MEMORY_BUDGET = 30e9
+MERGE_MEMORY_BUDGET = 16e9  # leaves room for page cache under the 40 GB cap
 BYTES_PER_GRID_PIXEL = 13 * 4
 ACIS_FIELD_ARCMIN = 30  # margin around the pointings for the chips' extent
 
