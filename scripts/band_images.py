@@ -7,12 +7,14 @@ catalogue's broad-band image (Misc.bkg_flux). Run inside the CIAO env:
     conda run -n ciao python scripts/band_images.py --data-dir DIR --cluster NGC253 \\
         --obsids 790,969 --band soft=0.5:2:1.25 --band hard=2:7:3.8
 
-Writes <data-dir>/<cluster>/bands/<name>_flux.img (BKGSUB = T), plus the
-counts, exposure map, background and unsubtracted images, for each band.
+Writes <data-dir>/<cluster>/bands/<name>_flux.img.gz (BKGSUB = T) with the
+counts (<name>_thresh.img.gz) and background (<name>_bkg.img.gz) images for
+each band; merge_obs's other products are deleted unless --keep-intermediates.
 """
 
 import argparse
 import glob
+import gzip
 import os
 import shutil
 import subprocess
@@ -22,6 +24,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "Pipeline"))
 from Misc.bkg_flux import make_bkgsub_flux  # noqa: E402
+from Preliminary.Merge import merge_nproc  # noqa: E402
+
+# Per band: background-subtracted flux, counts and background images. The
+# exposure map is (counts - background) / flux where there is exposure.
+KEEP_SUFFIXES = ("_flux.img", "_thresh.img", "_bkg.img")
 
 
 def event_files(data_dir, obsid):
@@ -42,6 +49,11 @@ def main(argv=None):
     parser.add_argument("--data-dir", required=True)
     parser.add_argument("--cluster", required=True)
     parser.add_argument("--obsids", required=True, help="comma-separated")
+    parser.add_argument(
+        "--keep-intermediates",
+        action="store_true",
+        help="Keep merge_obs's per-ObsID products and the other band images",
+    )
     parser.add_argument(
         "--band",
         action="append",
@@ -71,6 +83,7 @@ def main(argv=None):
             f"{out_dir}/",
             f"bands={','.join(b[0] for b in bands.values())}",
             "binsize=1",
+            f"nproc={merge_nproc(files)}",
             "clobber=yes",
             "verbose=1",
         ],
@@ -84,7 +97,26 @@ def main(argv=None):
             str(out_dir), args.data_dir, obsids, band=name, band_ev=band_ev
         )
         print(f"{name}: {'background-subtracted' if ok else 'FAILED'} -> {out_dir}/{name}_flux.img")
+        if not ok:
+            return 1
+    if not args.keep_intermediates:
+        prune(out_dir, list(bands))
     return 0
+
+
+def prune(out_dir, bands):
+    """Keep only the per-band products in KEEP_SUFFIXES, gzipped."""
+    keep = {f"{band}{suffix}" for band in bands for suffix in KEEP_SUFFIXES}
+    for path in out_dir.iterdir():
+        if path.name in keep:
+            with open(path, "rb") as src, gzip.open(f"{path}.gz", "wb", 6) as dst:
+                shutil.copyfileobj(src, dst)
+            path.unlink()
+        elif not (path.name.endswith(".gz") and path.name[:-3] in keep):
+            if path.is_dir():
+                shutil.rmtree(path)
+            else:
+                path.unlink()
 
 
 if __name__ == "__main__":
