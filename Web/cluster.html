@@ -121,6 +121,35 @@
                 display: block;
             }
 
+            .band-tabs {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+                margin-bottom: 10px;
+            }
+
+            .band-tabs button {
+                padding: 6px 14px;
+                border-radius: 999px;
+                border: 1px solid var(--line);
+                background: transparent;
+                color: var(--ink-2);
+                font-weight: 600;
+                font-size: 13px;
+                cursor: pointer;
+            }
+
+            .band-tabs button[aria-selected="true"] {
+                background: linear-gradient(135deg, #9378d3, #7459ae);
+                border-color: transparent;
+                color: #fff;
+            }
+
+            .band-tabs button:focus-visible {
+                outline: 2px solid #7459ae;
+                outline-offset: 2px;
+            }
+
             .obsid-box {
                 margin-top: 16px;
                 background: var(--paper-strong);
@@ -490,14 +519,44 @@
                 const plotFiles = data.plots.files.filter(
                     (file) => !file.toLowerCase().includes("lightcurve"),
                 );
-                const mainImage = plotFiles.find(
-                    (file) => file.toLowerCase() === "bkgsub_exp.png",
+                const bands = [
+                    { file: "bkgsub_exp.png", label: "Broad", range: "0.5–7 keV" },
+                    { file: "soft_exp.png", label: "Soft", range: "0.5–2 keV" },
+                    { file: "hard_exp.png", label: "Hard", range: "2–7 keV" },
+                ].filter((band) =>
+                    plotFiles.some((file) => file.toLowerCase() === band.file),
                 );
                 const imageEl = document.getElementById("cluster-image");
-                if (mainImage) {
+                if (bands.length) {
+                    const imageAlt = (band) =>
+                        `${cluster.Name}, ${band.label.toLowerCase()} band (${band.range}), background-subtracted and exposure-corrected`;
+                    const tabs =
+                        bands.length > 1
+                            ? `<div class="band-tabs" role="tablist" aria-label="Energy band">
+                                ${bands
+                                    .map(
+                                        (band, i) => `
+                                    <button type="button" role="tab" data-band="${i}"
+                                        aria-selected="${i === 0}">${band.label} · ${band.range}</button>`,
+                                    )
+                                    .join("")}
+                               </div>`
+                            : "";
                     imageEl.innerHTML = `
-                        <img src="${data.plots.base_url}/${mainImage}" alt="Cluster background-subtracted exposure" />
+                        ${tabs}
+                        <img id="band-image" src="${data.plots.base_url}/${bands[0].file}" alt="${imageAlt(bands[0])}" />
                     `;
+                    const img = document.getElementById("band-image");
+                    imageEl.querySelectorAll(".band-tabs button").forEach((button) => {
+                        button.addEventListener("click", () => {
+                            const band = bands[Number(button.dataset.band)];
+                            img.src = `${data.plots.base_url}/${band.file}`;
+                            img.alt = imageAlt(band);
+                            imageEl
+                                .querySelectorAll(".band-tabs button")
+                                .forEach((b) => b.setAttribute("aria-selected", String(b === button)));
+                        });
+                    });
                 } else {
                     imageEl.innerHTML = "<p>No image available.</p>";
                 }

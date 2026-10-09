@@ -36,6 +36,7 @@ Options:
   --skip-fits               Skip FITS ZIP upload to R2
   --skip-schema             Skip schema apply (only import data into D1)
   --skip-existing           Skip FITS upload when object already exists in R2 (default: on)
+  --overwrite               Upload FITS ZIPs even when they already exist in R2
   --similar-only            Only replace the similar_clusters table in D1 (implies
                             --skip-fits); Clusters/Obsids/Region are left untouched
   --keep-sql-dump           Keep temp D1 data SQL file when --d1-data-sql is not set
@@ -102,6 +103,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --skip-existing)
             SKIP_EXISTING=1
+            shift
+            ;;
+        --overwrite)
+            SKIP_EXISTING=0
             shift
             ;;
         --similar-only)

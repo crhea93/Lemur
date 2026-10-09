@@ -206,10 +206,12 @@ async function handleClusterDetail(env, request, name) {
 
   const url = new URL(request.url);
   const baseUrl = `/Cluster_plots/${encodeURIComponent(name)}`;
-  const maybeMain = `${baseUrl}/bkgsub_exp.png`;
-  const files = (await assetExists(env, url.origin, maybeMain))
-    ? ["bkgsub_exp.png"]
-    : [];
+  // Broad (bkgsub_exp.png), soft and hard band previews, when present.
+  const previews = ["bkgsub_exp.png", "soft_exp.png", "hard_exp.png"];
+  const exists = await Promise.all(
+    previews.map((file) => assetExists(env, url.origin, `${baseUrl}/${file}`)),
+  );
+  const files = previews.filter((_, i) => exists[i]);
 
   return json({
     cluster,

@@ -1,6 +1,7 @@
 .PHONY: help deploy sync-all sync-d1 sync-fits dry-run check-chandra-dir \
 	astroclip-env pull-db centers embeddings similar serve publish-similar \
-	fetch-obsids flux-images merge-duplicates publish paper-stats showcase
+	fetch-obsids flux-images merge-duplicates publish paper-stats showcase \
+	band-previews stage-fits publish-fits
 
 # Load local runtime env vars if present (see .env.example).
 -include .env.local
@@ -28,6 +29,11 @@ help:
 	@echo ""
 	@echo "  make paper-stats      - Catalog numbers, LaTeX macros and figures for the paper (paper/)"
 	@echo "  make showcase         - Showcase figures + caption macros (paper/showcase_macros.tex)"
+	@echo ""
+	@echo "Band images (after scripts/run_band_pass.py), in order:"
+	@echo "  make band-previews    - Broad/soft/hard PNG previews in Web/Cluster_plots (REDO=1 to redraw)"
+	@echo "  make stage-fits       - Stage broad/soft/hard FITS for the download zips (LEMUR_FITS_DIR)"
+	@echo "  make publish-fits     - Rebuild and upload every download zip to R2 (overwrites)"
 	@echo ""
 	@echo "Data maintenance:"
 	@echo "  make fetch-obsids     - Download archive files for clusters missing images"
@@ -125,6 +131,19 @@ merge-duplicates: check-chandra-dir
 		--data-dir "$(LEMUR_CHANDRA_DIR)"
 
 SHOWCASE ?= NGC4636=ngcFourSixThreeSix:10 1E0657-56=bullet:7
+RELEASE_FITS_DIR ?= $(or $(LEMUR_FITS_DIR),$(firstword $(subst :, ,$(LEMUR_CHANDRA_DIR)))/_lemur_fits)
+
+band-previews: check-chandra-dir
+	$(ASTROCLIP_PYTHON) -W ignore scripts/band_previews.py --db "$(LEMUR_DB_PATH)" \
+		--data-dir "$(LEMUR_CHANDRA_DIR)" $(if $(REDO),--redo)
+
+stage-fits: check-chandra-dir
+	$(ASTROCLIP_PYTHON) scripts/stage_release_fits.py --db "$(LEMUR_DB_PATH)" \
+		--data-dir "$(LEMUR_CHANDRA_DIR)" --fits-dir "$(RELEASE_FITS_DIR)"
+
+publish-fits:
+	$(SYNC_SCRIPT) --skip-d1 --overwrite --fits-root "$(RELEASE_FITS_DIR)"
+
 showcase:
 	$(ASTROCLIP_PYTHON) -W ignore scripts/showcase_figures.py --db "$(LEMUR_DB_PATH)" \
 		--data-dir "$(LEMUR_CHANDRA_DIR)" --out paper $(SHOWCASE)

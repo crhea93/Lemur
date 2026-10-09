@@ -140,7 +140,7 @@ def cluster_detail(name: str):
     plot_dir = PLOTS_DIR / name
     plots = []
     if plot_dir.exists():
-        allowed = {"bkgsub_exp.png"}
+        allowed = {"bkgsub_exp.png", "soft_exp.png", "hard_exp.png"}
         for filename in sorted(os.listdir(plot_dir)):
             lower = filename.lower()
             if not lower.endswith(IMAGE_EXTENSIONS):
