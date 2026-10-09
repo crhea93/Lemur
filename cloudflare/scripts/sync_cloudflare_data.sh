@@ -244,24 +244,31 @@ if [[ "$SKIP_FITS" -eq 0 ]]; then
             continue
         fi
 
-        python3 - <<PY
+        build_zip() {  # $1 = 1 to leave out the merged event file (keep *.fits.gz images)
+            python3 - "$cluster_dir" "$tmp_zip" "$1" <<'PY'
 import pathlib
+import sys
 import zipfile
 
-cluster = pathlib.Path(r"$cluster_dir")
-zip_path = pathlib.Path(r"$tmp_zip")
+cluster, zip_path, images_only = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3] == "1"
 extensions = {".fits", ".fit", ".fts", ".gz"}
-with zipfile.ZipFile(
-    zip_path,
-    "w",
-    compression=zipfile.ZIP_DEFLATED,
-    compresslevel=9,
-) as zf:
+with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
     for path in sorted(cluster.iterdir()):
-        if path.is_file() and path.suffix.lower() in extensions:
-            zf.write(path, arcname=path.name)
+        if not path.is_file() or path.suffix.lower() not in extensions:
+            continue
+        if images_only and not path.name.endswith(".fits.gz"):
+            continue
+        zf.write(path, arcname=path.name)
 PY
+        }
+        build_zip 0
         zip_size_bytes="$(wc -c < "$tmp_zip")"
+        if (( zip_size_bytes > MAX_R2_UPLOAD_BYTES )); then
+            zip_size_mib="$(awk "BEGIN {printf \"%.1f\", $zip_size_bytes/1048576}")"
+            echo "'$cluster_name.zip' is ${zip_size_mib} MiB (limit 300 MiB): uploading the images without the merged event file"
+            build_zip 1
+            zip_size_bytes="$(wc -c < "$tmp_zip")"
+        fi
         if (( zip_size_bytes > MAX_R2_UPLOAD_BYTES )); then
             zip_size_mib="$(awk "BEGIN {printf \"%.1f\", $zip_size_bytes/1048576}")"
             echo "Skipping '$cluster_name.zip' (${zip_size_mib} MiB): exceeds Wrangler upload limit of 300 MiB"
