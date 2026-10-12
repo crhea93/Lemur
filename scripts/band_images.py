@@ -76,10 +76,14 @@ def main(argv=None):
         bands[name] = (rng, f"{lo}-{hi}", (float(lo) * 1000, float(hi) * 1000))
 
     os.chdir(args.data_dir)  # make_bkgsub_flux finds <obsid>/repro from here
+    # A stack file, not a comma list: CIAO truncates parameter strings at ~2000
+    # characters, which would silently drop ObsIDs from large mosaics.
+    stack = out_dir / "merge_inputs.lis"
+    stack.write_text("\n".join(files) + "\n")
     subprocess.run(
         [
             "merge_obs",
-            ",".join(files),
+            f"@{stack}",
             f"{out_dir}/",
             f"bands={','.join(b[0] for b in bands.values())}",
             "binsize=1",

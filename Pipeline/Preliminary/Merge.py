@@ -100,9 +100,16 @@ def merge_objects(Obsids, output_name, clean="yes"):
         raise RuntimeError("merge_obs: no valid event files were found")
     nproc = merge_nproc([f for f in id_string.split(",") if f])
     print(f"    merge_obs with nproc={nproc}")
+    # Pass the inputs as a stack file: CIAO truncates a parameter string at
+    # ~2000 characters, which silently dropped ObsIDs beyond about the 41st
+    # (Abell2146, M31, SgrA).
+    os.makedirs(output_name, exist_ok=True)
+    stack = os.path.join(output_name, "merge_inputs.lis")
+    with open(stack, "w") as handle:
+        handle.write("\n".join(f for f in id_string.split(",") if f) + "\n")
     os.system(
-        "merge_obs '"
-        + id_string
+        "merge_obs '@"
+        + stack
         + "' "
         + output_name
         + "/ clobber=yes verbose=0 cleanup="
