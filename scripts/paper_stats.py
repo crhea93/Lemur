@@ -95,8 +95,13 @@ def load_survey(survey_dir):
     )
 
 
-def merged_obsids(header):
-    """ObsIDs in an image: merge_obs `infiles` from HISTORY, else OBS_ID."""
+def merged_obsids(header, image=None):
+    """ObsIDs in an image: merge_obs `infiles` from HISTORY, else OBS_ID.
+
+    Since October 2026 the pipeline gives merge_obs a stack file
+    (infiles=@<folder>/merge_inputs.lis, kept next to the image); pass the
+    image path so the list can be read from it.
+    """
     lines = [str(card) for card in header.get("HISTORY", [])]
     starts = [i for i, line in enumerate(lines) if "infiles=" in line]
     if starts:
@@ -109,6 +114,10 @@ def merged_obsids(header):
             if "outroot=" in blob:
                 break
         blob = blob.split("outroot=")[0]
+        if "@" in blob and image is not None:
+            stack = Path(image).parent / Path(blob.split("@")[-1].strip(" ,'\"")).name
+            if stack.exists():
+                blob = "," + ",".join(stack.read_text().split())
         return {int(x) for x in re.findall(r"(?:^|[/,=@])(?:acisf)?0*(\d+)[_/]", blob)}
     obs_id = str(header.get("OBS_ID", "")).strip()
     return {int(obs_id)} if obs_id.isdigit() else set()
@@ -129,7 +138,7 @@ def image_contents(clusters, links, data_dir):
             exposure = float(header["EXPOSURE"]) / 1e3
         except (OSError, KeyError, ValueError):
             continue
-        merged = merged_obsids(header)
+        merged = merged_obsids(header, image)
         wanted = catalog.get(object_id, set())
         rows.append(
             {

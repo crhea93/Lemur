@@ -170,7 +170,7 @@ def main(argv=None):
         from astropy.io import fits
 
         header = fits.getheader(image_path)
-        merged = merged_obsids(header)
+        merged = merged_obsids(header, image_path)
         redshift, catalog_obsids, center_row = load_object(args.db, name)
         if center_row is None:
             raise SystemExit(f"No X-ray center for {name}; run the center step first")

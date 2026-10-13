@@ -24,7 +24,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "Pipeline"))
 from Misc.bkg_flux import make_bkgsub_flux  # noqa: E402
-from Preliminary.Merge import merge_nproc  # noqa: E402
+from Preliminary.Merge import merge_nproc, merge_obs_tool  # noqa: E402
 
 # Per band: background-subtracted flux, counts and background images. The
 # exposure map is (counts - background) / flux where there is exposure.
@@ -76,18 +76,21 @@ def main(argv=None):
         bands[name] = (rng, f"{lo}-{hi}", (float(lo) * 1000, float(hi) * 1000))
 
     os.chdir(args.data_dir)  # make_bkgsub_flux finds <obsid>/repro from here
+    # One merge_obs process per ObsID and band: allow half as many as for the
+    # broad band alone (M101's two-band merge filled the 40 GB cap at nproc=15).
+    nproc = max(1, merge_nproc(files) // len(bands))
     # A stack file, not a comma list: CIAO truncates parameter strings at ~2000
     # characters, which would silently drop ObsIDs from large mosaics.
     stack = out_dir / "merge_inputs.lis"
     stack.write_text("\n".join(files) + "\n")
     subprocess.run(
         [
-            "merge_obs",
+            *merge_obs_tool(files),
             f"@{stack}",
             f"{out_dir}/",
             f"bands={','.join(b[0] for b in bands.values())}",
             "binsize=1",
-            f"nproc={merge_nproc(files)}",
+            f"nproc={nproc}",
             "clobber=yes",
             "verbose=1",
         ],
@@ -112,6 +115,8 @@ def prune(out_dir, bands):
     """Keep only the per-band products in KEEP_SUFFIXES, gzipped."""
     keep = {f"{band}{suffix}" for band in bands for suffix in KEEP_SUFFIXES}
     for path in out_dir.iterdir():
+        if path.name == "merge_inputs.lis":  # the record of what was merged
+            continue
         if path.name in keep:
             with open(path, "rb") as src, gzip.open(f"{path}.gz", "wb", 6) as dst:
                 shutil.copyfileobj(src, dst)
