@@ -7,8 +7,9 @@ directory the R2 zips are built from, see `make publish-fits`):
     <name>_<band>_counts.fits.gz   counts image
     <name>_<band>_bkg.fits.gz      scaled blank-sky background (counts)
 
-for band = broad (0.5-7 keV), soft (0.5-2 keV) and hard (2-7 keV). The
-exposure map is (counts - bkg) / flux wherever there is exposure. Gzipped
+for band = broad (0.5-7 keV), soft (0.5-2 keV) and hard (2-7 keV), plus the
+broad-band exposure map (<name>_broad_expmap.fits.gz). A band's exposure map is
+(counts - bkg) / flux wherever the flux is non-zero. Gzipped
 sources are hard-linked (same drive, no extra space); others are gzipped.
 A merged event file already in the directory is left as is.
 
@@ -32,6 +33,7 @@ SOURCES = {
     ("broad", "flux"): "broad_flux.img",
     ("broad", "counts"): "broad_thresh.img",
     ("broad", "bkg"): "broad_bkg.img",
+    ("broad", "expmap"): "broad_thresh.expmap",
     ("soft", "flux"): "bands/soft_flux.img",
     ("soft", "counts"): "bands/soft_thresh.img",
     ("soft", "bkg"): "bands/soft_bkg.img",
