@@ -506,6 +506,10 @@ def run_pipeline_with_config(inputs, merge_bool, env_vars):
 
     # --------------------------FINISH---------------------------------#
     export_web(ctx.inputs)
+    # After export_web: also redraws the broad preview in the catalogue style.
+    from Misc.band_products import make_band_images
+
+    make_band_images(ctx.inputs)
     db_service.update_api_db(ctx.inputs)
     main_out.close()
     return None

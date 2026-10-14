@@ -15,9 +15,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "Pipeline" / "ops"))
+sys.path.insert(0, str(ROOT / "Pipeline"))
+from Misc.band_products import BANDS  # noqa: E402
 from run_queue import pipeline_safe_cluster_name  # noqa: E402
-
-BANDS = ["soft=0.5:2:1.25", "hard=2:7:3.8"]
 
 
 def main(argv=None):
