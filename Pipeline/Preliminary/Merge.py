@@ -96,6 +96,14 @@ def merge_obs_tool(event_files):
     return [sys.executable, str(wrapper), str(nchunk)]
 
 
+def _cleaned(path):
+    """path or path.gz, whichever is newer (compress_products gzips them after a
+    run, so an object merged again without cleaning finds them gzipped); None
+    if neither exists."""
+    existing = [p for p in (path, path + ".gz") if os.path.exists(p)]
+    return max(existing, key=os.path.getmtime) if existing else None
+
+
 def merge_objects(Obsids, output_name, clean="yes"):
     """
     Merge background subtracted event files for photometric analysis
@@ -110,10 +118,14 @@ def merge_objects(Obsids, output_name, clean="yes"):
     for obsid in Obsids:
         # Multi-segment (multi-OBI) ObsIDs: CIAO needs one event file per
         # segment; the merge path's "_uncontam" file is a plain copy anyway.
-        segments = sorted(
-            glob.glob(f"{obsid}/repro/acisf{obsid}_[0-9][0-9][0-9]_repro_evt2.fits")
+        segment_names = sorted(
+            {
+                os.path.basename(f).removesuffix(".gz")
+                for f in glob.glob(f"{obsid}/repro/acisf{obsid}_[0-9][0-9][0-9]_repro_evt2.fits*")
+            }
         )
-        candidates = segments or glob.glob(f"{obsid}/repro/acisf{obsid}_repro_evt2*.fits")
+        segments = [_cleaned(f"{obsid}/repro/{name}") for name in segment_names]
+        candidates = segments or glob.glob(f"{obsid}/repro/acisf{obsid}_repro_evt2*.fits*")
         if candidates and is_grating(candidates[0]):
             print(f"    WARNING: skipping grating ObsID {obsid} (ACIS imaging only)")
             continue
@@ -122,14 +134,14 @@ def merge_objects(Obsids, output_name, clean="yes"):
             found = True
             id_hyphen += obsid + "-"
             continue
-        preferred = obsid + "/repro/acisf" + obsid + "_repro_evt2_uncontam.fits"
-        fallback = obsid + "/repro/acisf" + obsid + "_repro_evt2.fits"
-        if os.path.exists(preferred):
-            id_string += preferred + ","
+        event_file = _cleaned(
+            obsid + "/repro/acisf" + obsid + "_repro_evt2_uncontam.fits"
+        ) or _cleaned(obsid + "/repro/acisf" + obsid + "_repro_evt2.fits")
+        if event_file:
+            id_string += event_file + ","
             found = True
-        elif os.path.exists(fallback):
-            id_string += fallback + ","
-            found = True
+        else:
+            print(f"    WARNING: no cleaned event file for ObsID {obsid}; not merged")
         id_hyphen += obsid + "-"
 
     if not found:
