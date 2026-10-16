@@ -1,0 +1,26 @@
+# Regenerated Chandra mocks of TNG300 and TNG-Cluster halos (decided 2026-10-16).
+# Products are LEMUR-like (counts and background-subtracted flux in the broad,
+# soft and hard bands); all cropping and normalization happens later, in the
+# shared preprocessing pipeline.
+
+output_root: /run/media/crhea/ef10789c-0ada-41e4-8d3f-8f17dbcc0558/_domain_gap/mocks
+snapshot: 99
+
+simulations:
+  - name: TNG300-1
+    halos: configs/halos/tng300.csv
+  - name: TNG-Cluster
+    halos: configs/halos/tng_cluster.csv
+
+redshifts: [0.05, 0.1, 0.2]
+exposures_ks: [20, 100]
+projections: [x, y, z]
+
+# Photons are drawn once per halo and redshift, for an area above the ACIS-I
+# peak effective area (565 cm^2) and the longest exposure.
+photon_area_cm2: 1000.0
+photon_exposure_ks: 100.0
+sky_center_deg: [45.0, 30.0]
+
+keep_cutouts: false   # raw TNG gas cutouts (can be downloaded again)
+keep_events: true     # simulated event files, gzipped (allow re-imaging later)
