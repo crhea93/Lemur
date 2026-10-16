@@ -179,6 +179,15 @@ def _stage1_task(args):
     return info["status"]
 
 
+def _mock_changed(obs_dir, cfg, cached):
+    """Whether a mock's flux images are newer than its extraction (e.g. refitted)."""
+    newest = max(
+        (Path(obs_dir) / f"{band}_flux.fits.gz").stat().st_mtime
+        for band in {cfg["band"], "broad"}  # broad sets the centre
+    )
+    return newest > cached.stat().st_mtime
+
+
 def run_stage1(cfg, items, workers):
     # Shared by every config with the same spatial settings.
     base = Path(cfg.get("stage1_dir", PREPROCESSED / "_stage1"))
@@ -194,7 +203,7 @@ def run_stage1(cfg, items, workers):
         for kind, payload, name in rows:
             path = base / source / f"{safe_name(name)}.npz"
             paths[source].append(path)
-            if not path.exists():
+            if not path.exists() or (kind == "mock" and _mock_changed(payload, cfg, path)):
                 tasks.append((kind, payload, name, cfg, path))
     print(f"Stage 1: {len(tasks)} images to extract ({base})", flush=True)
     started = time.time()
