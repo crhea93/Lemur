@@ -62,7 +62,7 @@ def halo_url(sim, snapshot, halo_id):
 
 def halo_info(sim, snapshot, halo_id):
     """The group-catalog entry of one FoF halo (GroupPos, Group_M_Crit500, ...)."""
-    return get(halo_url(sim, snapshot, halo_id)).json()
+    return get(halo_url(sim, snapshot, halo_id) + "info.json").json()
 
 
 def simulation_info(sim):
