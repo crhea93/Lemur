@@ -134,6 +134,9 @@ everything else happens in the shared pipeline.
   - a separately simulated background-only event file, binned and subtracted like LEMUR's B,
     so that F = (C − B) / E has the same meaning;
   - the soft and hard bands as for LEMUR.
+- **Decided (2026-10-16, Carter):** redshifts 0.05, 0.1 and 0.2; exposures 20 and 100 ks;
+  ACIS-I only to start. That is 632 halos × 3 projections × 6 settings. The TNG API key
+  will be read from `~/.config/tng_api_key` (never committed).
 - **Needed from Carter:**
   - a TNG account API key, for gas cutouts of the eight fields used;
   - the choices of redshift grid, exposure strategy and whether to include ACIS-S.
