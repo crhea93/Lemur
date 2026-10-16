@@ -21,7 +21,7 @@ Outputs, per config, in `<data drive>/_domain_gap/preprocessed/<name>/`:
 |---|---|
 | `inputs_{source}.npy` | float32 (N, grid, grid) model inputs in [0, 1] |
 | `masks_{source}.npy` | uint8, 1 where the output pixel is covered |
-| `manifest.parquet` / `.csv` | one row per image: identifiers, `index` into the arrays, redshift, exposure, centre and its method, field size, `native_pix_per_output`, coverage, stretch limits, flags (`status`, `low_coverage`, `upsampled`, `empty`, `usable`) |
+| `manifest.parquet` / `.csv` | one row per image: identifiers, `index` into the arrays, redshift, exposure, centre and its method, field size, `native_pix_per_output`, coverage, stretch limits, flags (`status`, `low_coverage`, `upsampled`, `no_signal`, `usable`) |
 | `run.json` | config, fitted intensity parameters, code version, counts |
 | `embeddings_{source}.npy` | AstroCLIP embeddings, rows aligned with the inputs |
 | `qa/` | `examples.png`, `pixels.png`, `profiles.png` |

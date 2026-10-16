@@ -287,7 +287,7 @@ def run_stage2(cfg, paths):
                     )
                     vmin, vmax = params["vmin"], params["vmax"]
                     if not (np.asarray(img)[mask] > vmin).any():
-                        vmax = vmin  # nothing above the floor: flagged empty
+                        vmax = vmin  # nothing above the floor: flagged no_signal
                 else:
                     values, vmin, vmax = intensity.morphology(
                         img, mask, icfg.get("lower_pct", 5.0), icfg.get("upper_pct", 99.7), a

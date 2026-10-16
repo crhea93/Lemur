@@ -10,7 +10,8 @@ the image in ``inputs_{source}.npy``):
   field is upsampled), coverage_mean, coverage_core (central quarter);
 - intensity: vmin, vmax of the stretch;
 - flags: status ("ok" or why the image was skipped), low_coverage,
-  upsampled, empty, and ``usable`` combining them under the run's settings.
+  upsampled, no_signal (nothing above vmin), and ``usable`` combining them
+  under the run's settings.
 """
 
 from pathlib import Path
@@ -23,8 +24,8 @@ def add_flags(df, object_min_coverage, allow_upsampling):
     ok = df["status"] == "ok"
     df["low_coverage"] = ok & (df["coverage_mean"] < object_min_coverage)
     df["upsampled"] = ok & (df["native_pix_per_output"] < 1.0)
-    df["empty"] = ok & ~(df["vmax"] > df["vmin"])
-    df["usable"] = ok & ~df["low_coverage"] & ~df["empty"]
+    df["no_signal"] = ok & ~(df["vmax"] > df["vmin"])
+    df["usable"] = ok & ~df["low_coverage"] & ~df["no_signal"]
     if not allow_upsampling:
         df["usable"] &= ~df["upsampled"]
     return df
