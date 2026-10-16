@@ -15,6 +15,12 @@ Finished observations are skipped, so an interrupted run can be restarted.
 
 With workers > 1 (config or --workers) every halo runs in its own process and
 logs to {output_root}/logs/{sim}_{halo}.log.
+
+The reference background includes the faint CXB (observe.make_cxb_reference).
+Observations made before it was added are brought up to date, without
+re-simulating, by
+
+    python -m domain_gap.mocks.run --config configs/mocks.yaml --refit
 """
 
 import argparse
@@ -219,6 +225,11 @@ def main(argv=None):
         type=int,
         help="Halos at once, each in its own process (default: config 'workers', else 1)",
     )
+    parser.add_argument(
+        "--refit",
+        action="store_true",
+        help="Only recompute flux images made with an older reference background",
+    )
     args = parser.parse_args(argv)
 
     cfg = yaml.safe_load(open(args.config))
@@ -226,6 +237,9 @@ def main(argv=None):
         cfg["output_root"] = args.output_root
     reference = Path(cfg["output_root"]) / "reference"
     observe.make_reference(reference, cfg["sky_center_deg"], seed("reference"))
+    observe.make_cxb_reference(reference, cfg["sky_center_deg"], seed("reference", "cxb"))
+    if args.refit:
+        return refit_all(cfg, reference)
     jobs = []
     for sim_cfg in cfg["simulations"]:
         sim = sim_cfg["name"]
@@ -247,6 +261,15 @@ def main(argv=None):
             print(f"  {sim} {halo}: FAILED {type(exc).__name__}: {exc}", flush=True)
     print(f"Made {total} observations.")
     return 1 if failed else 0
+
+
+def refit_all(cfg, reference):
+    """Bring every finished observation up to the current reference background."""
+    root = Path(cfg["output_root"])
+    done = [m.parent for m in sorted(root.glob("*/*/z*/*/*ks/meta.json"))]
+    changed = sum(observe.refit_flux(obs, reference) for obs in done if is_done(obs))
+    print(f"Refitted {changed} of {len(done)} observations.", flush=True)
+    return 0
 
 
 def run_parallel(args, cfg, jobs, workers):

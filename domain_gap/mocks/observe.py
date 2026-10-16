@@ -33,6 +33,10 @@ INSTRUMENT = "chandra_acisi_cy0"
 BANDS = {"broad": (0.5, 7.0, 2.3), "soft": (0.5, 2.0, 1.25), "hard": (2.0, 7.0, 3.8)}
 SCALE_BAND_KEV = (9.0, 12.0)
 REFERENCE_BKG_KS = 2000.0
+# Blank-sky backgrounds have the detected point sources removed, so they keep
+# the cosmic X-ray background (CXB) of fainter sources. Assumed limit of that
+# removal (0.5-2 keV, erg cm^-2 s^-1), typical of the 30-100 ks blank-sky fields.
+CXB_FLUX_LIMIT = 1e-15
 
 
 def simulate_observation(simput, evt_file, exp_ks, sky_center, seed):
@@ -165,15 +169,138 @@ def make_reference(ref_dir, sky_center, seed):
     return meta
 
 
-def load_reference(ref_dir, band):
-    """(background counts, exposure map per second) for a band, as float arrays."""
+def make_cxb_reference(ref_dir, sky_center, seed, flux_limit=CXB_FLUX_LIMIT, realizations=20):
+    """Add the CXB that blank-sky backgrounds keep to the reference background.
+
+    Every mock observation contains SOXS's whole CXB: point sources down to
+    very faint fluxes plus a diffuse unresolved part. LEMUR's blank-sky
+    backgrounds contain only the CXB of sources below their detection limit,
+    so only that part is subtracted there. This makes the same part for the
+    mocks: SOXS's source population (averaged over ``realizations`` draws)
+    below ``flux_limit``, plus its diffuse unresolved component, with the
+    photons spread uniformly over the field (a blank-sky file averages over
+    many fields), observed for the reference exposure. Writes
+    {band}_cxb_counts.fits.gz into ``ref_dir`` (atomically) and adds a "cxb"
+    entry to reference.json; returns that entry.
+    """
+    import os
+    import tempfile
+
+    import soxs
+    from astropy.table import Table
+    from soxs.background.point_sources import (
+        generate_positions,
+        generate_sources,
+        make_ptsrc_background,
+    )
+    from soxs.instrument_registry import instrument_registry
+    from soxs.response import AuxiliaryResponseFile
+    from soxs.simput import SimputCatalog, SimputPhotonList
+    from soxs.utils import get_data_file
+
+    ref_dir = Path(ref_dir)
+    meta = json.loads((ref_dir / "reference.json").read_text())
+    if "cxb" in meta:
+        return meta["cxb"]
+    prng = np.random.RandomState(seed)
+    spec = instrument_registry[INSTRUMENT]
+    fov = 1.5 * spec["fov"]  # arcmin, as SOXS uses for the point-source background
+    area = 1.2 * AuxiliaryResponseFile(get_data_file(spec["arf"])).max_area
+    draws = [generate_sources(fov, sky_center, prng=prng) for _ in range(realizations)]
+    fluxes = np.concatenate([d[2] for d in draws])
+    index = np.concatenate([d[3] for d in draws])
+    faint = fluxes < flux_limit
+    with tempfile.TemporaryDirectory(dir=ref_dir.parent) as tmp:
+        tmp = Path(tmp)
+        catalog = tmp / "faint_sources.ecsv"
+        Table(
+            {
+                "RA": np.full(faint.sum(), sky_center[0]),
+                "Dec": np.full(faint.sum(), sky_center[1]),
+                "flux_0.5_2.0_keV": fluxes[faint] / realizations,
+                "index": index[faint],
+            }
+        ).write(catalog, format="ascii.ecsv")
+        events = make_ptsrc_background(
+            (REFERENCE_BKG_KS, "ks"),
+            fov,
+            sky_center,
+            area=area,
+            input_sources=str(catalog),
+            diffuse_unresolved=True,
+            prng=prng,
+        )
+        ra, dec = generate_positions(events["energy"].size, fov, sky_center, prng)
+        source = SimputPhotonList(ra, dec, events["energy"], events["flux"], name="cxb_faint")
+        simput = tmp / "cxb_simput.fits"
+        SimputCatalog.from_source(
+            str(simput), source, src_filename=str(tmp / "cxb_phlist.fits"), overwrite=True
+        )
+        evt = tmp / "cxb_evt.fits"
+        soxs.instrument_simulator(
+            str(simput),
+            str(evt),
+            (REFERENCE_BKG_KS, "ks"),
+            INSTRUMENT,
+            list(sky_center),
+            overwrite=True,
+            instr_bkgnd=False,
+            foreground=False,
+            ptsrc_bkgnd=False,
+            prng=prng,
+        )
+        box = tuple(meta["crop_box_x0_x1_y0_y1"])
+        counts_total = {}
+        for band, (emin, emax, _energy) in BANDS.items():
+            counts, header = _band_image(str(evt), emin, emax)
+            data, hdr = _crop(counts, header, box)
+            hdr.update(
+                BUNIT="count",
+                EXPOSURE=REFERENCE_BKG_KS * 1e3,
+                BAND=band,
+                CXBLIMIT=flux_limit,
+                COMMENT="CXB of sources below CXBLIMIT (0.5-2 keV), spread uniformly",
+            )
+            _write_gz(tmp / f"{band}_cxb_counts.fits", data.astype(np.int32), hdr)
+            counts_total[band] = int(data.sum())
+        for band in BANDS:  # rename is atomic: running workers never see partial files
+            os.replace(tmp / f"{band}_cxb_counts.fits.gz", ref_dir / f"{band}_cxb_counts.fits.gz")
+    cxb = {
+        "flux_limit_0.5_2keV_cgs": flux_limit,
+        "realizations": realizations,
+        "fraction_of_source_flux_below_limit": float(fluxes[faint].sum() / fluxes.sum()),
+        "counts_in_reference": counts_total,
+    }
+    meta["cxb"] = cxb
+    tmp_meta = ref_dir / "reference.json.tmp"
+    tmp_meta.write_text(json.dumps(meta, indent=1))
+    os.replace(tmp_meta, ref_dir / "reference.json")
+    return cxb
+
+
+def load_reference(ref_dir, band, with_cxb=True):
+    """(background counts, exposure map per second) for a band, as float arrays.
+
+    The background includes the faint CXB (``make_cxb_reference``) if
+    ``with_cxb`` and it has been made.
+    """
     from astropy.io import fits
 
     ref_dir = Path(ref_dir)
+    background = fits.getdata(ref_dir / f"{band}_bkg_counts.fits.gz").astype(np.float64)
+    cxb = ref_dir / f"{band}_cxb_counts.fits.gz"
+    if with_cxb and cxb.exists():
+        background += fits.getdata(cxb).astype(np.float64)
     return (
-        fits.getdata(ref_dir / f"{band}_bkg_counts.fits.gz").astype(np.float64),
+        background,
         fits.getdata(ref_dir / f"{band}_expmap_per_s.fits.gz").astype(np.float64),
     )
+
+
+def cxb_limit(ref_dir):
+    """The CXB flux limit of the reference background, or 0 if it has no CXB."""
+    meta = json.loads((Path(ref_dir) / "reference.json").read_text())
+    return float(meta.get("cxb", {}).get("flux_limit_0.5_2keV_cgs", 0.0))
 
 
 def make_products(evt_file, ref_dir, out_dir, meta):
@@ -187,6 +314,7 @@ def make_products(evt_file, ref_dir, out_dir, meta):
 
     ref = json.loads((Path(ref_dir) / "reference.json").read_text())
     box = tuple(ref["crop_box_x0_x1_y0_y1"])
+    limit = float(ref.get("cxb", {}).get("flux_limit_0.5_2keV_cgs", 0.0))
     exposure = float(fits.getheader(evt_file, "EVENTS")["EXPOSURE"])
     n_obs = _counts_9_12(evt_file)
     exposure_ratio = exposure / ref["bkg_exposure_s"]
@@ -201,12 +329,9 @@ def make_products(evt_file, ref_dir, out_dir, meta):
     for band, (emin, emax, energy) in BANDS.items():
         full, header = _band_image(str(evt_file), emin, emax)
         counts, hdr = _crop(full, header, box)
-        bkg_ref, expmap_per_s = load_reference(ref_dir, band)
+        bkg_ref, expmap_per_s = load_reference(ref_dir, band, with_cxb=limit > 0)
         background = scale * bkg_ref
-        exposure_map = exposure * expmap_per_s
-        flux = np.zeros_like(counts)
-        covered = exposure_map > 0
-        flux[covered] = (counts[covered] - background[covered]) / exposure_map[covered]
+        flux = _flux(counts, background, exposure * expmap_per_s)
         hdr.update(dict(meta))
         hdr.update(
             BAND=band,
@@ -220,6 +345,7 @@ def make_products(evt_file, ref_dir, out_dir, meta):
             BKGSCAL=scale,
             BKGREF=f"{band}_bkg_counts.fits.gz",
             EXPREF=f"{band}_expmap_per_s.fits.gz",
+            CXBLIMIT=(limit, "faint CXB in B below this 0.5-2 keV flux (0: none)"),
         )
         counts_header = hdr.copy()
         counts_header["BUNIT"] = "count"
@@ -234,3 +360,45 @@ def make_products(evt_file, ref_dir, out_dir, meta):
             "bkg_counts": round(float(background.sum()), 1),
         }
     return summary
+
+
+def _flux(counts, background, exposure_map):
+    """F = (C - B) / E where E > 0, else 0."""
+    flux = np.zeros(np.shape(counts), dtype=np.float64)
+    covered = exposure_map > 0
+    flux[covered] = (counts[covered] - background[covered]) / exposure_map[covered]
+    return flux
+
+
+def refit_flux(obs_dir, ref_dir):
+    """Recompute the flux images of an observation with the current reference.
+
+    For observations made before the reference changed (e.g. before the faint
+    CXB was added): F follows from the stored counts and the BKGSCAL and
+    EXPOSURE keywords. Returns False if the observation is already current.
+    """
+    from astropy.io import fits
+
+    obs_dir = Path(obs_dir)
+    limit = cxb_limit(ref_dir)
+    headers = {b: fits.getheader(obs_dir / f"{b}_flux.fits.gz") for b in BANDS}
+    if all(float(h.get("CXBLIMIT", 0.0)) == limit for h in headers.values()):
+        return False
+    meta_file = obs_dir / "meta.json"
+    meta = json.loads(meta_file.read_text())
+    for band in BANDS:
+        counts = fits.getdata(obs_dir / f"{band}_counts.fits.gz").astype(np.float64)
+        header = headers[band]
+        bkg_ref, expmap_per_s = load_reference(ref_dir, band, with_cxb=limit > 0)
+        background = float(header["BKGSCAL"]) * bkg_ref
+        flux = _flux(counts, background, float(header["EXPOSURE"]) * expmap_per_s)
+        header["CXBLIMIT"] = (limit, "faint CXB in B below this 0.5-2 keV flux (0: none)")
+        tmp = obs_dir / f"{band}_flux.tmp.fits"
+        _write_gz(tmp, flux.astype(np.float32), header)
+        Path(f"{tmp}.gz").replace(obs_dir / f"{band}_flux.fits.gz")
+        meta["products"][band]["bkg_counts"] = round(float(background.sum()), 1)
+    meta["products"]["cxb_limit"] = limit
+    tmp_meta = obs_dir / "meta.json.tmp"
+    tmp_meta.write_text(json.dumps(meta, indent=1, default=str))
+    tmp_meta.replace(meta_file)
+    return True
