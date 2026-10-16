@@ -12,6 +12,9 @@ Finished observations are skipped, so an interrupted run can be restarted.
 
     python -m domain_gap.mocks.run --config configs/mocks.yaml [--sim TNG300-1] [--halos 0 1]
     python -m domain_gap.mocks.run --config configs/mocks.yaml --synthetic   # no TNG data needed
+
+With workers > 1 (config or --workers) every halo runs in its own process and
+logs to {output_root}/logs/{sim}_{halo}.log.
 """
 
 import argparse
@@ -19,6 +22,7 @@ import csv
 import gzip
 import json
 import shutil
+import subprocess
 import sys
 import time
 import zlib
@@ -84,19 +88,35 @@ def prepare_halo(cfg, sim, halo, work, synthetic):
     return halo_file, {k: info[k] for k in keys if k in info}
 
 
-def run_halo(cfg, sim, halo, reference, synthetic=False):
+def pending(cfg, sim, halo):
+    """The (redshift, projection, exposure) observations of a halo still to make."""
     root = Path(cfg["output_root"])
-    todo = [
+    return [
         (z, proj, exp)
         for z in cfg["redshifts"]
         for proj in cfg["projections"]
         for exp in cfg["exposures_ks"]
         if not is_done(obs_dir(root, sim, halo, z, proj, exp))
     ]
+
+
+def run_halo(cfg, sim, halo, reference, synthetic=False):
+    todo = pending(cfg, sim, halo)
     if not todo:
         return 0
-    work = root / sim / str(halo) / "work"
+    # Intermediate files (cutout, local halo, photon and event lists) go to
+    # work_root, ideally a fast disk; only the products go to output_root.
+    work_root = cfg.get("work_root") or Path(cfg["output_root"]) / "work"
+    work = Path(work_root) / f"{sim}_{halo}"
     work.mkdir(parents=True, exist_ok=True)
+    try:
+        return _run_halo(cfg, sim, halo, reference, synthetic, todo, work)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def _run_halo(cfg, sim, halo, reference, synthetic, todo, work):
+    root = Path(cfg["output_root"])
     started = time.time()
     halo_file, halo_meta = prepare_halo(cfg, sim, halo, work, synthetic)
     for z in sorted({z for z, _, _ in todo}):
@@ -175,7 +195,6 @@ def run_halo(cfg, sim, halo, reference, synthetic=False):
                 f.unlink()
         for f in work.glob(f"photons_z{z:.2f}*"):
             f.unlink()
-    shutil.rmtree(work)
     print(
         f"  {sim} {halo}: {len(todo)} observations in {time.time() - started:.0f} s",
         flush=True,
@@ -195,6 +214,11 @@ def main(argv=None):
         "--synthetic", action="store_true", help="Use synthetic clusters (tests)"
     )
     parser.add_argument("--output-root", help="Override output_root")
+    parser.add_argument(
+        "--workers",
+        type=int,
+        help="Halos at once, each in its own process (default: config 'workers', else 1)",
+    )
     args = parser.parse_args(argv)
 
     cfg = yaml.safe_load(open(args.config))
@@ -202,7 +226,7 @@ def main(argv=None):
         cfg["output_root"] = args.output_root
     reference = Path(cfg["output_root"]) / "reference"
     observe.make_reference(reference, cfg["sky_center_deg"], seed("reference"))
-    total = 0
+    jobs = []
     for sim_cfg in cfg["simulations"]:
         sim = sim_cfg["name"]
         if args.sim and sim != args.sim:
@@ -210,13 +234,66 @@ def main(argv=None):
         halos = args.halos or read_halos(sim_cfg["halos"])
         if args.limit:
             halos = halos[: args.limit]
-        for halo in halos:
-            try:
-                total += run_halo(cfg, sim, halo, reference, synthetic=args.synthetic)
-            except Exception as exc:  # keep going; the halo is retried next run
-                print(f"  {sim} {halo}: FAILED {type(exc).__name__}: {exc}", flush=True)
+        jobs += [(sim, halo) for halo in halos if pending(cfg, sim, halo)]
+    workers = args.workers or cfg.get("workers", 1)
+    if workers > 1 and len(jobs) > 1:
+        return run_parallel(args, cfg, jobs, workers)
+    total = failed = 0
+    for sim, halo in jobs:
+        try:
+            total += run_halo(cfg, sim, halo, reference, synthetic=args.synthetic)
+        except Exception as exc:  # keep going; the halo is retried next run
+            failed += 1
+            print(f"  {sim} {halo}: FAILED {type(exc).__name__}: {exc}", flush=True)
     print(f"Made {total} observations.")
-    return 0
+    return 1 if failed else 0
+
+
+def run_parallel(args, cfg, jobs, workers):
+    """Run each halo as ``run --halos H --workers 1`` in its own process.
+
+    A halo that crashes or is killed (e.g. for memory) loses only itself; its
+    log is {output_root}/logs/{sim}_{halo}.log and a rerun retries it.
+    """
+    logs = Path(cfg["output_root"]) / "logs"
+    logs.mkdir(parents=True, exist_ok=True)
+    base = [sys.executable, "-m", "domain_gap.mocks.run", "--config", args.config]
+    base += ["--workers", "1"]
+    if args.output_root:
+        base += ["--output-root", args.output_root]
+    if args.synthetic:
+        base.append("--synthetic")
+    print(f"{len(jobs)} halos to do, {workers} at once.", flush=True)
+    queue, running, n_done, failed = list(jobs), {}, 0, []
+    while queue or running:
+        while queue and len(running) < workers:
+            sim, halo = queue.pop(0)
+            log = open(logs / f"{sim}_{halo}.log", "w")
+            proc = subprocess.Popen(
+                base + ["--sim", sim, "--halos", str(halo)],
+                cwd=ROOT,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                stdin=subprocess.DEVNULL,
+            )
+            running[proc] = (sim, halo, log, time.time())
+        time.sleep(5)
+        for proc in [p for p in running if p.poll() is not None]:
+            sim, halo, log, started = running.pop(proc)
+            log.close()
+            n_done += 1
+            status = "ok" if proc.returncode == 0 else f"FAILED (exit {proc.returncode})"
+            if proc.returncode != 0:
+                failed.append((sim, halo))
+            print(
+                f"[{n_done}/{len(jobs)}] {sim} {halo}: {status} "
+                f"in {time.time() - started:.0f} s",
+                flush=True,
+            )
+    print(f"Finished {len(jobs) - len(failed)} of {len(jobs)} halos.", flush=True)
+    if failed:
+        print("Failed (rerun to retry): " + " ".join(f"{s}:{h}" for s, h in failed))
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

@@ -4,7 +4,11 @@
 # shared preprocessing pipeline.
 
 output_root: /run/media/crhea/ef10789c-0ada-41e4-8d3f-8f17dbcc0558/_domain_gap/mocks
+# Per-halo intermediate files (gas cutout, photon and event lists; several GB
+# for the largest halos, deleted when the halo is done) on a fast NVMe disk.
+work_root: /run/media/crhea/kubuntu_2510/home/carterrhea/domain_gap_work
 snapshot: 99
+workers: 4   # halos at once, each in its own process (peak ~4 GB for a 3e7-cell halo)
 
 simulations:
   - name: TNG300-1
