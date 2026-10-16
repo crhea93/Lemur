@@ -35,8 +35,12 @@ def api_key():
     return key
 
 
-def get(url, params=None, stream=False, tries=4):
-    """GET with the API key, retrying transient failures."""
+def get(url, params=None, stream=False, tries=8):
+    """GET with the API key, retrying transient failures.
+
+    The data servers return 503 now and then under load, so the waits grow
+    from 15 s to 5 min (about 18 min in all).
+    """
     for attempt in range(tries):
         try:
             response = requests.get(
@@ -53,7 +57,7 @@ def get(url, params=None, stream=False, tries=4):
         except (requests.ConnectionError, requests.Timeout, requests.HTTPError):
             if attempt + 1 == tries:
                 raise
-            time.sleep(10 * (attempt + 1))
+            time.sleep(min(15 * 2**attempt, 300))
 
 
 def halo_url(sim, snapshot, halo_id):
