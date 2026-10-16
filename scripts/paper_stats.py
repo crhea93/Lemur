@@ -528,6 +528,23 @@ def make_figures(frames, stats, out_dir):
         )
         ax.grid(alpha=0.3)
 
+    def draw_exposure(ax):
+        names = frames["clusters"].set_index("Name")["is_cluster"]
+        exposure = frames["exposure"]
+        bins = np.logspace(
+            np.log10(max(exposure.min(), 0.1)), np.log10(exposure.max()), 31
+        )
+        for label, want in (("Clusters", True), ("Galaxies", False)):
+            ax.hist(
+                exposure[names.loc[exposure.index].values == want],
+                bins=bins,
+                histtype="step",
+                lw=1.2,
+                color=colors[label],
+                label=label,
+            )
+        ax.set(xscale="log", xlabel="Total clean exposure (ks)", ylabel="Objects")
+
     fig, ax = plt.subplots()
     draw_redshift(ax)
     ax.legend(frameon=False)
@@ -539,33 +556,25 @@ def make_figures(frames, stats, out_dir):
     ax.legend(frameon=False, loc="lower right", markerscale=3)
     save(fig, "sky_map")
 
-    # Paper figure: sky map (left, two thirds) and redshift distribution (right).
-    fig = plt.figure(figsize=(7.1, 2.5))
-    grid = fig.add_gridspec(1, 2, width_ratios=[2.2, 1], wspace=0.28)
-    sky = fig.add_subplot(grid[0, 0], projection="aitoff")
+    # Paper figure: sky map across the top (a); redshift (b) and total clean
+    # exposure (c) below it.
+    fig = plt.figure(figsize=(7.1, 5.2))
+    grid = fig.add_gridspec(2, 2, height_ratios=[1.45, 1], hspace=0.32, wspace=0.25)
+    sky = fig.add_subplot(grid[0, :], projection="aitoff")
     draw_sky(sky)
     sky.tick_params(labelsize=7)
     sky.set_title("(a)", loc="left", fontsize=9)
-    hist = fig.add_subplot(grid[0, 1])
+    sky.legend(frameon=False, fontsize=8, loc="lower right", markerscale=3)
+    hist = fig.add_subplot(grid[1, 0])
     draw_redshift(hist)
     hist.set_title("(b)", loc="left", fontsize=9)
-    hist.legend(frameon=False, fontsize=8, loc="upper left")
+    expo = fig.add_subplot(grid[1, 1])
+    draw_exposure(expo)
+    expo.set_title("(c)", loc="left", fontsize=9)
     save(fig, "catalog_overview")
 
-    names = frames["clusters"].set_index("Name")["is_cluster"]
-    exposure = frames["exposure"]
     fig, ax = plt.subplots()
-    bins = np.logspace(np.log10(max(exposure.min(), 0.1)), np.log10(exposure.max()), 31)
-    for label, want in (("Clusters", True), ("Galaxies", False)):
-        ax.hist(
-            exposure[names.loc[exposure.index].values == want],
-            bins=bins,
-            histtype="step",
-            lw=1.2,
-            color=colors[label],
-            label=label,
-        )
-    ax.set(xscale="log", xlabel="Total clean exposure (ks)", ylabel="Objects")
+    draw_exposure(ax)
     ax.legend(frameon=False)
     save(fig, "exposure_hist")
 
