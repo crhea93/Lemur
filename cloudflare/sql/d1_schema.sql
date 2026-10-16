@@ -54,6 +54,22 @@ CREATE TABLE IF NOT EXISTS Region (
     PRIMARY KEY (idCluster, idRegion)
 );
 
+-- Precomputed AstroCLIP nearest neighbors (see Pipeline/embeddings.py).
+-- Column order must match the sqlite ".mode insert" export in the sync script.
+CREATE TABLE IF NOT EXISTS similar_clusters (
+    ClusterName TEXT NOT NULL,
+    NeighborName TEXT NOT NULL,
+    rank INTEGER NOT NULL,
+    similarity REAL NOT NULL,
+    model TEXT NOT NULL,
+    PRIMARY KEY (ClusterName, model, rank)
+);
+
 CREATE INDEX IF NOT EXISTS idx_clusters_name ON Clusters (Name);
 CREATE INDEX IF NOT EXISTS idx_obsids_cluster ON Obsids (ClusterNumber);
+-- Each (object, ObsID) pair once; drop repeats left by an old double insert.
+DELETE FROM Obsids WHERE rowid NOT IN (
+    SELECT MIN(rowid) FROM Obsids GROUP BY ClusterNumber, Obsid
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_obsids_cluster_obsid ON Obsids (ClusterNumber, Obsid);
 CREATE INDEX IF NOT EXISTS idx_region_cluster ON Region (idCluster);

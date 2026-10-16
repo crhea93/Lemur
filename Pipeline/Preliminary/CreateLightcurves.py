@@ -56,6 +56,113 @@ def bkg_clean_srcs(bkg_ccd):
     return None
 
 
+# If sigma clipping keeps less than this fraction of the event file's good time,
+# the background light curve is unreliable (e.g. a faint background chip), so
+# the event file's own GTI is used instead.
+MIN_GTI_FRACTION = 0.1
+
+
+def _gti_seconds(path):
+    """Total good time in a GTI file (its GTI block; lc_sigma_clip puts it second)."""
+    try:
+        with fits.open(path) as hdul:
+            data = hdul["GTI"].data
+            if data is None or len(data) == 0:
+                return 0.0
+            return float(np.sum(data["STOP"] - data["START"]))
+    except Exception:
+        return 0.0
+
+
+def _event_gti_seconds(event_file):
+    """Good time of an event file: its longest GTI block (one per chip)."""
+    try:
+        with fits.open(event_file) as hdul:
+            return max(
+                (
+                    float(np.sum(h.data["STOP"] - h.data["START"]))
+                    for h in hdul
+                    if h.name.startswith("GTI") and h.data is not None
+                ),
+                default=0.0,
+            )
+    except Exception:
+        return 0.0
+
+
+def _write_gti(path, start, stop):
+    """Single-interval GTI file usable as a CIAO [@file] time filter."""
+    columns = fits.ColDefs(
+        [
+            fits.Column(name="START", format="D", unit="s", array=np.array([start])),
+            fits.Column(name="STOP", format="D", unit="s", array=np.array([stop])),
+        ]
+    )
+    hdu = fits.BinTableHDU.from_columns(columns, name="GTI")
+    hdu.header["HDUCLASS"] = "OGIP"
+    hdu.header["HDUCLAS1"] = "GTI"
+    hdu.header["HDUCLAS2"] = "STANDARD"
+    hdu.header["MJDREF"] = 50814.0
+    hdu.header["TIMESYS"] = "TT"
+    hdu.header["TIMEUNIT"] = "s"
+    fits.HDUList([fits.PrimaryHDU(), hdu]).writeto(path, overwrite=True)
+
+
+def _good_seconds_in_range(event_file, tstart, tstop):
+    """Longest per-chip good time of an event file within [tstart, tstop]."""
+    try:
+        with fits.open(event_file) as hdul:
+            best = 0.0
+            for h in hdul:
+                if h.name.startswith("GTI") and h.data is not None and len(h.data):
+                    lo = np.maximum(h.data["START"], tstart)
+                    hi = np.minimum(h.data["STOP"], tstop)
+                    best = max(best, float(np.sum(np.clip(hi - lo, 0, None))))
+            return best
+    except Exception:
+        return 0.0
+
+
+def segment_flare_gti(bkg_ccd, tstart, tstop, gti_out):
+    """Flare GTI for one segment (OBI) of a multi-segment observation.
+
+    The light curve is built only over [tstart, tstop], so the months-long gap
+    between segments does not distort the sigma clipping. Falls back to the
+    whole segment if clipping fails or keeps too little time.
+    """
+    lc_file = f"{bkg_ccd}_bkg_{int(tstart)}.lc"
+    fallback_reason = None
+    try:
+        dmextract.punlearn()
+        dmextract.infile = (
+            f"{bkg_ccd}_bkg.fits[time={tstart}:{tstop}][bin time=::200]"
+        )
+        dmextract.outfile = lc_file
+        dmextract.opt = "ltc1"
+        dmextract.clobber = True
+        dmextract.verbose = 0
+        dmextract()
+        lc_sigma_clip(
+            lc_file, gti_out, plot=False, sigma=3, pattern="none", verbose=0
+        )
+        kept = _gti_seconds(gti_out)
+        total = _good_seconds_in_range(bkg_ccd + "_bkg.fits", tstart, tstop)
+        if total > 0 and kept < MIN_GTI_FRACTION * total:
+            fallback_reason = (
+                f"sigma clipping kept {kept:.0f} s of {total:.0f} s "
+                f"(< {MIN_GTI_FRACTION:.0%})"
+            )
+    except Exception as exc:
+        fallback_reason = f"light curve or clipping failed: {exc}"
+    if fallback_reason:
+        print(
+            f"WARNING: segment {tstart:.0f}-{tstop:.0f} of {bkg_ccd}: "
+            f"{fallback_reason}. Using the whole segment."
+        )
+        _write_gti(gti_out, tstart, tstop)
+    return gti_out
+
+
 def bkg_lightcurve(bkg_ccd, obsid, create_plot=True):
     """
     Create and plot background lightcurve. Then create good-time-interval file
@@ -107,6 +214,7 @@ def bkg_lightcurve(bkg_ccd, obsid, create_plot=True):
 
     # Clip image (no plot)
     gti_out = bkg_ccd + "_bkg_clean.gti"
+    fallback_reason = None
     try:
         lc_sigma_clip(
             bkg_ccd + "_bkg.lc",
@@ -116,12 +224,25 @@ def bkg_lightcurve(bkg_ccd, obsid, create_plot=True):
             pattern="none",
             verbose=0,
         )
+        # A "successful" clip can still keep (almost) nothing, e.g. when the
+        # background chip is too faint for a meaningful light curve; applying
+        # that GTI would empty the observation.
+        kept = _gti_seconds(gti_out)
+        total = _event_gti_seconds(bkg_ccd + "_bkg.fits")
+        if total > 0 and kept < MIN_GTI_FRACTION * total:
+            fallback_reason = (
+                f"sigma clipping kept {kept:.0f} s of {total:.0f} s "
+                f"(< {MIN_GTI_FRACTION:.0%})"
+            )
     except Exception as exc:
         # Some backgrounds are so faint they contain no positive count-rate rows.
-        # In this case, keep the pipeline moving by falling back to the existing GTI.
+        fallback_reason = f"lc_sigma_clip failed: {exc}"
+
+    if fallback_reason:
+        # Keep the pipeline moving with the GTI already in the event file.
         print(
-            f"WARNING: lc_sigma_clip failed for {bkg_ccd}_bkg.lc. "
-            f"Falling back to GTI from event file. Error: {exc}"
+            f"WARNING: {bkg_ccd}_bkg.lc: {fallback_reason}. "
+            "Falling back to GTI from event file."
         )
         try:
             dmcopy.punlearn()

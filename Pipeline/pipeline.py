@@ -225,11 +225,32 @@ def resolve_coordinates(cluster_name, fallback_fits_paths=None):
     return None
 
 
-def choose_coordinates(cluster_name, cen_ra, cen_dec, fallback_fits_paths=None):
-    ra = _coerce_coord_value(cen_ra, is_ra=True)
-    dec = _coerce_coord_value(cen_dec, is_ra=False)
-    if ra is not None and dec is not None:
-        return ra, dec
+def target_coordinates(path):
+    """Observer's target position (RA_TARG/DEC_TARG) from a Chandra FITS header."""
+    if not path:
+        return None
+    try:
+        header = _read_fits_header(path)
+    except Exception:
+        return None
+    ra = _coerce_coord_value(header.get("RA_TARG"), is_ra=True)
+    dec = _coerce_coord_value(header.get("DEC_TARG"), is_ra=False)
+    if ra is None or dec is None:
+        return None
+    return ra, dec
+
+
+def choose_coordinates(cluster_name, fallback_fits_paths=None):
+    """Catalog position: the observer's target, else NED/CDS/other header keys.
+
+    The flux-weighted centroid of the merged image is not used: over a multi-chip
+    field it is pulled toward the middle of the array, often arcminutes from the
+    emission.
+    """
+    for candidate in fallback_fits_paths or []:
+        target = target_coordinates(candidate)
+        if target is not None:
+            return target
     resolved = resolve_coordinates(
         cluster_name, fallback_fits_paths=fallback_fits_paths
     )
@@ -420,11 +441,11 @@ def run_pipeline_with_config(inputs, merge_bool, env_vars):
 
     filenames: dict[str, Any]
     if ctx.merge_bool is False:
-        filenames, cen_ra, cen_dec, edge_ra, edge_dec, agn_ = run_single_observation(
+        filenames, _cen_ra, _cen_dec, edge_ra, edge_dec, agn_ = run_single_observation(
             ctx.inputs, ccds, main_out, db_service
         )
     else:
-        filenames, cen_ra, cen_dec, edge_ra, edge_dec, agn_ = run_merge_observations(
+        filenames, _cen_ra, _cen_dec, edge_ra, edge_dec, agn_ = run_merge_observations(
             ctx.inputs, ccds, main_out, db_service
         )
 
@@ -433,11 +454,9 @@ def run_pipeline_with_config(inputs, merge_bool, env_vars):
     )  # Need this defined
     final_ra, final_dec = choose_coordinates(
         ctx.inputs["name"],
-        cen_ra,
-        cen_dec,
         fallback_fits_paths=[
-            filenames.get("evt2_repro"),
             filenames.get("exp_corr"),
+            filenames.get("evt2_repro"),
         ],
     )
     if final_ra is not None and final_dec is not None:
@@ -487,6 +506,10 @@ def run_pipeline_with_config(inputs, merge_bool, env_vars):
 
     # --------------------------FINISH---------------------------------#
     export_web(ctx.inputs)
+    # After export_web: also redraws the broad preview in the catalogue style.
+    from Misc.band_products import make_band_images
+
+    make_band_images(ctx.inputs)
     db_service.update_api_db(ctx.inputs)
     main_out.close()
     return None
@@ -577,8 +600,11 @@ def backfill_missing_coordinates(
     return None
 
 
-def recompute_centers(input_path=None, defaults_path=None, sqlite_db_path=None):
+def recompute_centers(
+    input_path=None, defaults_path=None, sqlite_db_path=None, home_dir=None
+):
     from center import compute_center
+    from cluster_paths import resolve_cluster_file
     from db import connect_db
     from db_service import DatabaseService
 
@@ -593,6 +619,8 @@ def recompute_centers(input_path=None, defaults_path=None, sqlite_db_path=None):
     if sqlite_db_path:
         inputs["db_engine"] = "sqlite"
         inputs["sqlite_db_path"] = sqlite_db_path
+    if home_dir:
+        inputs["home_dir"] = home_dir
 
     db_password = resolve_db_password(inputs, env_vars)
     mydb, mycursor, db_user, db_host, db_name = connect_db(inputs, db_password)
@@ -601,22 +629,37 @@ def recompute_centers(input_path=None, defaults_path=None, sqlite_db_path=None):
     updated = 0
     unresolved = []
     try:
-        mycursor.execute("SELECT Name FROM Clusters")
+        mycursor.execute("SELECT Name, RightAsc, Declination FROM Clusters")
         rows = mycursor.fetchall()
-        names = [row[0] for row in rows if row and row[0]]
-        print(f"Found {len(names)} clusters to recompute canonical centers")
+        print(f"Found {len(rows)} clusters to recompute canonical centers")
 
-        for name in names:
-            fallback_paths = _fallback_fits_paths(inputs, name)
-            image_path = fallback_paths[-1] if fallback_paths else None
-            if image_path is None or not Path(image_path).exists():
+        for name, stored_ra, stored_dec in rows:
+            if not name:
+                continue
+            image_file = resolve_cluster_file(inputs.get("home_dir", ""), name)
+            if image_file is None:
                 unresolved.append(name)
                 continue
-            coords = resolve_coordinates(name, fallback_fits_paths=fallback_paths)
-            if coords is None:
-                unresolved.append(name)
-                continue
-            db_service.add_coord(name, coords[0], coords[1])
+            image_path = str(image_file)
+            fallback_paths = [str(image_file.with_name("merged_evt.fits")), image_path]
+            # The catalog position is the observer's target and is the prior for
+            # the X-ray peak search. Older entries stored the merged-image
+            # centroid instead, so replace it whenever the image has a target.
+            target = target_coordinates(image_path)
+            if target is not None:
+                coords = target
+                db_service.add_coord(name, coords[0], coords[1])
+            elif (
+                _coerce_coord_value(stored_ra, is_ra=True) is not None
+                and _coerce_coord_value(stored_dec) is not None
+            ):
+                coords = (stored_ra, stored_dec)
+            else:
+                coords = resolve_coordinates(name, fallback_fits_paths=fallback_paths)
+                if coords is None:
+                    unresolved.append(name)
+                    continue
+                db_service.add_coord(name, coords[0], coords[1])
             compute_center(
                 name,
                 image_path,
@@ -708,6 +751,79 @@ def recompute_double_beta(input_path=None, defaults_path=None, sqlite_db_path=No
     return None
 
 
+def compute_image_embeddings(
+    input_path=None,
+    defaults_path=None,
+    sqlite_db_path=None,
+    cutout_size=512,
+    k=10,
+    checkpoint_path=None,
+    device=None,
+    home_dir=None,
+):
+    from db import connect_db
+    from db_service import DatabaseService
+    from embeddings import compute_embeddings, make_astroclip_encoder
+
+    if input_path:
+        inputs, _merge_bool, env_vars = load_config(input_path)
+    else:
+        defaults = defaults_path or str(
+            Path(__file__).resolve().parent.parent / "inputs" / "template.i"
+        )
+        inputs, _merge_bool, env_vars = load_config(defaults)
+
+    if sqlite_db_path:
+        inputs["db_engine"] = "sqlite"
+        inputs["sqlite_db_path"] = sqlite_db_path
+    if home_dir:
+        inputs["home_dir"] = home_dir
+
+    db_password = resolve_db_password(inputs, env_vars)
+    mydb, mycursor, db_user, db_host, db_name = connect_db(inputs, db_password)
+    db_service = DatabaseService(mydb, mycursor, db_user, db_password, db_host, db_name)
+
+    try:
+        mycursor.execute("SELECT Name FROM Clusters")
+        rows = mycursor.fetchall()
+        names = [row[0] for row in rows if row and row[0]]
+        print(f"Found {len(names)} clusters to embed with AstroCLIP")
+
+        encode = make_astroclip_encoder(checkpoint_path=checkpoint_path, device=device)
+        unresolved = compute_embeddings(
+            names,
+            inputs.get("home_dir", ""),
+            db_service,
+            encode,
+            cutout_size=cutout_size,
+            k=k,
+        )
+
+        print(f"Embedding complete. Embedded {len(names) - len(unresolved)} clusters.")
+        missing_path = (
+            Path(inputs.get("sqlite_db_path") or "api/data/lemur.db").parent
+            / "missing_images.txt"
+        )
+        missing_path.write_text("".join(f"{name}\n" for name in unresolved))
+        if unresolved:
+            print(
+                f"Could not embed {len(unresolved)} clusters (full list: {missing_path})."
+            )
+            preview = ", ".join(unresolved[:20])
+            if preview:
+                print(f"Unresolved (first 20): {preview}")
+    finally:
+        try:
+            mycursor.close()
+        except Exception:
+            pass
+        try:
+            mydb.close()
+        except Exception:
+            pass
+    return None
+
+
 def parse_args(argv):
     parser = argparse.ArgumentParser(
         description=(
@@ -767,6 +883,45 @@ def parse_args(argv):
         ),
     )
     parser.add_argument(
+        "--compute-embeddings",
+        action="store_true",
+        help=(
+            "Embed each cluster's broad_flux.img cutout (centered on the canonical "
+            "center) with AstroCLIP and rebuild the similar_clusters table."
+        ),
+    )
+    parser.add_argument(
+        "--embed-cutout-size",
+        type=int,
+        default=512,
+        help="Cutout size in pixels for --compute-embeddings (default: 512).",
+    )
+    parser.add_argument(
+        "--embed-neighbors",
+        type=int,
+        default=10,
+        help="Number of similar clusters stored per cluster (default: 10).",
+    )
+    parser.add_argument(
+        "--embed-checkpoint",
+        help=(
+            "Local AstroCLIP checkpoint path. Defaults to downloading "
+            "polymathic-ai/astroclip from Hugging Face."
+        ),
+    )
+    parser.add_argument(
+        "--embed-device",
+        help="Torch device for --compute-embeddings (default: cuda if available).",
+    )
+    parser.add_argument(
+        "--home-dir",
+        help=(
+            "Chandra data directory (one folder per cluster with broad_flux.img). "
+            "Overrides home_dir from the input/defaults file for "
+            "--recompute-centers and --compute-embeddings."
+        ),
+    )
+    parser.add_argument(
         "--sqlite-db",
         help=(
             "SQLite DB path override. In backfill mode, this forces SQLite "
@@ -778,19 +933,25 @@ def parse_args(argv):
     using_backfill = bool(args.backfill_missing_coords)
     using_recompute_centers = bool(args.recompute_centers)
     using_recompute_double_beta = bool(args.recompute_double_beta)
+    using_embeddings = bool(args.compute_embeddings)
+    maintenance_modes = [
+        using_backfill,
+        using_recompute_centers,
+        using_recompute_double_beta,
+        using_embeddings,
+    ]
     using_legacy = bool(args.input_path)
     using_new = bool(args.cluster or args.obsids)
-    if (
-        using_backfill or using_recompute_centers or using_recompute_double_beta
-    ) and using_new:
+    if any(maintenance_modes) and using_new:
         parser.error(
             "Backfill/recompute mode cannot be combined with --cluster/--obsids."
         )
-    if sum([using_backfill, using_recompute_centers, using_recompute_double_beta]) > 1:
+    if sum(maintenance_modes) > 1:
         parser.error(
-            "Use only one of --backfill-missing-coords, --recompute-centers, or --recompute-double-beta."
+            "Use only one of --backfill-missing-coords, --recompute-centers, "
+            "--recompute-double-beta, or --compute-embeddings."
         )
-    if using_backfill or using_recompute_centers or using_recompute_double_beta:
+    if any(maintenance_modes):
         return args
     if using_legacy and using_new:
         parser.error(
@@ -816,12 +977,24 @@ def main(argv=None):
             input_path=args.input_path,
             defaults_path=args.defaults,
             sqlite_db_path=args.sqlite_db,
+            home_dir=args.home_dir,
         )
     if args.recompute_double_beta:
         return recompute_double_beta(
             input_path=args.input_path,
             defaults_path=args.defaults,
             sqlite_db_path=args.sqlite_db,
+        )
+    if args.compute_embeddings:
+        return compute_image_embeddings(
+            input_path=args.input_path,
+            defaults_path=args.defaults,
+            sqlite_db_path=args.sqlite_db,
+            cutout_size=args.embed_cutout_size,
+            k=args.embed_neighbors,
+            checkpoint_path=args.embed_checkpoint,
+            device=args.embed_device,
+            home_dir=args.home_dir,
         )
     if args.input_path:
         return run_pipeline(args.input_path)

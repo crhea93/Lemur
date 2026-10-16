@@ -145,6 +145,7 @@ def create_schema(conn):
         CREATE INDEX idx_clusters_name ON Clusters (Name);
         CREATE INDEX idx_clusters_id ON Clusters (ID);
         CREATE INDEX idx_obsids_cluster ON Obsids (ClusterNumber);
+        CREATE UNIQUE INDEX idx_obsids_cluster_obsid ON Obsids (ClusterNumber, Obsid);
         CREATE INDEX idx_region_cluster ON Region (idCluster);
         """
     )
@@ -194,7 +195,7 @@ def main():
             )
         if rows_obsids:
             conn.executemany(
-                "INSERT INTO Obsids (ClusterNumber, Obsid) VALUES (?, ?)",
+                "INSERT OR IGNORE INTO Obsids (ClusterNumber, Obsid) VALUES (?, ?)",
                 rows_obsids,
             )
         if rows_region:

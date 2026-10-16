@@ -15,6 +15,7 @@ SKIP_D1=0
 SKIP_FITS=0
 SKIP_SCHEMA=0
 SKIP_EXISTING=1
+SIMILAR_ONLY=0
 DRY_RUN=0
 KEEP_SQL_DUMP=0
 CUSTOM_D1_DATA_SQL=""
@@ -35,6 +36,9 @@ Options:
   --skip-fits               Skip FITS ZIP upload to R2
   --skip-schema             Skip schema apply (only import data into D1)
   --skip-existing           Skip FITS upload when object already exists in R2 (default: on)
+  --overwrite               Upload FITS ZIPs even when they already exist in R2
+  --similar-only            Only replace the similar_clusters table in D1 (implies
+                            --skip-fits); Clusters/Obsids/Region are left untouched
   --keep-sql-dump           Keep temp D1 data SQL file when --d1-data-sql is not set
   --dry-run                 Print commands without executing
   -h, --help                Show this help
@@ -101,6 +105,15 @@ while [[ $# -gt 0 ]]; do
             SKIP_EXISTING=1
             shift
             ;;
+        --overwrite)
+            SKIP_EXISTING=0
+            shift
+            ;;
+        --similar-only)
+            SIMILAR_ONLY=1
+            SKIP_FITS=1
+            shift
+            ;;
         --keep-sql-dump)
             KEEP_SQL_DUMP=1
             shift
@@ -123,7 +136,13 @@ done
 
 require_cmd python3
 require_cmd sqlite3
-require_cmd wrangler
+# Use a global wrangler when present, otherwise run it through npx.
+if command -v wrangler >/dev/null 2>&1; then
+    WRANGLER=(wrangler)
+else
+    require_cmd npx
+    WRANGLER=(npx --yes wrangler)
+fi
 
 if [[ "$SKIP_D1" -eq 0 ]]; then
     if [[ ! -f "$SQLITE_DB_PATH" ]]; then
@@ -160,8 +179,19 @@ trap cleanup EXIT
 
 if [[ "$SKIP_D1" -eq 0 ]]; then
     echo "==> Exporting SQLite data to SQL for D1 import"
-    if [[ "$DRY_RUN" -eq 1 ]]; then
-        echo "[dry-run] generate INSERT-only SQL for Clusters/Obsids/Region into '$D1_DATA_SQL'"
+    if [[ "$SIMILAR_ONLY" -eq 1 ]]; then
+        if [[ -z "$(sqlite3 "$SQLITE_DB_PATH" "SELECT name FROM sqlite_master WHERE type='table' AND name='similar_clusters';")" ]]; then
+            echo "No similar_clusters table in $SQLITE_DB_PATH; run 'make similar' first." >&2
+            exit 1
+        fi
+        {
+            echo "DELETE FROM similar_clusters;"
+            sqlite3 "$SQLITE_DB_PATH" ".mode insert similar_clusters" \
+                "SELECT ClusterName, NeighborName, rank, similarity, model FROM similar_clusters;"
+        } > "$D1_DATA_SQL"
+        echo "    $(grep -c '^INSERT' "$D1_DATA_SQL") similar_clusters rows"
+    elif [[ "$DRY_RUN" -eq 1 ]]; then
+        echo "[dry-run] generate INSERT-only SQL for Clusters/Obsids/Region/similar_clusters into '$D1_DATA_SQL'"
     else
         {
             echo "DELETE FROM Region;"
@@ -170,18 +200,23 @@ if [[ "$SKIP_D1" -eq 0 ]]; then
             sqlite3 "$SQLITE_DB_PATH" ".mode insert Clusters" "SELECT * FROM Clusters;"
             sqlite3 "$SQLITE_DB_PATH" ".mode insert Obsids" "SELECT * FROM Obsids;"
             sqlite3 "$SQLITE_DB_PATH" ".mode insert Region" "SELECT * FROM Region;"
+            if [[ -n "$(sqlite3 "$SQLITE_DB_PATH" "SELECT name FROM sqlite_master WHERE type='table' AND name='similar_clusters';")" ]]; then
+                echo "DELETE FROM similar_clusters;"
+                sqlite3 "$SQLITE_DB_PATH" ".mode insert similar_clusters" \
+                    "SELECT ClusterName, NeighborName, rank, similarity, model FROM similar_clusters;"
+            fi
         } > "$D1_DATA_SQL"
     fi
 
     if [[ "$SKIP_SCHEMA" -eq 0 ]]; then
         echo "==> Applying D1 schema to '$D1_DB_NAME'"
-        run_cmd wrangler d1 execute "$D1_DB_NAME" --file "$SCHEMA_FILE" --remote
+        run_cmd "${WRANGLER[@]}" d1 execute "$D1_DB_NAME" --file "$SCHEMA_FILE" --remote
     else
         echo "==> Skipping D1 schema apply"
     fi
 
     echo "==> Importing data into D1 '$D1_DB_NAME'"
-    run_cmd wrangler d1 execute "$D1_DB_NAME" --file "$D1_DATA_SQL" --remote
+    run_cmd "${WRANGLER[@]}" d1 execute "$D1_DB_NAME" --file "$D1_DATA_SQL" --remote
 fi
 
 if [[ "$SKIP_FITS" -eq 0 ]]; then
@@ -194,7 +229,7 @@ if [[ "$SKIP_FITS" -eq 0 ]]; then
         if [[ "$SKIP_EXISTING" -eq 1 ]]; then
             if [[ "$DRY_RUN" -eq 1 ]]; then
                 echo "[dry-run] check if '$object_path' exists in R2 and skip upload if present"
-            elif wrangler r2 object get "$object_path" --file /dev/null --remote >/dev/null 2>&1; then
+            elif "${WRANGLER[@]}" r2 object get "$object_path" --file /dev/null --remote >/dev/null 2>&1; then
                 echo "Skipping '$cluster_name.zip': already exists in bucket '$R2_BUCKET_NAME' (--skip-existing)"
                 continue
             fi
@@ -209,31 +244,38 @@ if [[ "$SKIP_FITS" -eq 0 ]]; then
             continue
         fi
 
-        python3 - <<PY
+        build_zip() {  # $1 = 1 to leave out the merged event file (keep *.fits.gz images)
+            python3 - "$cluster_dir" "$tmp_zip" "$1" <<'PY'
 import pathlib
+import sys
 import zipfile
 
-cluster = pathlib.Path(r"$cluster_dir")
-zip_path = pathlib.Path(r"$tmp_zip")
+cluster, zip_path, images_only = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3] == "1"
 extensions = {".fits", ".fit", ".fts", ".gz"}
-with zipfile.ZipFile(
-    zip_path,
-    "w",
-    compression=zipfile.ZIP_DEFLATED,
-    compresslevel=9,
-) as zf:
+with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
     for path in sorted(cluster.iterdir()):
-        if path.is_file() and path.suffix.lower() in extensions:
-            zf.write(path, arcname=path.name)
+        if not path.is_file() or path.suffix.lower() not in extensions:
+            continue
+        if images_only and not path.name.endswith(".fits.gz"):
+            continue
+        zf.write(path, arcname=path.name)
 PY
+        }
+        build_zip 0
         zip_size_bytes="$(wc -c < "$tmp_zip")"
+        if (( zip_size_bytes > MAX_R2_UPLOAD_BYTES )); then
+            zip_size_mib="$(awk "BEGIN {printf \"%.1f\", $zip_size_bytes/1048576}")"
+            echo "'$cluster_name.zip' is ${zip_size_mib} MiB (limit 300 MiB): uploading the images without the merged event file"
+            build_zip 1
+            zip_size_bytes="$(wc -c < "$tmp_zip")"
+        fi
         if (( zip_size_bytes > MAX_R2_UPLOAD_BYTES )); then
             zip_size_mib="$(awk "BEGIN {printf \"%.1f\", $zip_size_bytes/1048576}")"
             echo "Skipping '$cluster_name.zip' (${zip_size_mib} MiB): exceeds Wrangler upload limit of 300 MiB"
             rm -f "$tmp_zip"
             continue
         fi
-        run_cmd wrangler r2 object put "$object_path" --file "$tmp_zip" --remote
+        run_cmd "${WRANGLER[@]}" r2 object put "$object_path" --file "$tmp_zip" --remote
         rm -f "$tmp_zip"
     done
 fi

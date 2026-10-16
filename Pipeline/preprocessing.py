@@ -14,7 +14,50 @@ from Preliminary.Merge import merge_objects
 from Preliminary.unzip import unzip
 
 
+def set_aside_previous_reduction(inputs):
+    """Move an object's earlier reduction to <home_dir>/_previous_reductions/.
+
+    Only folders whose broad_flux.img lacks BKGSUB = T (i.e. made before the
+    2026 pipeline) are moved, including folders stored under a variant name;
+    compress_products deletes them once the new run has succeeded.
+    """
+    import shutil
+
+    from astropy.io import fits
+    from cluster_paths import normalize_cluster_name
+
+    home = inputs["home_dir"]
+    name = inputs["name"]
+    previous = os.path.join(home, "_previous_reductions")
+    target = normalize_cluster_name(name)
+    for entry in sorted(os.listdir(home)):
+        folder = os.path.join(home, entry)
+        if (
+            entry.startswith("_")
+            or entry.isdigit()
+            or not os.path.isdir(folder)
+            or normalize_cluster_name(entry) != target
+        ):
+            continue
+        image = os.path.join(folder, "broad_flux.img")
+        if not os.path.exists(image):
+            continue
+        try:
+            if fits.getheader(image).get("BKGSUB") is True:
+                continue
+        except Exception:
+            pass
+        dest = os.path.join(previous, name if entry == name else f"{name}__{entry}")
+        if os.path.exists(dest):
+            print(f"    WARNING: {dest} already exists; not moving {folder}")
+            continue
+        os.makedirs(previous, exist_ok=True)
+        shutil.move(folder, dest)
+        print(f"    Moved earlier reduction {entry} -> _previous_reductions/")
+
+
 def init_cluster(inputs):
+    set_aside_previous_reduction(inputs)
     os.chdir(inputs["home_dir"])
     if not os.path.exists(inputs["home_dir"] + "/" + inputs["name"]):
         os.makedirs(inputs["home_dir"] + "/" + inputs["name"])
@@ -26,6 +69,28 @@ def generate_ccds(inputs):
     unzip(inputs["home_dir"], inputs["dir_list"])
     print("Generating fits and image files for each individual CCD...")
     return split_ccds(inputs["home_dir"], inputs["dir_list"])
+
+
+def background_subtract(inputs):
+    """Make the merged broad_flux.img background-subtracted (see Misc.bkg_flux).
+
+    A failure keeps the image without background subtraction and logs a
+    warning rather than failing the run; such images lack BKGSUB = T.
+    """
+    from Misc.bkg_flux import make_bkgsub_flux
+
+    cwd = os.getcwd()
+    try:
+        print("Subtracting the blank-sky background from the merged image...")
+        make_bkgsub_flux(
+            inputs["home_dir"] + "/" + inputs["name"],
+            inputs["home_dir"],
+            inputs["dir_list"],
+        )
+    except Exception as exc:
+        print(f"    WARNING: background subtraction failed: {exc}")
+    finally:
+        os.chdir(cwd)
 
 
 def run_single_observation(inputs, ccds, main_out, db_service):
@@ -63,11 +128,23 @@ def run_single_observation(inputs, ccds, main_out, db_service):
         print(
             "    We will now choose the extent of the source and any point sources on the src ccd..."
         )
-        fluximage(
-            filenames["evt2_repro"],
-            inputs["home_dir"] + "/" + inputs["name"] + "/",
-            clobber="yes",
-        )
+        # Native ACIS pixels (binsize=1), like merged objects (Merge.py).
+        segments = filenames.get("evt2_repro_segments")
+        if segments:
+            # Multi-OBI ObsID: CIAO wants one event file per segment.
+            merge_obs(
+                ",".join(segments),
+                inputs["home_dir"] + "/" + inputs["name"] + "/",
+                binsize=1,
+                clobber="yes",
+            )
+        else:
+            fluximage(
+                filenames["evt2_repro"],
+                inputs["home_dir"] + "/" + inputs["name"] + "/",
+                binsize=1,
+                clobber="yes",
+            )
         filenames["exp_corr"] = (
             inputs["home_dir"] + "/" + inputs["name"] + "/broad_flux.img"
         )
@@ -119,6 +196,7 @@ def run_single_observation(inputs, ccds, main_out, db_service):
         move_files(inputs["home_dir"] + "/" + inputs["name"], filenames)
         os.chdir(inputs["home_dir"] + "/" + inputs["name"])
 
+    background_subtract(inputs)
     return filenames, cen_ra, cen_dec, edge_ra, edge_dec, agn_
 
 
@@ -210,4 +288,5 @@ def run_merge_observations(inputs, ccds, main_out, db_service):
     cen_ra, cen_dec = merged_centroid("broad_flux.img")
     main_out.write("The center point is chosen to be %s,%s \n" % (cen_ra, cen_dec))
 
+    background_subtract(inputs)
     return filenames, cen_ra, cen_dec, edge_ra, edge_dec, agn_

@@ -116,14 +116,32 @@ def test_coords_from_fits_header_reads_crval_values(tmp_path):
     assert pipeline._coords_from_fits_header(str(path)) == (123.456, -22.333)
 
 
-def test_choose_coordinates_prefers_centroid_values(monkeypatch):
-    monkeypatch.setattr(pipeline, "resolve_coordinates", lambda *_a, **_k: (1.0, 2.0))
-    assert pipeline.choose_coordinates("Abell133", 3.0, 4.0) == (3.0, 4.0)
+def _write_header(path, cards):
+    header = "".join(card.ljust(80) for card in [*cards, "END"]).encode("ascii")
+    path.write_bytes(header + b" " * (2880 - len(header)))
 
 
-def test_choose_coordinates_uses_resolver_when_centroid_missing(monkeypatch):
+def test_choose_coordinates_prefers_target_position(tmp_path, monkeypatch):
+    path = tmp_path / "broad_flux.img"
+    _write_header(
+        path,
+        [
+            "SIMPLE  =                    T",
+            "RA_TARG =             15.6742",
+            "DEC_TARG=            -21.8806",
+            "CRVAL1  =             15.7216",
+            "CRVAL2  =            -21.9000",
+        ],
+    )
     monkeypatch.setattr(pipeline, "resolve_coordinates", lambda *_a, **_k: (1.0, 2.0))
-    assert pipeline.choose_coordinates("Abell133", None, None) == (1.0, 2.0)
+    assert pipeline.choose_coordinates("Abell133", [str(path)]) == (15.6742, -21.8806)
+
+
+def test_choose_coordinates_uses_resolver_without_target(tmp_path, monkeypatch):
+    path = tmp_path / "broad_flux.img"
+    _write_header(path, ["SIMPLE  =                    T"])
+    monkeypatch.setattr(pipeline, "resolve_coordinates", lambda *_a, **_k: (1.0, 2.0))
+    assert pipeline.choose_coordinates("Abell133", [str(path), None]) == (1.0, 2.0)
 
 
 def test_resolve_coordinates_uses_fits_header_when_services_fail(tmp_path, monkeypatch):
@@ -147,3 +165,25 @@ def test_resolve_coordinates_uses_fits_header_when_services_fail(tmp_path, monke
         "UnknownName", fallback_fits_paths=[str(path)]
     )
     assert result == (200.123, -10.456)
+
+
+def test_parse_args_compute_embeddings_mode():
+    args = pipeline.parse_args(
+        ["--compute-embeddings", "--embed-neighbors", "5", "--sqlite-db", "x.db"]
+    )
+    assert args.compute_embeddings is True
+    assert args.embed_neighbors == 5
+    assert args.embed_cutout_size == 512
+    assert args.sqlite_db == "x.db"
+
+
+def test_parse_args_rejects_multiple_maintenance_modes():
+    with pytest.raises(SystemExit):
+        pipeline.parse_args(["--compute-embeddings", "--recompute-centers"])
+
+
+def test_parse_args_rejects_embeddings_with_new_mode():
+    with pytest.raises(SystemExit):
+        pipeline.parse_args(
+            ["--compute-embeddings", "--cluster", "Abell133", "--obsids", "2203"]
+        )

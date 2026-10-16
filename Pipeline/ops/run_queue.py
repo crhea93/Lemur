@@ -284,6 +284,25 @@ def append_failure_record(args, run_row, exc):
         )
 
 
+class DataRootMissing(RuntimeError):
+    """The data directory is gone (e.g. an unmounted drive): stop, don't fail runs."""
+
+
+def run_post_cmd(args, cluster, obsids, data_root, repo_root, log_handle):
+    if not args.post_run_cmd:
+        return
+    post_cmd = args.post_run_cmd.format(
+        cluster=cluster,
+        obsids=",".join(obsids),
+        dest=str(data_root),
+    )
+    log_line(f"[post-run] running: {post_cmd}", log_handle)
+    try:
+        run_command_tee(shlex.split(post_cmd), str(repo_root), log_handle)
+    except Exception as exc:
+        log_line(f"[post-run] failed: {exc}", log_handle)
+
+
 def process_one_run(args, db, run_row, defaults_values):
     run_id = run_row["run_id"]
     cluster = run_row["cluster_name"]
@@ -315,7 +334,7 @@ def process_one_run(args, db, run_row, defaults_values):
 
     data_root = Path(defaults_values["home_dir"]).expanduser()
     if not data_root.exists():
-        raise RuntimeError(f"home_dir does not exist: {data_root}")
+        raise DataRootMissing(f"home_dir does not exist: {data_root}")
 
     with open(log_path, "a", encoding="utf-8") as log_handle:
         log_line(
@@ -348,16 +367,23 @@ def process_one_run(args, db, run_row, defaults_values):
                 set_obsid_download_status(db, run_id, obsid, "done")
 
         update_run_status(db, run_id, "processing")
-        run_pipeline(
-            repo_root,
-            args.defaults,
-            cluster_pipeline,
-            obsids,
-            redshift_to_use,
-            log_handle,
-        )
-        set_processing_status_for_all_obsids(db, run_id, "done")
-        update_run_status(db, run_id, "completed")
+        try:
+            run_pipeline(
+                repo_root,
+                args.defaults,
+                cluster_pipeline,
+                obsids,
+                redshift_to_use,
+                log_handle,
+            )
+            set_processing_status_for_all_obsids(db, run_id, "done")
+            update_run_status(db, run_id, "completed")
+        finally:
+            # Also after failures, so a failed run cannot leave its (often
+            # tens of GB of) working files behind.
+            run_post_cmd(
+                args, cluster_pipeline, obsids, data_root, repo_root, log_handle
+            )
 
     print(f"Completed run_id={run_id}. Log: {log_path}")
 
@@ -389,6 +415,11 @@ def run(args):
         try:
             process_one_run(args, db, run_row, defaults_values)
             processed += 1
+        except DataRootMissing as exc:
+            # Put the run back and stop: every later run would fail the same way.
+            update_run_status(db, run_id, "queued", error_text=None)
+            print(f"Stopping: {exc}. run_id={run_id} returned to the queue.")
+            break
         except Exception as exc:
             set_processing_status_for_all_obsids(db, run_id, "failed")
             update_run_status(db, run_id, "failed", error_text=str(exc))
@@ -438,6 +469,13 @@ def build_parser():
         ),
     )
     parser.add_argument("--skip-download", action="store_true")
+    parser.add_argument(
+        "--post-run-cmd",
+        help=(
+            "Command run after each completed run; supports {cluster}, {obsids} "
+            "and {dest}. Failures are logged without failing the run."
+        ),
+    )
     parser.add_argument("--retry-failed", action="store_true")
     parser.add_argument(
         "--recover-interrupted",

@@ -241,6 +241,91 @@ def get_double_beta_fit(mydb, mycursor, cluster_name):
     }
 
 
+def upsert_embedding(
+    mydb,
+    mycursor,
+    cluster_name,
+    model,
+    embedding,
+    dim,
+    cutout_size,
+    center_ra,
+    center_dec,
+    image_path,
+):
+    """Insert or update a cluster's image embedding (float32 bytes) for a model."""
+    cluster_id = get_id(mydb, mycursor, cluster_name)
+    mycursor.execute(
+        "SELECT COUNT(*) FROM image_embedding WHERE ClusterName = %s AND model = %s",
+        (cluster_name, model),
+    )
+    (number_of_rows,) = mycursor.fetchone()
+    mycursor.nextset()
+
+    if number_of_rows == 0:
+        sql = """
+            INSERT INTO image_embedding
+            (ID, ClusterName, model, dim, embedding, cutout_size, center_ra,
+             center_dec, image_path)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        """
+        val = (
+            cluster_id, cluster_name, model, dim, embedding, cutout_size,
+            center_ra, center_dec, image_path,
+        )
+    else:
+        sql = """
+            UPDATE image_embedding
+            SET ID=%s, dim=%s, embedding=%s, cutout_size=%s, center_ra=%s,
+                center_dec=%s, image_path=%s, updated_at=CURRENT_TIMESTAMP
+            WHERE ClusterName=%s AND model=%s
+        """
+        val = (
+            cluster_id, dim, embedding, cutout_size, center_ra, center_dec,
+            image_path, cluster_name, model,
+        )
+    mycursor.execute(sql, val)
+    mydb.commit()
+    return None
+
+
+def get_embeddings(mydb, mycursor, model):
+    """Return ``{cluster_name: embedding_bytes}`` for clusters still in Clusters."""
+    sql = """
+        SELECT e.ClusterName, e.embedding
+        FROM image_embedding e
+        JOIN Clusters c ON c.Name = e.ClusterName
+        WHERE e.model = %s
+        ORDER BY e.ClusterName
+    """
+    mycursor.execute(sql, (model,))
+    return {row[0]: bytes(row[1]) for row in mycursor.fetchall()}
+
+
+def replace_similar_clusters(mydb, mycursor, model, neighbors):
+    """Replace the neighbor table for ``model``.
+
+    :param neighbors: ``{cluster_name: [(neighbor_name, similarity), ...]}``
+    """
+    mycursor.execute("DELETE FROM similar_clusters WHERE model = %s", (model,))
+    rows = [
+        (name, neighbor, rank, similarity, model)
+        for name, items in neighbors.items()
+        for rank, (neighbor, similarity) in enumerate(items, start=1)
+    ]
+    if rows:
+        mycursor.executemany(
+            """
+            INSERT INTO similar_clusters
+            (ClusterName, NeighborName, rank, similarity, model)
+            VALUES (%s,%s,%s,%s,%s)
+            """,
+            rows,
+        )
+    mydb.commit()
+    return None
+
+
 def add_csb(
     mydb,
     mycursor,

@@ -230,3 +230,57 @@ def test_stamps_falls_back_to_plot_dirs_when_db_is_empty(client_empty_db_with_pl
     assert payload[0]["name"] == "Abell133"
     assert payload[0]["cluster_url"] == "/cluster.html?name=Abell133"
     assert payload[0]["preview_url"] == "/Cluster_plots/Abell133/bkgsub_exp.png"
+
+
+def test_similar_clusters_empty_when_table_missing(client):
+    response = client.get("/api/clusters/Abell133/similar")
+    assert response.status_code == 200
+    assert response.json() == {"name": "Abell133", "model": None, "neighbors": []}
+
+
+def test_similar_clusters_returns_ranked_neighbors(client, tmp_path):
+    conn = sqlite3.connect(tmp_path / "lemur.db")
+    try:
+        conn.execute(
+            "INSERT INTO Clusters (ID, Name, redshift) VALUES (?, ?, ?)",
+            (2, "2A0335+096", 0.035),
+        )
+        conn.execute(
+            """
+            CREATE TABLE similar_clusters (
+                ClusterName TEXT, NeighborName TEXT, rank INTEGER,
+                similarity REAL, model TEXT
+            )
+            """
+        )
+        conn.executemany(
+            "INSERT INTO similar_clusters VALUES (?, ?, ?, ?, ?)",
+            [
+                ("Abell133", "Removed", 1, 0.99, "m"),
+                ("Abell133", "2A0335+096", 2, 0.91, "m"),
+            ],
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    response = client.get("/api/clusters/Abell133/similar")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["model"] == "m"
+    # Neighbors no longer present in Clusters are dropped.
+    assert payload["neighbors"] == [
+        {
+            "name": "2A0335+096",
+            "rank": 2,
+            "similarity": 0.91,
+            "cluster_url": "/cluster.html?name=2A0335%2B096",
+            "preview_url": "/Cluster_plots/2A0335%2B096/bkgsub_exp.png",
+        }
+    ]
+
+
+def test_cluster_page_route_serves_html(client):
+    response = client.get("/cluster/Abell133")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]

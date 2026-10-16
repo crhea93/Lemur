@@ -121,6 +121,35 @@
                 display: block;
             }
 
+            .band-tabs {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+                margin-bottom: 10px;
+            }
+
+            .band-tabs button {
+                padding: 6px 14px;
+                border-radius: 999px;
+                border: 1px solid var(--line);
+                background: transparent;
+                color: var(--ink-2);
+                font-weight: 600;
+                font-size: 13px;
+                cursor: pointer;
+            }
+
+            .band-tabs button[aria-selected="true"] {
+                background: linear-gradient(135deg, #9378d3, #7459ae);
+                border-color: transparent;
+                color: #fff;
+            }
+
+            .band-tabs button:focus-visible {
+                outline: 2px solid #7459ae;
+                outline-offset: 2px;
+            }
+
             .obsid-box {
                 margin-top: 16px;
                 background: var(--paper-strong);
@@ -316,6 +345,41 @@
                 font-size: 0.75rem;
             }
 
+            .similar-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+                gap: 16px;
+            }
+
+            .similar-grid a {
+                color: inherit;
+                text-decoration: none;
+            }
+
+            .similar-grid .plot-card img {
+                aspect-ratio: 1;
+                object-fit: cover;
+                background: #000;
+            }
+
+            .similar-grid .plot-card h4 {
+                letter-spacing: 0.08em;
+                overflow-wrap: anywhere;
+            }
+
+            .similar-score {
+                display: block;
+                margin-top: 4px;
+                font-size: 0.75rem;
+                color: var(--ink-2);
+            }
+
+            .section-note {
+                margin: -8px 0 16px;
+                font-size: 0.85rem;
+                color: var(--ink-2);
+            }
+
             @media (max-width: 980px) {
                 .hero-content {
                     grid-template-columns: 1fr;
@@ -346,6 +410,17 @@
                         FITS download: cleaned 0.5-7.0 keV unbinned image.
                     </div>
                 </div>
+            </div>
+        </section>
+
+        <section class="section" id="similar-section" hidden>
+            <h2>Similar clusters</h2>
+            <p class="section-note">
+                Nearest neighbors by AstroCLIP embedding of the Chandra
+                broad-band image around the cluster center.
+            </p>
+            <div class="panel">
+                <div class="similar-grid" id="similar-clusters"></div>
             </div>
         </section>
 
@@ -444,14 +519,44 @@
                 const plotFiles = data.plots.files.filter(
                     (file) => !file.toLowerCase().includes("lightcurve"),
                 );
-                const mainImage = plotFiles.find(
-                    (file) => file.toLowerCase() === "bkgsub_exp.png",
+                const bands = [
+                    { file: "bkgsub_exp.png", label: "Broad", range: "0.5–7 keV" },
+                    { file: "soft_exp.png", label: "Soft", range: "0.5–2 keV" },
+                    { file: "hard_exp.png", label: "Hard", range: "2–7 keV" },
+                ].filter((band) =>
+                    plotFiles.some((file) => file.toLowerCase() === band.file),
                 );
                 const imageEl = document.getElementById("cluster-image");
-                if (mainImage) {
+                if (bands.length) {
+                    const imageAlt = (band) =>
+                        `${cluster.Name}, ${band.label.toLowerCase()} band (${band.range}), background-subtracted and exposure-corrected`;
+                    const tabs =
+                        bands.length > 1
+                            ? `<div class="band-tabs" role="tablist" aria-label="Energy band">
+                                ${bands
+                                    .map(
+                                        (band, i) => `
+                                    <button type="button" role="tab" data-band="${i}"
+                                        aria-selected="${i === 0}">${band.label} · ${band.range}</button>`,
+                                    )
+                                    .join("")}
+                               </div>`
+                            : "";
                     imageEl.innerHTML = `
-                        <img src="${data.plots.base_url}/${mainImage}" alt="Cluster background-subtracted exposure" />
+                        ${tabs}
+                        <img id="band-image" src="${data.plots.base_url}/${bands[0].file}" alt="${imageAlt(bands[0])}" />
                     `;
+                    const img = document.getElementById("band-image");
+                    imageEl.querySelectorAll(".band-tabs button").forEach((button) => {
+                        button.addEventListener("click", () => {
+                            const band = bands[Number(button.dataset.band)];
+                            img.src = `${data.plots.base_url}/${band.file}`;
+                            img.alt = imageAlt(band);
+                            imageEl
+                                .querySelectorAll(".band-tabs button")
+                                .forEach((b) => b.setAttribute("aria-selected", String(b === button)));
+                        });
+                    });
                 } else {
                     imageEl.innerHTML = "<p>No image available.</p>";
                 }
@@ -522,7 +627,45 @@
                 }
             }
 
+            async function loadSimilar(name) {
+                const section = document.getElementById("similar-section");
+                if (!name) {
+                    return;
+                }
+                try {
+                    const response = await fetch(
+                        `/api/clusters/${encodeURIComponent(name)}/similar`,
+                    );
+                    if (!response.ok) {
+                        return;
+                    }
+                    const data = await response.json();
+                    const neighbors = data.neighbors || [];
+                    if (!neighbors.length) {
+                        return;
+                    }
+                    document.getElementById("similar-clusters").innerHTML =
+                        neighbors
+                            .map(
+                                (item) => `
+                                <a href="${item.cluster_url}">
+                                    <div class="plot-card">
+                                        <img src="${item.preview_url}" alt="${item.name}" loading="lazy" />
+                                        <h4>${item.name}</h4>
+                                        <span class="similar-score">cosine similarity ${Number(item.similarity).toFixed(3)}</span>
+                                    </div>
+                                </a>
+                            `,
+                            )
+                            .join("");
+                    section.hidden = false;
+                } catch (err) {
+                    section.hidden = true;
+                }
+            }
+
             loadCluster();
+            loadSimilar(getClusterName());
         </script>
     </body>
 </html>

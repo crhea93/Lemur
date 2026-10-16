@@ -206,10 +206,12 @@ async function handleClusterDetail(env, request, name) {
 
   const url = new URL(request.url);
   const baseUrl = `/Cluster_plots/${encodeURIComponent(name)}`;
-  const maybeMain = `${baseUrl}/bkgsub_exp.png`;
-  const files = (await assetExists(env, url.origin, maybeMain))
-    ? ["bkgsub_exp.png"]
-    : [];
+  // Broad (bkgsub_exp.png), soft and hard band previews, when present.
+  const previews = ["bkgsub_exp.png", "soft_exp.png", "hard_exp.png"];
+  const exists = await Promise.all(
+    previews.map((file) => assetExists(env, url.origin, `${baseUrl}/${file}`)),
+  );
+  const files = previews.filter((_, i) => exists[i]);
 
   return json({
     cluster,
@@ -220,6 +222,42 @@ async function handleClusterDetail(env, request, name) {
       base_url: baseUrl,
       files,
     },
+  });
+}
+
+async function handleSimilarClusters(env, request, name) {
+  const url = new URL(request.url);
+  const requested = Number.parseInt(url.searchParams.get("limit") || "10", 10);
+  const limit = Math.max(1, Math.min(Number.isNaN(requested) ? 10 : requested, 50));
+
+  let rows = [];
+  try {
+    const res = await env.DB.prepare(
+      `SELECT s.NeighborName, s.rank, s.similarity, s.model
+       FROM similar_clusters s
+       JOIN Clusters c ON c.Name = s.NeighborName
+       WHERE s.ClusterName = ?
+       ORDER BY s.rank
+       LIMIT ?`,
+    )
+      .bind(name, limit)
+      .all();
+    rows = res.results || [];
+  } catch {
+    // Table is absent until embeddings have been synced to D1.
+    rows = [];
+  }
+
+  return json({
+    name,
+    model: rows.length ? rows[0].model : null,
+    neighbors: rows.map((row) => ({
+      name: row.NeighborName,
+      rank: row.rank,
+      similarity: row.similarity,
+      cluster_url: `/cluster.html?name=${encodeURIComponent(row.NeighborName)}`,
+      preview_url: `/Cluster_plots/${encodeURIComponent(row.NeighborName)}/bkgsub_exp.png`,
+    })),
   });
 }
 
@@ -264,6 +302,12 @@ async function handleApi(env, request, pathname) {
   }
   if (pathname === "/api/resolve-name") {
     return handleResolveName(request);
+  }
+
+  const similarMatch = pathname.match(/^\/api\/clusters\/(.+)\/similar$/);
+  if (similarMatch) {
+    const name = decodeSegment(similarMatch[1]);
+    return handleSimilarClusters(env, request, name);
   }
 
   const clusterMatch = pathname.match(/^\/api\/clusters\/(.+)$/);

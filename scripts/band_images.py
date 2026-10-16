@@ -1,0 +1,132 @@
+"""Background-subtracted, exposure-corrected images of one object in extra bands.
+
+Merges the object's cleaned event files with merge_obs at native ACIS
+resolution in each band, then subtracts the blank-sky background as for the
+catalogue's broad-band image (Misc.bkg_flux). Run inside the CIAO env:
+
+    conda run -n ciao python scripts/band_images.py --data-dir DIR --cluster NGC253 \\
+        --obsids 790,969 --band soft=0.5:2:1.25 --band hard=2:7:3.8
+
+Writes <data-dir>/<cluster>/bands/<name>_flux.img.gz (BKGSUB = T) with the
+counts (<name>_thresh.img.gz) and background (<name>_bkg.img.gz) images for
+each band; merge_obs's other products are deleted unless --keep-intermediates.
+"""
+
+import argparse
+import glob
+import gzip
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "Pipeline"))
+from Misc.bkg_flux import make_bkgsub_flux  # noqa: E402
+from Preliminary.Merge import merge_nproc, merge_obs_tool  # noqa: E402
+
+# Per band: background-subtracted flux, counts and background images. The
+# exposure map is (counts - background) / flux where there is exposure.
+KEEP_SUFFIXES = ("_flux.img", "_thresh.img", "_bkg.img")
+
+
+def event_files(data_dir, obsid):
+    """The cleaned event file(s) Merge.py would use for an ObsID."""
+    repro = Path(data_dir) / obsid / "repro"
+    segments = sorted(glob.glob(str(repro / f"acisf{obsid}_[0-9][0-9][0-9]_repro_evt2.fits*")))
+    if segments:
+        return segments
+    for name in (f"acisf{obsid}_repro_evt2_uncontam.fits", f"acisf{obsid}_repro_evt2.fits"):
+        found = sorted(glob.glob(str(repro / name)) + glob.glob(str(repro / (name + ".gz"))))
+        if found:
+            return found[:1]
+    return []
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument("--data-dir", required=True)
+    parser.add_argument("--cluster", required=True)
+    parser.add_argument("--obsids", required=True, help="comma-separated")
+    parser.add_argument(
+        "--keep-intermediates",
+        action="store_true",
+        help="Keep merge_obs's per-ObsID products and the other band images",
+    )
+    parser.add_argument(
+        "--band",
+        action="append",
+        required=True,
+        help="name=lo:hi:effective (keV), e.g. soft=0.5:2:1.25",
+    )
+    args = parser.parse_args(argv)
+
+    obsids = [o.strip() for o in args.obsids.split(",") if o.strip()]
+    files = [f for o in obsids for f in event_files(args.data_dir, o)]
+    if not files:
+        sys.exit("no event files found")
+    out_dir = Path(args.data_dir) / args.cluster / "bands"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    bands = {}
+    for spec in args.band:
+        name, rng = spec.split("=", 1)
+        lo, hi, _eff = rng.split(":")
+        bands[name] = (rng, f"{lo}-{hi}", (float(lo) * 1000, float(hi) * 1000))
+
+    os.chdir(args.data_dir)  # make_bkgsub_flux finds <obsid>/repro from here
+    # One merge_obs process per ObsID and band: allow half as many as for the
+    # broad band alone (M101's two-band merge filled the 40 GB cap at nproc=15).
+    nproc = max(1, merge_nproc(files) // len(bands))
+    # A stack file, not a comma list: CIAO truncates parameter strings at ~2000
+    # characters, which would silently drop ObsIDs from large mosaics.
+    stack = out_dir / "merge_inputs.lis"
+    stack.write_text("\n".join(files) + "\n")
+    subprocess.run(
+        [
+            *merge_obs_tool(files),
+            f"@{stack}",
+            f"{out_dir}/",
+            f"bands={','.join(b[0] for b in bands.values())}",
+            "binsize=1",
+            f"nproc={nproc}",
+            "clobber=yes",
+            "verbose=1",
+        ],
+        check=True,
+    )
+    for name, (_spec, prefix, band_ev) in bands.items():
+        # merge_obs names custom bands "<lo>-<hi>"; give them the requested names.
+        for suffix in ("_flux.img", "_thresh.img", "_thresh.expmap"):
+            shutil.move(out_dir / f"{prefix}{suffix}", out_dir / f"{name}{suffix}")
+        ok = make_bkgsub_flux(
+            str(out_dir), args.data_dir, obsids, band=name, band_ev=band_ev
+        )
+        print(f"{name}: {'background-subtracted' if ok else 'FAILED'} -> {out_dir}/{name}_flux.img")
+        if not ok:
+            return 1
+    if not args.keep_intermediates:
+        prune(out_dir, list(bands))
+    return 0
+
+
+def prune(out_dir, bands):
+    """Keep only the per-band products in KEEP_SUFFIXES, gzipped."""
+    keep = {f"{band}{suffix}" for band in bands for suffix in KEEP_SUFFIXES}
+    for path in out_dir.iterdir():
+        if path.name == "merge_inputs.lis":  # the record of what was merged
+            continue
+        if path.name in keep:
+            with open(path, "rb") as src, gzip.open(f"{path}.gz", "wb", 6) as dst:
+                shutil.copyfileobj(src, dst)
+            path.unlink()
+        elif not (path.name.endswith(".gz") and path.name[:-3] in keep):
+            if path.is_dir():
+                shutil.rmtree(path)
+            else:
+                path.unlink()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

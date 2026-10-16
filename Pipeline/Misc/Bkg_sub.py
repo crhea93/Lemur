@@ -9,8 +9,19 @@ Functions:
 """
 
 import os
+import re
 
 from ciao_contrib.runtool import *
+
+
+def blanksky_chips(bkg_file):
+    """ACIS chips that have a blank-sky background (its BKGSCALn keywords)."""
+    from astropy.io import fits
+
+    header = fits.getheader(bkg_file, 1)
+    return sorted(
+        int(m.group(1)) for key in header if (m := re.fullmatch(r"BKGSCAL(\d)", key))
+    )
 
 
 def run_bkg_sub(evt_file, image_file, obsid, filenames):
@@ -23,28 +34,64 @@ def run_bkg_sub(evt_file, image_file, obsid, filenames):
         obsid - current observation
         filenames - list of filenames
     """
+    segments = filenames.get("evt2_repro_segments")
+    if segments:
+        # CIAO's blanksky refuses merged multi-OBI event files, so subtract the
+        # background per segment and add the images; the segments share one
+        # sky frame (same tangent point), so the images share one grid.
+        parts = []
+        for segment_file in segments:
+            tag = os.path.basename(segment_file).split("_repro_evt2")[0][len("acisf") :]
+            print(f"      Segment {tag}:")
+            parts.append(_bkg_sub_one(segment_file, image_file, tag))
+        output = obsid + "_blank_particle_bkgsub.img"
+        dmimgcalc.punlearn()
+        dmimgcalc.infile = ",".join(parts)
+        dmimgcalc.outfile = output
+        dmimgcalc.operation = "imgout=" + "+".join(
+            f"img{i}" for i in range(1, len(parts) + 1)
+        )
+        dmimgcalc.clobber = True
+        dmimgcalc()
+    else:
+        output = _bkg_sub_one(evt_file, image_file, obsid)
+    # Add to file names
+    filenames["evt_bkgsub_img"] = os.getcwd() + "/" + output
+    return None
+
+
+def _bkg_sub_one(evt_file, image_file, obsid):
+    """Blank-sky background subtraction for one event file; returns the image."""
     print("      Creating blanksky event file...")
     # Create Blanksky File
-    blanksky.punlearn()
-    blanksky.evtfile = evt_file
-    blanksky.outfile = obsid + "_blank.evt"
-    blanksky.tmpdir = "./"
-    blanksky.clobber = True
-    blanksky()
+    from Misc.bkg_flux import run_blanksky
+
+    run_blanksky(evt_file, obsid + "_blank.evt", "./")
     # Now create background subtracted image
     print("      Creating background-subtracted image")
+    # CIAO 4.18 blanksky_image fails ("tuple.index(x): x not in tuple") when the
+    # image has a chip with no blank-sky background ahead of chips that have
+    # one. Rebin the same events (same full-range sky grid as image_file) using
+    # only the chips the background covers, which is also the only area where
+    # a background can be subtracted.
+    chips = blanksky_chips(obsid + "_blank.evt")
+    reference_image = image_file
+    if chips:
+        reference_image = obsid + "_bkgchips.img"
+        dmcopy.punlearn()
+        dmcopy.infile = f"{evt_file}[ccd_id={','.join(str(c) for c in chips)}]"
+        dmcopy.outfile = reference_image
+        dmcopy.opt = "image"
+        dmcopy.clobber = True
+        dmcopy()
     blanksky_image.punlearn()
     blanksky_image.bkgfile = obsid + "_blank.evt"
     blanksky_image.outroot = obsid + "_blank"
-    blanksky_image.imgfile = image_file
+    blanksky_image.imgfile = reference_image
     blanksky_image.tmpdir = "./"
     blanksky_image.clobber = True
     blanksky_image()
-    # Add to file names
-    filenames["evt_bkgsub_img"] = (
-        os.getcwd() + "/" + obsid + "_blank_particle_bkgsub.img"
-    )
-    return None
+    return obsid + "_blank_particle_bkgsub.img"
 
 
 def create_clean_img(filenames):
