@@ -1,0 +1,25 @@
+# Harmonized, shape-only comparison: a fixed physical field (500 kpc), the same
+# grid for every object, exposure-weighted resampling, smoothing and
+# normalization over covered pixels only, and a per-image stretch.
+
+name: harmonized_morphology
+band: broad
+field: {kpc: 500}
+grid: 144                # = model input; 3.5 kpc per pixel
+model_size: 144
+cosmology: Planck15      # the TNG cosmology
+center: xray_peak        # LEMUR: catalog X-ray centre; mocks: the same peak finder
+weighting: exposure      # sum(F E) / sum(E) per output pixel
+smoothing: {sigma_pix: 1.5, masked: true}   # 5.2 kpc
+coverage:
+  pixel_min: 0.5         # output pixels less covered than this are masked
+  object_min: 0.95       # objects whose field is less covered are not usable
+allow_upsampling: true   # flagged in the manifest (native_pix_per_output < 1)
+intensity: {mode: morphology, lower_pct: 5.0, upper_pct: 99.7, asinh_a: 0.08}
+
+lemur: {clusters_only: true}
+mocks:
+  sims: [TNG300-1, TNG-Cluster]
+  redshifts: [0.05, 0.1, 0.2]
+  exposures_ks: [20, 100]
+  projections: [x, y, z]
