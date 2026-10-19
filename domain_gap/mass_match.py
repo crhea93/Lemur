@@ -155,10 +155,21 @@ def n_eff(w):
 
 
 def _weighted_auc(x, a, b, wa, wb):
+    return _weighted_auc_ci(x, a, b, wa, wb, n_boot=0)[0]
+
+
+def _weighted_auc_ci(x, a, b, wa, wb, n_boot=1000):
+    """(AUC, 68% low, 68% high) of sample a against b with weights."""
     rows = np.r_[a["row"], b["row"]]
     labels = np.r_[np.ones(len(a)), np.zeros(len(b))]
     groups = np.r_[a["group"], b["group"]]
-    return ae.domain_auc(x[rows], labels, groups, weights=np.r_[wa, wb])
+    if n_boot == 0:
+        return ae.domain_auc(x[rows], labels, groups, weights=np.r_[wa, wb]), np.nan, np.nan
+    return ae.domain_auc_ci(x[rows], labels, groups, weights=np.r_[wa, wb], n_boot=n_boot)
+
+
+def _ci_columns(prefix, value):
+    return {prefix: value[0], f"{prefix}_lo": value[1], f"{prefix}_hi": value[2]}
 
 
 def matched_aucs(runs, lum, bin_dex):
@@ -175,13 +186,14 @@ def matched_aucs(runs, lum, bin_dex):
             lemur_class = [nearest_exposure(e, exposures) for e in lemur["exposure_ks"]]
             for sim in ["TNG300-1", "TNG-Cluster"]:
                 s = mocks[mocks["source"] == sim]
-                before = _weighted_auc(x, lemur, s, np.ones(len(lemur)), np.ones(len(s)))
+                before = _weighted_auc_ci(x, lemur, s, np.ones(len(lemur)), np.ones(len(s)))
                 wl, ws = reweight(lemur["log_L_ph"], lemur_class, s["log_L_ph"], s["exposure_ks"], bin_dex)
                 rows.append(
                     {
                         "config": name, "redshift": z, "pair": f"LEMUR vs {sim}",
                         "matched_on": "L(<250 kpc), exposure",
-                        "auc_all": before, "auc_matched": _weighted_auc(x, lemur, s, wl, ws),
+                        **_ci_columns("auc_all", before),
+                        **_ci_columns("auc_matched", _weighted_auc_ci(x, lemur, s, wl, ws)),
                         "n_a": len(lemur), "n_a_matched": int(wl.sum()),
                         "n_b": len(s), "n_eff_b": round(n_eff(ws), 1),
                     }
@@ -189,7 +201,7 @@ def matched_aucs(runs, lum, bin_dex):
             # Simulation vs simulation on true M500: TNG300 reweighted to TNG-Cluster.
             tng300 = mocks[mocks["source"] == "TNG300-1"]
             cluster = mocks[mocks["source"] == "TNG-Cluster"]
-            before = _weighted_auc(x, cluster, tng300, np.ones(len(cluster)), np.ones(len(tng300)))
+            before = _weighted_auc_ci(x, cluster, tng300, np.ones(len(cluster)), np.ones(len(tng300)))
             wc, wt = reweight(
                 np.log10(cluster["M500c_Msun"]), cluster["exposure_ks"],
                 np.log10(tng300["M500c_Msun"]), tng300["exposure_ks"], bin_dex,
@@ -198,7 +210,8 @@ def matched_aucs(runs, lum, bin_dex):
                 {
                     "config": name, "redshift": z, "pair": "TNG-Cluster vs TNG300-1",
                     "matched_on": "true M500, exposure",
-                    "auc_all": before, "auc_matched": _weighted_auc(x, cluster, tng300, wc, wt),
+                    **_ci_columns("auc_all", before),
+                    **_ci_columns("auc_matched", _weighted_auc_ci(x, cluster, tng300, wc, wt)),
                     "n_a": len(cluster), "n_a_matched": int(wc.sum()),
                     "n_b": len(tng300), "n_eff_b": round(n_eff(wt), 1),
                 }
@@ -277,8 +290,10 @@ def auc_figure(table, out):
             ax = axes[r, c]
             sel = table[(table["pair"] == pair) & (table["config"] == config)].set_index("redshift")
             pos = np.arange(len(zs))
-            ax.bar(pos - 0.2, [sel["auc_all"].get(z, np.nan) for z in zs], 0.4, color="0.6", label="all")
-            ax.bar(pos + 0.2, [sel["auc_matched"].get(z, np.nan) for z in zs], 0.4, color="tab:green", label="mass-matched")
+            for shift, key, color, label in [(-0.2, "auc_all", "0.6", "all"), (0.2, "auc_matched", "tab:green", "mass-matched")]:
+                v = np.array([sel[key].get(z, np.nan) for z in zs])
+                err = np.array([[v[i] - sel[f"{key}_lo"].get(z, np.nan), sel[f"{key}_hi"].get(z, np.nan) - v[i]] for i, z in enumerate(zs)]).T
+                ax.bar(pos + shift, v, 0.4, color=color, label=label, yerr=err, capsize=2, ecolor="k", error_kw={"lw": 0.8})
             ax.axhline(0.5, color="gray", lw=0.8, ls="--")
             ax.set_xticks(pos, [f"z={z:.2f}" for z in zs], fontsize=8)
             ax.set_ylim(0.4, 1.0)

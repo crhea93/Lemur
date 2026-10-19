@@ -113,11 +113,61 @@ def auc(scores, labels, weights=None):
     return float((w[lab] * wins[lab]).sum() / (w1 * w0))
 
 
-def domain_auc(x, labels, groups, folds=5, l2=1.0, seed=0, weights=None):
+def domain_auc_ci(x, labels, groups, weights=None, n_boot=1000, level=0.68, seed=1, **kwargs):
+    """(AUC, low, high): ``domain_auc`` with a bootstrap interval.
+
+    The out-of-fold scores are computed once; groups (halos, LEMUR objects) are
+    then resampled with replacement within each class and the weighted AUC
+    recomputed. This covers the sampling uncertainty of the AUC, not the
+    variance from retraining the classifier.
+    """
+    result = domain_auc(x, labels, groups, weights=weights, return_scores=True, **kwargs)
+    if not isinstance(result, tuple):
+        return result, np.nan, np.nan
+    value, scores, lab, grp, w = result
+    rng = np.random.default_rng(seed)
+    members = {}
+    for i, g in enumerate(grp):
+        members.setdefault((lab[i], g), []).append(i)
+    by_class = {c: [members[k] for k in members if k[0] == c] for c in (0.0, 1.0)}
+    draws = []
+    for _ in range(n_boot):
+        idx = np.concatenate(
+            [np.concatenate([groups_c[j] for j in rng.integers(0, len(groups_c), len(groups_c))]) for groups_c in by_class.values()]
+        )
+        draws.append(auc(scores[idx], lab[idx].astype(bool), w[idx]))
+    lo, hi = np.nanpercentile(draws, [50 * (1 - level), 50 * (1 + level)])
+    return value, float(lo), float(hi)
+
+
+def null_auc(x, labels, groups, weights=None, n_perm=50, seed=2, **kwargs):
+    """(mean, 16th, 84th percentile) of ``domain_auc`` with the class labels permuted.
+
+    Labels are shuffled between groups (keeping the number of groups per class),
+    so the null keeps the group structure and sample sizes of the real test.
+    With small samples, cross-validated AUCs under the null scatter, and can be
+    biased, below 0.5; compare a measured AUC with this distribution.
+    """
+    labels = np.asarray(labels, float)
+    groups = np.asarray(groups)
+    group_ids, first = np.unique(groups, return_index=True)
+    group_label = labels[first]
+    rng = np.random.default_rng(seed)
+    values = []
+    for _ in range(n_perm):
+        shuffled = dict(zip(group_ids, rng.permutation(group_label)))
+        perm = np.array([shuffled[g] for g in groups])
+        values.append(domain_auc(x, perm, groups, weights=weights, **kwargs))
+    values = np.asarray(values, float)
+    return float(np.nanmean(values)), *(float(v) for v in np.nanpercentile(values, [16, 84]))
+
+
+def domain_auc(x, labels, groups, folds=5, l2=1.0, seed=0, weights=None, return_scores=False):
     """Grouped k-fold cross-validated AUC of a class-balanced logistic regression.
 
     ``weights`` (optional, per sample) reweight both the fit and the AUC, e.g.
-    to give two samples the same mass distribution.
+    to give two samples the same mass distribution. ``return_scores`` also
+    returns the out-of-fold scores, labels, groups and weights used.
     """
     labels = np.asarray(labels, float)
     sample_w = np.ones(len(labels)) if weights is None else np.asarray(weights, float)
@@ -139,7 +189,10 @@ def domain_auc(x, labels, groups, folds=5, l2=1.0, seed=0, weights=None):
         mean = x[train].mean(axis=0)
         w = _fit_logistic(x[train] - mean, y, sw * balance * len(y), l2)
         scores[test] = (x[test] - mean) @ w[:-1] + w[-1]
-    return auc(scores, labels, sample_w)
+    value = auc(scores, labels, sample_w)
+    if return_scores:
+        return value, scores, labels, groups, sample_w
+    return value
 
 
 # ---------------------------------------------------------------- figures

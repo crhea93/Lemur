@@ -72,10 +72,10 @@ def aucs(x, df):
     rows = {}
     for a, b in [("LEMUR", "TNG300-1"), ("LEMUR", "TNG-Cluster"), ("TNG-Cluster", "TNG300-1")]:
         sa, sb = df[df["source"] == a], df[df["source"] == b]
-        rows[f"{a} vs {b}"] = mm._weighted_auc(x, sa.assign(row=sa.index), sb.assign(row=sb.index), np.ones(len(sa)), np.ones(len(sb)))
+        rows.update(mm._ci_columns(f"{a} vs {b}", mm._weighted_auc_ci(x, sa.assign(row=sa.index), sb.assign(row=sb.index), np.ones(len(sa)), np.ones(len(sb)))))
     ca, tb = df[df["source"] == "TNG-Cluster"], df[df["source"] == "TNG300-1"]
     wc, wt = mm.reweight(np.log10(ca["M500c_Msun"]), ["-"] * len(ca), np.log10(tb["M500c_Msun"]), ["-"] * len(tb), 0.1)
-    rows["TNG-Cluster vs TNG300-1 (equal M500)"] = mm._weighted_auc(x, ca.assign(row=ca.index), tb.assign(row=tb.index), wc, wt)
+    rows.update(mm._ci_columns("TNG-Cluster vs TNG300-1 (equal M500)", mm._weighted_auc_ci(x, ca.assign(row=ca.index), tb.assign(row=tb.index), wc, wt)))
     return rows
 
 
