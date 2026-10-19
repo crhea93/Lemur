@@ -149,3 +149,26 @@ Domain AUC, unweighted → mass-matched, harmonized_physical, z = 0.05 / 0.1 / 0
   0.62–0.76 remains at matched luminosity and exposure. The next candidates are core
   structure (cool cores), point sources and faint or offset LEMUR fields, and
   observational differences (ACIS-S, multi-ObsID mosaics).
+
+## Signal cut (2026-10-19)
+
+`python -m domain_gap.signal` measures every image the same way, within 250 kpc
+(`outputs/figures/signal/`):
+
+- **S/N:** net counts over √counts;
+- **point-source fraction:** the share of the aperture flux in compact sources, from
+  LEMUR's own point-source detector.
+
+`--signal-cut [--snr-min 10 --ps-max 0.5]` in `analyze_embeddings` and `mass_match`
+applies the cut to LEMUR and the mocks alike.
+
+- **Who passes:** 781 of 1,184 LEMUR clusters, 98% of TNG300 and 93% of TNG-Cluster.
+- **Below S/N 10:** 143 LEMUR fields, mostly offset pointings and faint fields.
+- **Point-source fraction above 0.5:** 343 LEMUR fields, including many galaxies and
+  groups in the cluster category, with a pile-up near 1.
+- **Caveat:** at z = 0.2 a few percent of TNG-Cluster images also exceed 0.5. This is
+  probably compact cores being flagged, so the cut was also run at 0.8.
+- **Result:** the mass-matched LEMUR–mock AUC barely changes (physical config,
+  0.62–0.74 with the cut against 0.62–0.76 without). Most such fields have no mock
+  counterpart at matched luminosity anyway. The remaining gap is not caused by faint or
+  point-source-dominated LEMUR fields.

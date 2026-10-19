@@ -300,13 +300,17 @@ def main(argv=None):
     parser.add_argument("--runs", nargs="*", default=default_runs)
     parser.add_argument("--luminosity-config", default=str(ROOT / "configs" / "harmonized_morphology.yaml"))
     parser.add_argument("--out", default=str(ROOT / "outputs" / "figures" / "mass"))
+    parser.add_argument(
+        "--luminosity-cache", default=str(ROOT / "outputs" / "figures" / "mass" / "luminosities.csv")
+    )
     parser.add_argument("--bin-dex", type=float, default=0.1, help="Bin width of the reweighting (dex)")
+    ae.add_signal_args(parser)
     args = parser.parse_args(argv)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    lum = luminosities(args.luminosity_config, out / "luminosities.csv")
+    lum = luminosities(args.luminosity_config, args.luminosity_cache)
     print(f"Luminosities: {lum['log_L_ph'].notna().sum()} of {len(lum)} images")
-    runs = [ae.load_run(r) for r in args.runs]
+    runs = [ae.load_run(r, ae.signal_cut(args)) for r in args.runs]
     table, masses = matched_aucs(runs, lum, args.bin_dex)
     table.to_csv(out / "matched_auc.csv", index=False)
     masses.to_csv(out / "lemur_masses.csv", index=False)

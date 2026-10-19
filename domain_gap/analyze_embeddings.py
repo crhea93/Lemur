@@ -31,11 +31,19 @@ COLORS = {"LEMUR": "k", "TNG300-1": "tab:blue", "TNG-Cluster": "tab:red"}
 Z_WIDTH = 0.025
 
 
-def load_run(run_dir):
-    """Usable manifest rows with their L2-normalized embeddings, and the run name."""
+def load_run(run_dir, signal_cut=None):
+    """Usable manifest rows with their L2-normalized embeddings, and the run name.
+
+    ``signal_cut`` = (signal table, snr_min, ps_max) also applies the signal
+    cut of ``domain_gap.signal`` (the same for every source).
+    """
     run_dir = Path(run_dir)
     df = pd.read_parquet(run_dir / "manifest.parquet")
     df = df[df["usable"] & (df["index"] >= 0)].copy()
+    if signal_cut is not None:
+        from .signal import select
+
+        df = select(df, *signal_cut).copy()
     vectors = np.zeros((len(df), 0), np.float32)
     parts = []
     for source, rows in df.groupby("source", sort=False):
@@ -251,6 +259,23 @@ def auc_figure(table, out):
     plt.close(fig)
 
 
+def add_signal_args(parser):
+    parser.add_argument(
+        "--signal-cut",
+        nargs="?",
+        const=str(ROOT / "outputs" / "figures" / "signal" / "signal.csv"),
+        help="Apply the signal cut of domain_gap.signal (optionally: path to signal.csv)",
+    )
+    parser.add_argument("--snr-min", type=float, default=10.0)
+    parser.add_argument("--ps-max", type=float, default=0.5)
+
+
+def signal_cut(args):
+    if not args.signal_cut:
+        return None
+    return (pd.read_csv(args.signal_cut), args.snr_min, args.ps_max)
+
+
 def main(argv=None):
     import matplotlib
 
@@ -259,10 +284,11 @@ def main(argv=None):
     default_runs = [str(p) for p in sorted((ROOT / "outputs" / "embeddings").glob("*")) if (p / "run.json").exists()]
     parser.add_argument("--runs", nargs="*", default=default_runs)
     parser.add_argument("--out", default=str(ROOT / "outputs" / "figures" / "embeddings"))
+    add_signal_args(parser)
     args = parser.parse_args(argv)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    runs = [load_run(r) for r in args.runs]
+    runs = [load_run(r, signal_cut(args)) for r in args.runs]
     for df, x, name in runs:
         print(f"{name}: " + ", ".join(f"{s} {n}" for s, n in df["source"].value_counts().items()))
         pca_figure(df, x, name, out)
