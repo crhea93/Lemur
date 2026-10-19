@@ -23,7 +23,7 @@ Outputs, per config, in `<data drive>/_domain_gap/preprocessed/<name>/`:
 | `masks_{source}.npy` | uint8, 1 where the output pixel is covered |
 | `manifest.parquet` / `.csv` | one row per image: identifiers, `index` into the arrays, redshift, exposure, centre and its method, field size, `native_pix_per_output`, coverage, stretch limits, flags (`status`, `low_coverage`, `upsampled`, `no_signal`, `usable`) |
 | `run.json` | config, fitted intensity parameters, code version, counts |
-| `embeddings_{source}.npy` | AstroCLIP embeddings, rows aligned with the inputs |
+| `embeddings_{source}.npy` | AstroCLIP embeddings, rows aligned with the inputs; `domain_gap.embed` also copies them, with the manifest, `run.json` and `embed.json`, to `outputs/embeddings/<name>/` in this worktree |
 | `qa/` | `examples.png`, `pixels.png`, `profiles.png` |
 
 The extraction (stage 1) is cached per image under `_stage1/<hash of the spatial settings>/`
