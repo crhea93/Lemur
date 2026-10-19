@@ -207,3 +207,31 @@ cut is applied, since a central AGN raises c.
     The excess may be partly selection rather than TNG physics.
   - **Noise.** Matched samples are small (tens to hundreds effective), so the AUCs are
     uncertain by roughly ±0.05–0.1. A bootstrap would quantify this.
+
+## From the original setup to the matched comparison (2026-10-19)
+
+`domain_gap.original_gap` uses the lemur-astroclip env and writes to
+`outputs/figures/original/`. It measures the gap of the original experiment: LEMUR's own
+embeddings against the student's surviving mock embeddings (`val_data300.pt`,
+`val_datacluster.pt`). It then follows each step of this project.
+
+Everything is at z = 0.05, the student's only redshift, with LEMUR within ±0.025 and the
+mocks at 100 ks. The values are domain AUC.
+
+| Step | LEMUR vs TNG300 | LEMUR vs TNG-Cluster | TNG-Cluster vs TNG300 | Same, at equal M500 |
+|---|---|---|---|---|
+| 0. Original setup (student mocks and PNG pipeline) | **0.999** | **1.000** | 0.81 | 0.68 |
+| 1. Regenerated mocks, LEMUR preprocessing for both | 0.86 | 0.91 | 0.86 | 0.66 |
+| 2. Harmonized morphology | 0.89 | 0.94 | 0.90 | 0.66 |
+| 3. Harmonized physical | 0.73 | 0.93 | 0.90 | 0.54 |
+| 4. + L and exposure matching (`domain_gap.core`, signal cut) | 0.71 | 0.64 | — | — |
+| 5. + concentration matching | **0.50** | **0.39** | — | — |
+
+The original setup separates LEMUR from the mocks perfectly. That separation comes from
+the mocks and their preprocessing, not from the clusters:
+- **Regeneration and identical preprocessing (step 1)** remove most of it.
+- **Population matching (step 4)** removes most of what remains.
+- **Core concentration (step 5)** removes the rest.
+
+Between the two simulations, only the physical config (step 3) brings equal-mass TNG300
+and TNG-Cluster close to indistinguishable.
