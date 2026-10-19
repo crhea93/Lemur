@@ -113,3 +113,39 @@ recomputed from their counts with `run --refit`. Their headers record `CXBLIMIT`
   - 1AXGJ0809072023;
   - 1E22157-04041E_7ba03.
 - **Bands.** The configs use the broad band; set `band: soft` or `hard` for the others.
+
+## Mass matching (2026-10-19)
+
+`python -m domain_gap.mass_match` (figures and tables in `outputs/figures/mass/`).
+
+- **Proxy.** The 0.5–7 keV photon luminosity within 250 kpc is measured identically on
+  LEMUR and the mocks, from the 500 kpc extraction.
+- **Calibration.** At each redshift the mocks give log M500 against log L. The relation
+  has slope 0.47 and a scatter of 0.19–0.20 dex, and TNG300 and TNG-Cluster follow the
+  same relation. Applied to LEMUR, it gives TNG-calibrated masses
+  (`lemur_masses.csv`). These assume TNG's L–M relation holds for real clusters.
+- **Masses.** The two simulations bracket LEMUR:
+
+| | TNG300 | LEMUR (TNG-calibrated) | TNG-Cluster |
+|---|---|---|---|
+| Typical log M500 [M☉] | ~14.0 | z = 0.05: ~14.0, with groups down to 13; z = 0.1: ~14.3; z = 0.2: ~14.5 | ~14.7 |
+
+- **Matching by reweighting.** The mocks are weighted to LEMUR's distribution in
+  (log L, exposure) at each redshift, and the classifier and AUC use the weights. As a
+  check, TNG300 is reweighted to TNG-Cluster's true M500.
+
+Domain AUC, unweighted → mass-matched, harmonized_physical, z = 0.05 / 0.1 / 0.2:
+
+| Pair | All | Mass-matched |
+|---|---|---|
+| TNG-Cluster vs TNG300 (true M500) | 0.91 / 0.90 / 0.90 | **0.56 / 0.52 / 0.54** |
+| LEMUR vs TNG300 | 0.74 / 0.70 / 0.78 | 0.68 / 0.67 / 0.67 |
+| LEMUR vs TNG-Cluster | 0.94 / 0.90 / 0.76 | 0.71 / 0.76 / 0.62 |
+
+- **Mass drives the separation between the simulations.** At matched mass they are
+  nearly indistinguishable in the physical config. Residuals in the other configs are
+  0.59–0.67.
+- **Mass explains much, not all, of the LEMUR–mock gap.** A residual AUC of about
+  0.62–0.76 remains at matched luminosity and exposure. The next candidates are core
+  structure (cool cores), point sources and faint or offset LEMUR fields, and
+  observational differences (ACIS-S, multi-ObsID mosaics).

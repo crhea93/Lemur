@@ -85,21 +85,36 @@ def _fit_logistic(x, y, weights, l2):
     return result.x
 
 
-def auc(scores, labels):
-    """ROC AUC by the Mann-Whitney statistic (ties count one half)."""
-    from scipy.stats import rankdata
-
+def auc(scores, labels, weights=None):
+    """ROC AUC by the (weighted) Mann-Whitney statistic; ties count one half."""
     labels = np.asarray(labels, bool)
-    n1, n0 = labels.sum(), (~labels).sum()
-    if n1 == 0 or n0 == 0:
+    weights = np.ones(len(labels)) if weights is None else np.asarray(weights, float)
+    w1, w0 = weights[labels].sum(), weights[~labels].sum()
+    if w1 == 0 or w0 == 0:
         return np.nan
-    ranks = rankdata(scores)
-    return float((ranks[labels].sum() - n1 * (n1 + 1) / 2) / (n1 * n0))
+    order = np.argsort(scores, kind="mergesort")
+    s, lab, w = np.asarray(scores)[order], labels[order], weights[order]
+    # For each positive: weight of negatives below it, plus half of those tied.
+    neg_w = np.where(lab, 0.0, w)
+    below = np.cumsum(neg_w) - neg_w
+    _, first, counts = np.unique(s, return_index=True, return_counts=True)
+    tie_neg = np.add.reduceat(neg_w, first)
+    tie_start = np.repeat(below[first], counts)
+    tie_total = np.repeat(tie_neg, counts)
+    wins = tie_start + 0.5 * tie_total
+    return float((w[lab] * wins[lab]).sum() / (w1 * w0))
 
 
-def domain_auc(x, labels, groups, folds=5, l2=1.0, seed=0):
-    """Grouped k-fold cross-validated AUC of a class-balanced logistic regression."""
+def domain_auc(x, labels, groups, folds=5, l2=1.0, seed=0, weights=None):
+    """Grouped k-fold cross-validated AUC of a class-balanced logistic regression.
+
+    ``weights`` (optional, per sample) reweight both the fit and the AUC, e.g.
+    to give two samples the same mass distribution.
+    """
     labels = np.asarray(labels, float)
+    sample_w = np.ones(len(labels)) if weights is None else np.asarray(weights, float)
+    keep = sample_w > 0
+    x, labels, groups, sample_w = x[keep], labels[keep], np.asarray(groups)[keep], sample_w[keep]
     unique = np.unique(groups)
     if len(unique) < folds or labels.sum() < 5 or (1 - labels).sum() < 5:
         return np.nan
@@ -111,12 +126,12 @@ def domain_auc(x, labels, groups, folds=5, l2=1.0, seed=0):
         train, test = fold != k, fold == k
         if not test.any() or len(np.unique(labels[train])) < 2:
             return np.nan
-        y = labels[train]
-        weights = np.where(y == 1, 0.5 / y.sum(), 0.5 / (1 - y).sum()) * len(y)
+        y, sw = labels[train], sample_w[train]
+        balance = np.where(y == 1, 0.5 / sw[y == 1].sum(), 0.5 / sw[y == 0].sum())
         mean = x[train].mean(axis=0)
-        w = _fit_logistic(x[train] - mean, y, weights, l2)
+        w = _fit_logistic(x[train] - mean, y, sw * balance * len(y), l2)
         scores[test] = (x[test] - mean) @ w[:-1] + w[-1]
-    return auc(scores, labels)
+    return auc(scores, labels, sample_w)
 
 
 # ---------------------------------------------------------------- figures
