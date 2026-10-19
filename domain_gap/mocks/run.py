@@ -40,6 +40,10 @@ from . import emission, gas, observe, tng_api
 
 ROOT = Path(__file__).resolve().parents[2]
 BANDS = tuple(observe.BANDS)
+# Larger halos are downloaded in field groups: the TNG servers fail (503) to
+# build whole cutouts of TNG-Cluster 0 and 252455 (52M and 44M gas cells),
+# while every halo up to 31M cells downloads in one piece.
+SPLIT_CUTOUT_CELLS = 30_000_000
 
 
 def seed(*parts):
@@ -70,8 +74,13 @@ def prepare_halo(cfg, sim, halo, work, synthetic):
         return halo_file, {"synthetic": True}
     info = tng_api.halo_info(sim, cfg["snapshot"], halo)
     box = tng_api.simulation_info(sim)["boxsize"]
+    n_gas = (info.get("GroupLenType") or [0])[0]
     cutout = tng_api.download_gas_cutout(
-        sim, cfg["snapshot"], halo, work / "cutout.hdf5"
+        sim,
+        cfg["snapshot"],
+        halo,
+        work / "cutout.hdf5",
+        split=n_gas > SPLIT_CUTOUT_CELLS,
     )
     # The potential minimum of the FoF group (ckpc/h), as GroupPos or pos_x/y/z.
     center = info.get("GroupPos") or [info["pos_x"], info["pos_y"], info["pos_z"]]

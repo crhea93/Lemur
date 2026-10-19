@@ -74,12 +74,18 @@ def simulation_info(sim):
     return get(f"{BASE_URL}/{sim}/").json()
 
 
-def download_gas_cutout(sim, snapshot, halo_id, path, fields=GAS_FIELDS):
-    """Download the FoF gas of one halo to ``path`` (skipped if already complete)."""
+def download_gas_cutout(sim, snapshot, halo_id, path, fields=GAS_FIELDS, split=False):
+    """Download the FoF gas of one halo to ``path`` (skipped if already complete).
+
+    ``split`` downloads the fields in groups and merges them: the servers fail
+    (503) to build single cutouts of the largest halos (> ~40M gas cells).
+    """
     path = Path(path)
     if path.exists() and path.stat().st_size > 0:
         return path
     path.parent.mkdir(parents=True, exist_ok=True)
+    if split:
+        return _download_split(sim, snapshot, halo_id, path)
     partial = path.with_suffix(path.suffix + ".part")
     response = get(
         halo_url(sim, snapshot, halo_id) + "cutout.hdf5",
@@ -90,4 +96,51 @@ def download_gas_cutout(sim, snapshot, halo_id, path, fields=GAS_FIELDS):
         for chunk in response.iter_content(chunk_size=1 << 22):
             handle.write(chunk)
     partial.rename(path)
+    return path
+
+
+# Field groups of a split download. Each has Masses, to check that the parts
+# list the cells in the same order.
+SPLIT_GROUPS = (
+    ("Coordinates", "Masses"),
+    ("Velocities", "Density", "Masses"),
+    (
+        "InternalEnergy",
+        "ElectronAbundance",
+        "GFM_Metallicity",
+        "StarFormationRate",
+        "GFM_CoolingRate",
+        "Masses",
+    ),
+)
+
+
+def _download_split(sim, snapshot, halo_id, path):
+    import h5py
+    import numpy as np
+
+    parts = []
+    for i, group in enumerate(SPLIT_GROUPS):
+        part = path.with_name(f"{path.stem}.part{i}{path.suffix}")
+        download_gas_cutout(sim, snapshot, halo_id, part, fields=group)
+        parts.append(part)
+    merged = path.with_suffix(path.suffix + ".merge")
+    with h5py.File(merged, "w") as out:
+        gas = out.create_group("PartType0")
+        masses = None
+        for part in parts:
+            with h5py.File(part, "r") as f:
+                if "Header" in f and "Header" not in out:
+                    f.copy("Header", out)
+                m = f["PartType0"]["Masses"][...]
+                if masses is None:
+                    masses = m
+                elif not np.array_equal(m, masses):
+                    raise ValueError(f"cutout parts of halo {halo_id} list different cells")
+                for key in f["PartType0"]:
+                    if key not in gas:
+                        f.copy(f["PartType0"][key], gas, name=key)
+    merged.rename(path)
+    for part in parts:
+        part.unlink()
     return path
