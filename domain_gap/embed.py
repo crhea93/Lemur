@@ -7,10 +7,15 @@ inputs_{source}.npy (the manifest's ``index``). Images are replicated to three
 channels and resized to 144 px (bilinear, antialiased) by LEMUR's own
 ``to_model_batch``, so a run with ``grid: 144`` reaches the model unchanged
 and the baseline (64 px) is resized exactly as in LEMUR.
+
+The embeddings, with the manifest and settings needed to use them, are also
+copied to outputs/embeddings/<run name>/ in this worktree (``--export-dir``);
+the model inputs stay with the run.
 """
 
 import argparse
 import json
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -27,6 +32,11 @@ def main(argv=None):
     parser.add_argument("--device", help="cuda or cpu (default: cuda if available)")
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--force", action="store_true", help="Recompute existing embeddings")
+    parser.add_argument(
+        "--export-dir",
+        default=str(io.ROOT / "outputs" / "embeddings"),
+        help="Also copy the embeddings, manifest and settings to <export-dir>/<run name>",
+    )
     args = parser.parse_args(argv)
 
     run_dir = Path(args.run)
@@ -59,7 +69,19 @@ def main(argv=None):
             indent=1,
         )
     )
+    if args.export_dir:
+        export(run_dir, Path(args.export_dir) / run_dir.name)
     return 0
+
+
+def export(run_dir, out):
+    """Copy embeddings, manifest and settings of a run to ``out``."""
+    out.mkdir(parents=True, exist_ok=True)
+    names = ["manifest.parquet", "manifest.csv", "run.json", "embed.json"]
+    names += [p.name for p in sorted(run_dir.glob("embeddings_*.npy"))]
+    for name in names:
+        shutil.copy2(run_dir / name, out / name)
+    print(f"Copied {len(names)} files to {out}")
 
 
 if __name__ == "__main__":
