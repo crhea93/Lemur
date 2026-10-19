@@ -308,26 +308,28 @@ that AstroCLIP, trained on optical images, is the wrong encoder.
   | SimCLR, mocks | 0.90 | 0.83 | 0.85 | 30% |
   | SimCLR, LEMUR | 0.88 | 0.80 | 0.84 | 29% |
 
-- **AUC after matching on (L, c, exposure),** at z = 0.05 / 0.1 / 0.2 (null about 0.49 ± 0.07):
+- **Corrected estimator (2026-10-19).** Weights that balance LEMUR and the mocks bin by bin
+  over the whole sample are unbalanced once a cross-validation fold is held out. That
+  biased matched AUCs low; the worst cell read 0.23. `domain_auc` now rebalances the
+  classes within each matching bin of every training fold (`strata`), and the nulls
+  shuffle labels within bins. The numbers below use it. Earlier matched numbers in this
+  document predate the fix and are superseded.
+- **Excess AUC over the permutation null,** over both simulations and z = 0.05–0.2:
 
-  | Representation, probe | LEMUR vs TNG300 | LEMUR vs TNG-Cluster |
-  |---|---|---|
-  | AstroCLIP, linear | 0.50 / 0.48 / 0.54 | 0.39 / 0.46 / 0.50 |
-  | AstroCLIP, MLP | 0.61 / 0.63 / 0.68 | 0.47 / 0.51 / 0.69 |
-  | SimCLR (mocks), linear | 0.78 / 0.83 / 0.77 | 0.62 / 0.75 / 0.69 |
-  | SimCLR (LEMUR), linear | 0.76 / 0.78 / 0.74 | 0.51 / 0.68 / 0.70 |
+  | Representation, probe | (L, c, exposure) excess | Significance | + S/N, point sources: excess |
+  |---|---|---|---|
+  | AstroCLIP, linear | +0.03 to +0.10 | 0.5–1.4σ | −0.14 to +0.02 |
+  | AstroCLIP, MLP | +0.03 to +0.16 | 0.3–2.7σ | −0.10 to +0.13 |
+  | SimCLR (mocks), linear | +0.10 to +0.20 | 1.8–5.0σ | −0.04 to +0.12 |
+  | SimCLR (LEMUR), linear | +0.09 to +0.18 | 1.0–3.4σ | −0.10 to +0.10 |
 
-- **What carries the residual** (`domain_gap.drivers`).
-  - In every representation, LEMUR's out-of-fold score correlates with point-source
-    fraction (ρ = 0.21–0.47) and anticorrelates with exposure (ρ = −0.18 to −0.39).
-  - Adding S/N within 250 kpc (noise depth at fixed luminosity) and point-source fraction
-    to the matching brings every representation to the null or below it. The values are
-    0.34–0.49 for AstroCLIP with the MLP, 0.35–0.61 for SimCLR (mocks) and 0.27–0.50 for
-    SimCLR (LEMUR). The heavily matched samples have only 30–45 LEMUR clusters, so values
-    below 0.5 are small-sample scatter.
-  - The galleries (`drivers_gallery.png`) agree: the most LEMUR-like images are faint,
-    point-source-rich fields and compact cores; the least LEMUR-like are smooth, diffuse
-    clusters.
+  After also matching S/N and point sources, all 24 comparisons are within 2σ of their
+  nulls and 17 within 1σ.
+- **What carries the residual** (`domain_gap.drivers`). In every representation, LEMUR's
+  out-of-fold score correlates with point-source fraction (ρ = 0.16–0.45) and
+  anticorrelates with exposure (ρ = −0.37 to −0.11). The galleries
+  (`drivers_gallery.png`) show the same: the most LEMUR-like images are faint,
+  point-source-rich fields and compact cores.
 - **Interpretation.** Stronger probes and X-ray-native encoders see a residual that the
   linear AstroCLIP probe misses. It comes from the realism of the mocks, not from cluster
   structure:
