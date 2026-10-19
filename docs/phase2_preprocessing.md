@@ -172,3 +172,38 @@ applies the cut to LEMUR and the mocks alike.
   0.62–0.74 with the cut against 0.62–0.76 without). Most such fields have no mock
   counterpart at matched luminosity anyway. The remaining gap is not caused by faint or
   point-source-dominated LEMUR fields.
+
+## Core structure (2026-10-19)
+
+`python -m domain_gap.core` (figures and tables in `outputs/figures/core/`). The signal
+cut is applied, since a central AGN raises c.
+
+- **Concentration.** c = F(<40 kpc) / F(<250 kpc) around the X-ray peak, measured
+  identically on every image. This is Santos et al.'s cool-core concentration with the
+  outer radius limited by the 500 kpc field, so their thresholds do not carry over.
+- **Validation.** In TNG-Cluster, c tracks the central cooling time closely: Spearman
+  −0.94, −0.90 and −0.85 at z = 0.05, 0.1 and 0.2.
+- **LEMUR against L-matched mocks.** At z = 0.05 and 0.1, LEMUR has a second population
+  of highly concentrated clusters (c ≈ 0.2–0.5) that L-matched mocks almost never
+  produce:
+
+  | z | LEMUR median c | TNG300 median c | TNG-Cluster median c | LEMUR 75th pct | Mock 75th pct |
+  |---|---|---|---|---|---|
+  | 0.05 | 0.11 | 0.073 | 0.057 | 0.21 | 0.07–0.09 |
+  | 0.2 | 0.075 | 0.083 | 0.068 | — | — |
+
+  At z = 0.2 the two agree.
+- **Matching on concentration as well.** Adding c to the reweighting (on top of L and
+  exposure) brings the domain AUC of harmonized_physical to about 0.5: 0.39–0.54,
+  against 0.62–0.76 with L and exposure only. At matched luminosity and core
+  concentration, AstroCLIP no longer separates LEMUR from TNG. In the per-image-stretch
+  configs the AUC falls but stays at 0.59–0.77.
+- **Caveats:**
+  - **Selection.** LEMUR clusters more concentrated than any L-matched mock drop out of
+    the (L, c) matching. Up to half of LEMUR at z = 0.05 against TNG-Cluster drops out,
+    and that is the cool-core excess itself.
+  - **Target selection.** Low-z Chandra targets are largely X-ray selected, which favours
+    cool cores. Many z ≈ 0.2 targets are SZ selected (PSZ2), and there LEMUR matches TNG.
+    The excess may be partly selection rather than TNG physics.
+  - **Noise.** Matched samples are small (tens to hundreds effective), so the AUCs are
+    uncertain by roughly ±0.05–0.1. A bootstrap would quantify this.
