@@ -42,6 +42,12 @@ COPY = {
 }
 
 
+def span(lo, hi, digits=2):
+    """'lo--hi', or one value when both round the same."""
+    a, b = f"{lo:.{digits}f}", f"{hi:.{digits}f}"
+    return a if a == b else f"{a}--{b}"
+
+
 def fmt(v, digits=2):
     return "--" if v is None or not np.isfinite(v) else f"{v:.{digits}f}"
 
@@ -177,6 +183,12 @@ def concentration_macros(m):
 def observational_macros(m):
     path = FIG / "observational" / "observational.csv"
     if not path.exists():
+        # Placeholders so the paper compiles before the analysis has run.
+        m.lines.append("% Observational effects: not run yet")
+        for z in ZTAG.values():
+            m.add(f"aucExpMocks{z}", "\\todo{pending}")
+        for key in ("distExposure", "distProjection", "distHalo"):
+            m.add(key, "\\todo{pending}")
         return
     t = pd.read_csv(path)
     t = t[t["config"] == "harmonized_physical"]
@@ -200,11 +212,14 @@ def observational_macros(m):
             m.auc(f"auc{key}", r["auc"], r["auc_lo"], r["auc_hi"])
             if "null_mean" in r and np.isfinite(r.get("null_mean", np.nan)):
                 m.add(f"null{key}", f"{fmt(r['null_mean'])}\\,[{fmt(r['null_lo'])},\\,{fmt(r['null_hi'])}]")
-    p = pd.read_csv(FIG / "observational" / "exposure_pairs.csv")
-    p = p[p["config"] == "harmonized_physical"]
-    m.add("distExposure", f"{p['same_halo_20_vs_100ks'].min():.3f}--{p['same_halo_20_vs_100ks'].max():.3f}")
-    m.add("distProjection", f"{p['same_halo_other_projection'].min():.3f}--{p['same_halo_other_projection'].max():.3f}")
-    m.add("distHalo", f"{p['other_halo_same_mass'].min():.2f}--{p['other_halo_same_mass'].max():.2f}")
+    pairs = pd.read_csv(FIG / "observational" / "exposure_pairs.csv")
+    for config, suffix, digits in [("harmonized_physical", "", 3), ("harmonized_morphology", "Morph", 2), ("baseline", "Base", 2)]:
+        p = pairs[pairs["config"] == config]
+        for col, key in [("same_halo_20_vs_100ks", "distExposure"), ("same_halo_other_projection", "distProjection"), ("other_halo_same_mass", "distHalo")]:
+            m.add(key + suffix, span(p[col].min(), p[col].max(), digits))
+    morph = pd.read_csv(path)
+    morph = morph[(morph["config"] == "harmonized_morphology") & morph["test"].str.startswith("mocks: 20 vs 100")]
+    m.add("aucExpMocksMorph", span(morph["auc"].min(), morph["auc"].max()))
 
 
 def waterfall(out):
