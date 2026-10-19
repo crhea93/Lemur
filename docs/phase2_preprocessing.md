@@ -235,3 +235,51 @@ the mocks and their preprocessing, not from the clusters:
 
 Between the two simulations, only the physical config (step 3) brings equal-mass TNG300
 and TNG-Cluster close to indistinguishable.
+
+## Uncertainties (2026-10-19)
+
+- **Bootstrap intervals.** Every AUC in `mass_match`, `core` and `original_gap` now has a
+  68% interval, written as `_lo` and `_hi` columns and as error bars. Objects (halos or
+  LEMUR clusters) are resampled 1,000 times on fixed out-of-fold scores. This covers
+  sampling noise, not retraining noise.
+- **Permutation null.** `core --null 100` shuffles the LEMUR/mock labels between whole
+  objects and reruns the full cross-validated classifier. It shows what "no signal" looks
+  like at these sample sizes: a mean of 0.47–0.50 with a 68% spread of about ±0.08.
+- **Result.** All six (L, c)-matched AUCs of the physical config are consistent with that
+  null:
+  - TNG300: 0.50, 0.48 and 0.54 at z = 0.05, 0.1 and 0.2;
+  - TNG-Cluster: 0.39, 0.46 and 0.50. The 0.39 sits about 1σ low against a null of 0.48
+    [0.40, 0.58], with 51 LEMUR clusters.
+
+  No residual separation is detectable.
+
+## Mass cross-check and selection (2026-10-19)
+
+`python -m domain_gap.selection` (figures and tables in `outputs/figures/selection/`).
+LEMUR is cross-matched with Planck PSZ2 (490 clusters) and MCXC (573), with catalogs in
+`outputs/catalogs/` from VizieR.
+
+- **Masses.** The TNG-calibrated masses agree with MCXC masses to −0.08 dex (0.11 dex
+  scatter, n = 274) and lie 0.21 dex below PSZ2 SZ masses (0.16 dex, n = 209).
+  - The slope below 1 is expected when predicting mass from luminosity with scatter.
+  - The PSZ2 offset is largest at z = 0.2, where Planck masses near the limit are biased
+    high.
+  - L matching compares like observables either way, but the mass labels carry a
+    systematic of about 0.1–0.2 dex.
+- **Fraction with c > 0.15**, LEMUR against mocks reweighted to each subsample's L:
+
+  | z | Mocks | LEMUR in PSZ2 | LEMUR not in PSZ2 | LEMUR in MCXC, not PSZ2 |
+  |---|---|---|---|---|
+  | 0.05 | 1–4% | 29% | 49–53% | 59–63% |
+  | 0.10 | 3% | 19–21% | 58–60% | 58–61% |
+  | 0.20 | 3–5% | 9% | 39% | 54% |
+
+- **Interpretation:**
+  - X-ray selection inflates the cool-core excess 2–4× compared with SZ-detected
+    clusters.
+  - Even PSZ2 clusters have 3–10× more highly concentrated cores than L-matched TNG at
+    z ≤ 0.1, so selection does not explain it all.
+  - At z = 0.2 the PSZ2 subset is close to TNG: median c 0.071 against 0.069–0.084.
+  - PSZ2 membership is not the same as SZ-selected Chandra targeting. The Chandra-observed
+    PSZ2 clusters may still favour X-ray-bright targets, so the 3–10× is likely an upper
+    bound on TNG's deficit.

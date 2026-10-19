@@ -115,7 +115,15 @@ def prepare(df, lum, core):
     return df
 
 
-def analyse(runs, lum, core, l_bin, c_bin):
+def null_columns(x, a, b, wa, wb, n_perm):
+    rows = np.r_[a["row"], b["row"]]
+    labels = np.r_[np.ones(len(a)), np.zeros(len(b))]
+    groups = np.r_[a["group"], b["group"]]
+    mean, lo, hi = ae.null_auc(x[rows], labels, groups, weights=np.r_[wa, wb], n_perm=n_perm)
+    return {"null_mean_L_c": mean, "null_lo_L_c": lo, "null_hi_L_c": hi}
+
+
+def analyse(runs, lum, core, l_bin, c_bin, n_perm=0, null_config="harmonized_physical"):
     rows, dist = [], []
     for df, x, name in runs:
         df = prepare(df, lum, core)
@@ -137,10 +145,11 @@ def analyse(runs, lum, core, l_bin, c_bin):
                 rows.append(
                     {
                         "config": name, "redshift": z, "pair": f"LEMUR vs {sim}",
-                        "auc_L": mm._weighted_auc(x, lemur, s, wl, ws),
-                        "auc_L_c": mm._weighted_auc(x, lemur, s, wl2, ws2),
+                        **mm._ci_columns("auc_L", mm._weighted_auc_ci(x, lemur, s, wl, ws)),
+                        **mm._ci_columns("auc_L_c", mm._weighted_auc_ci(x, lemur, s, wl2, ws2)),
                         "n_lemur_L": int(wl.sum()), "n_lemur_L_c": int(wl2.sum()),
                         "n_eff_mock_L": round(mm.n_eff(ws), 1), "n_eff_mock_L_c": round(mm.n_eff(ws2), 1),
+                        **(null_columns(x, lemur, s, wl2, ws2, n_perm) if n_perm and name == null_config else {}),
                     }
                 )
                 if name == runs[0][2]:
@@ -218,8 +227,10 @@ def auc_figure(table, out):
             ax = axes[r, c]
             sel = table[(table["pair"] == pair) & (table["config"] == config)].set_index("redshift")
             pos = np.arange(len(zs))
-            ax.bar(pos - 0.2, [sel["auc_L"].get(z, np.nan) for z in zs], 0.4, color="tab:green", label="matched L, exposure")
-            ax.bar(pos + 0.2, [sel["auc_L_c"].get(z, np.nan) for z in zs], 0.4, color="tab:purple", label="+ concentration")
+            for shift, key, color, label in [(-0.2, "auc_L", "tab:green", "matched L, exposure"), (0.2, "auc_L_c", "tab:purple", "+ concentration")]:
+                v = np.array([sel[key].get(z, np.nan) for z in zs])
+                err = np.array([[v[i] - sel[f"{key}_lo"].get(z, np.nan), sel[f"{key}_hi"].get(z, np.nan) - v[i]] for i, z in enumerate(zs)]).T
+                ax.bar(pos + shift, v, 0.4, color=color, label=label, yerr=err, capsize=2, ecolor="k", error_kw={"lw": 0.8})
             ax.axhline(0.5, color="gray", lw=0.8, ls="--")
             ax.set_xticks(pos, [f"z={z:.2f}" for z in zs], fontsize=8)
             ax.set_ylim(0.4, 1.0)
@@ -247,6 +258,7 @@ def main(argv=None):
         "--luminosity-cache", default=str(ROOT / "outputs" / "figures" / "mass" / "luminosities.csv")
     )
     parser.add_argument("--no-signal-cut", action="store_true")
+    parser.add_argument("--null", type=int, default=0, help="Label permutations for the (L, c)-matched null (physical config)")
     parser.add_argument("--snr-min", type=float, default=10.0)
     parser.add_argument("--ps-max", type=float, default=0.5)
     args = parser.parse_args(argv)
@@ -261,7 +273,7 @@ def main(argv=None):
     first = prepare(runs[0][0], lum, core)
     validation_figure(first, out)
     distribution_figure(first, out, args.l_bin)
-    table, dist = analyse(runs, lum, core, args.l_bin, args.c_bin)
+    table, dist = analyse(runs, lum, core, args.l_bin, args.c_bin, args.null)
     table.to_csv(out / "core_auc.csv", index=False)
     dist.to_csv(out / "core_medians.csv", index=False)
     auc_figure(table, out)
