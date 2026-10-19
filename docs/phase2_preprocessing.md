@@ -283,3 +283,57 @@ LEMUR is cross-matched with Planck PSZ2 (490 clusters) and MCXC (573), with cata
   - PSZ2 membership is not the same as SZ-selected Chandra targeting. The Chandra-observed
     PSZ2 clusters may still favour X-ray-bright targets, so the 3–10× is likely an upper
     bound on TNG's deficit.
+
+## Second measures: a non-linear probe and X-ray-native encoders (2026-10-19)
+
+Two robustness checks, against two objections: that the linear probe is too weak, and
+that AstroCLIP, trained on optical images, is the wrong encoder.
+
+- **The probes and encoders.**
+  - *MLP probe* (`--probe mlp` in core, mass_match, original_gap and drivers): one hidden
+    layer of 64 ReLU units, with the same weights, grouped folds, bootstrap and null as the
+    linear probe.
+  - *SimCLR* (`domain_gap.simclr`): a ResNet-18 trained from scratch on the
+    harmonized_physical inputs, either on the mocks only (`simclr_mocks`, 11,357 images)
+    or on LEMUR only (`simclr_lemur`, about 1,000 images). Augmentations are geometric
+    plus blur and noise, with no brightness jitter.
+- **Positive controls.** Both SimCLR encoders carry more physical information than
+  AstroCLIP, so a "no gap" from them cannot be a weak-encoder artefact. Values are the
+  grouped-CV R² of ridge regressions, and the fraction of mock images whose nearest
+  neighbour is the same halo:
+
+  | Encoder | log M500 | log t_cool (TNG-Cluster) | log c | Same-halo neighbour |
+  |---|---|---|---|---|
+  | AstroCLIP (physical) | 0.87 | 0.79 | 0.79 | 22% |
+  | SimCLR, mocks | 0.90 | 0.83 | 0.85 | 30% |
+  | SimCLR, LEMUR | 0.88 | 0.80 | 0.84 | 29% |
+
+- **AUC after matching on (L, c, exposure),** at z = 0.05 / 0.1 / 0.2 (null about 0.49 ± 0.07):
+
+  | Representation, probe | LEMUR vs TNG300 | LEMUR vs TNG-Cluster |
+  |---|---|---|
+  | AstroCLIP, linear | 0.50 / 0.48 / 0.54 | 0.39 / 0.46 / 0.50 |
+  | AstroCLIP, MLP | 0.61 / 0.63 / 0.68 | 0.47 / 0.51 / 0.69 |
+  | SimCLR (mocks), linear | 0.78 / 0.83 / 0.77 | 0.62 / 0.75 / 0.69 |
+  | SimCLR (LEMUR), linear | 0.76 / 0.78 / 0.74 | 0.51 / 0.68 / 0.70 |
+
+- **What carries the residual** (`domain_gap.drivers`).
+  - In every representation, LEMUR's out-of-fold score correlates with point-source
+    fraction (ρ = 0.21–0.47) and anticorrelates with exposure (ρ = −0.18 to −0.39).
+  - Adding S/N within 250 kpc (noise depth at fixed luminosity) and point-source fraction
+    to the matching brings every representation to the null or below it. The values are
+    0.34–0.49 for AstroCLIP with the MLP, 0.35–0.61 for SimCLR (mocks) and 0.27–0.50 for
+    SimCLR (LEMUR). The heavily matched samples have only 30–45 LEMUR clusters, so values
+    below 0.5 are small-sample scatter.
+  - The galleries (`drivers_gallery.png`) agree: the most LEMUR-like images are faint,
+    point-source-rich fields and compact cores; the least LEMUR-like are smooth, diffuse
+    clusters.
+- **Interpretation.** Stronger probes and X-ray-native encoders see a residual that the
+  linear AstroCLIP probe misses. It comes from the realism of the mocks, not from cluster
+  structure:
+  - only two exposure times, while LEMUR spans 5–200 ks, so noise depth differs at fixed
+    luminosity;
+  - no cluster-member AGN or point sources; the mocks have only CXB sources.
+
+  The cool-core difference persists in every representation. Mocks drawn at LEMUR's
+  exposures and with cluster AGN would be the fix.
