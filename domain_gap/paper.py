@@ -112,6 +112,7 @@ def core_macros(m):
         m.auc(f"aucLc{tag}", r["auc_L_c"], r["auc_L_c_lo"], r["auc_L_c_hi"])
         if "null_mean_L_c" in r and np.isfinite(r["null_mean_L_c"]):
             m.add(f"null{tag}", f"{fmt(r['null_mean_L_c'])}\\,[{fmt(r['null_lo_L_c'])},\\,{fmt(r['null_hi_L_c'])}]")
+            m.add(f"excessLc{tag}", f"{r['auc_L_c'] - r['null_mean_L_c']:+.2f}")
         m.add(f"nLemurLc{tag}", str(int(r["n_lemur_L_c"])))
     med = pd.read_csv(FIG / "core" / "core_medians.csv")
     for _, r in med.iterrows():
@@ -213,6 +214,8 @@ def observational_macros(m):
             m.auc(f"auc{key}", r["auc"], r["auc_lo"], r["auc_hi"])
             if "null_mean" in r and np.isfinite(r.get("null_mean", np.nan)):
                 m.add(f"null{key}", f"{fmt(r['null_mean'])}\\,[{fmt(r['null_lo'])},\\,{fmt(r['null_hi'])}]")
+                sig = np.hypot((r["auc_hi"] - r["auc_lo"]) / 2, (r["null_hi"] - r["null_lo"]) / 2)
+                m.add(f"sig{key}", f"{(r['auc'] - r['null_mean']) / sig:.1f}")
     pairs = pd.read_csv(FIG / "observational" / "exposure_pairs.csv")
     for config, suffix, digits in [("harmonized_physical", "", 3), ("harmonized_morphology", "Morph", 2), ("baseline", "Base", 2)]:
         p = pairs[pairs["config"] == config]
@@ -259,12 +262,22 @@ def robustness_macros(m):
                 m.auc(f"aucLc{tag}{key}", r["auc_L_c"], r["auc_L_c_lo"], r["auc_L_c_hi"])
                 vals.append(r["auc_L_c"])
             m.add(f"aucLcRange{tag}", span(min(vals), max(vals)))
+            if "null_mean_L_c" in c and c["null_mean_L_c"].notna().all():
+                excess = c["auc_L_c"] - c["null_mean_L_c"]
+                m.add(f"excessLcRange{tag}", f"{excess.min():+.2f} to {excess.max():+.2f}")
         match_csv = FIG / drivers_dir / "drivers_matching.csv"
         if match_csv.exists():
             d = pd.read_csv(match_csv)
             full = d[d["matched_on"] == FULL]
             if len(full):
                 m.add(f"aucFullRange{tag}", span(full["auc"].min(), full["auc"].max()))
+                if "null_mean" in full:
+                    excess = full["auc"] - full["null_mean"]
+                    m.add(f"excessFullRange{tag}", f"{excess.min():+.2f} to {excess.max():+.2f}")
+                    for _, r in full.iterrows():
+                        key = SIMTAG[r["sim"]] + ZTAG[round(r["redshift"], 2)]
+                        m.auc(f"aucFull{tag}{key}", r["auc"], r["auc_lo"], r["auc_hi"])
+                        m.add(f"nullFull{tag}{key}", f"{fmt(r['null_mean'])}\\,[{fmt(r['null_lo'])},\\,{fmt(r['null_hi'])}]")
             if "null_lo" in full:
                 inside = ((full["auc"] >= full["null_lo"] - (full["auc_hi"] - full["auc"])) &
                           (full["auc"] <= full["null_hi"] + (full["auc"] - full["auc_lo"])))
@@ -277,7 +290,30 @@ def robustness_macros(m):
             exp_rho.append(k.loc["log_exposure", "spearman_rho"])
     if ps_rho:
         m.add("rhoPointSources", span(min(ps_rho), max(ps_rho)))
-        m.add("rhoExposure", span(min(exp_rho), max(exp_rho)))
+        m.add("rhoExposure", f"{min(exp_rho):.2f} to {max(exp_rho):.2f}")
+    # Significance of each matched AUC against its null: (AUC - null mean) /
+    # sqrt(bootstrap half-width^2 + null half-width^2), the 68% half-widths.
+    within1 = within2 = total = 0
+    for tag, label, core_dir, config, drivers_dir in REPRESENTATIONS:
+        c = pd.read_csv(FIG / core_dir / "core_auc.csv")
+        c = c[c["config"] == config]
+        if "null_mean_L_c" in c and c["null_mean_L_c"].notna().all():
+            sig = np.sqrt(((c["auc_L_c_hi"] - c["auc_L_c_lo"]) / 2) ** 2 + ((c["null_hi_L_c"] - c["null_lo_L_c"]) / 2) ** 2)
+            zs = (c["auc_L_c"] - c["null_mean_L_c"]) / sig
+            m.add(f"sigLcMax{tag}", f"{zs.max():.1f}")
+            m.add(f"sigLcRange{tag}", f"{zs.min():.1f}--{zs.max():.1f}")
+        d = pd.read_csv(FIG / drivers_dir / "drivers_matching.csv")
+        f = d[d["matched_on"] == FULL]
+        if "null_mean" in f and f["null_mean"].notna().all():
+            sig = np.sqrt(((f["auc_hi"] - f["auc_lo"]) / 2) ** 2 + ((f["null_hi"] - f["null_lo"]) / 2) ** 2)
+            zs = ((f["auc"] - f["null_mean"]) / sig).abs()
+            within1 += int((zs <= 1).sum())
+            within2 += int((zs <= 2).sum())
+            total += len(zs)
+    if total:
+        m.add("nFullTotal", str(total))
+        m.add("nFullWithinOne", str(within1))
+        m.add("nFullWithinTwo", str(within2))
 
 
 def robustness_figure(out):
@@ -310,19 +346,18 @@ def robustness_figure(out):
         ax.set_xticks(np.arange(len(zs)), [f"$z={z:g}$" for z in zs])
         ax.set_title(f"LEMUR vs {sim}", fontsize=9)
     axes[0].set_ylabel("domain classifier AUC")
-    for (tag, label, *_), color in zip(REPRESENTATIONS, colors):
-        axes[1].plot([], [], "o", color=color, label=label)
-    axes[1].plot([], [], "o", mfc="none", color="k", label="matched $L$, $c$, exposure")
-    axes[1].plot([], [], "o", color="k", label="+ S/N, point sources")
-    axes[1].legend(fontsize=6.5, loc="upper right")
-    fig.tight_layout()
+    handles = [plt.Line2D([], [], marker="o", ls="none", color=color, label=label) for (tag, label, *_), color in zip(REPRESENTATIONS, colors)]
+    handles += [plt.Line2D([], [], marker="o", ls="none", mfc="none", color="k", label="matched $L$, $c$, exposure"),
+                plt.Line2D([], [], marker="o", ls="none", color="k", label="+ S/N, point sources")]
+    fig.legend(handles=handles, fontsize=6.5, loc="lower center", ncol=3, frameon=False)
+    fig.tight_layout(rect=[0, 0.13, 1, 1])
     fig.savefig(out / "robustness.pdf")
     fig.savefig(out / "robustness.png", dpi=150)
     plt.close(fig)
 
 
 def waterfall(out):
-    """AUC at each step at z = 0.05, with the permutation null of the last step."""
+    """AUC at each step at z = 0.05, with permutation nulls for the matched steps."""
     import matplotlib
 
     matplotlib.use("Agg")
@@ -331,41 +366,49 @@ def waterfall(out):
     o = pd.read_csv(FIG / "original" / "original_gap.csv")
     c = pd.read_csv(FIG / "core" / "core_auc.csv")
     c = c[(c["config"] == "harmonized_physical")]
-    steps = ["Original\nmocks", "Regenerated\nmocks", "Harmonized\n(physical)", "+ matched\n$L$, exposure", "+ matched\nconcentration"]
-    fig, axes = plt.subplots(1, 2, figsize=(7.2, 3.0), gridspec_kw={"width_ratios": [1.6, 1]}, sharey=True)
+    full = pd.read_csv(FIG / "drivers_harmonized_physical" / "drivers_matching.csv")
+    full = full[full["matched_on"] == FULL]
+    steps = ["Original\nmocks", "Regenerated\nmocks", "Harmonized\n(physical)", "+ matched\n$L$, exposure",
+             "+ matched\nconcentration", "+ matched S/N,\npoint sources"]
+    fig, axes = plt.subplots(1, 2, figsize=(7.4, 3.1), gridspec_kw={"width_ratios": [1.8, 1]}, sharey=True)
     ax = axes[0]
     for sim, color, dx in [("TNG300-1", "tab:blue", -0.08), ("TNG-Cluster", "tab:red", 0.08)]:
         col = f"LEMUR vs {sim}"
         r = c[(c["pair"] == col) & np.isclose(c["redshift"], 0.05)].iloc[0]
-        vals = [o[col].iloc[0], o[col].iloc[1], o[col].iloc[3], r["auc_L"], r["auc_L_c"]]
-        lo = [o[col + "_lo"].iloc[0], o[col + "_lo"].iloc[1], o[col + "_lo"].iloc[3], r["auc_L_lo"], r["auc_L_c_lo"]]
-        hi = [o[col + "_hi"].iloc[0], o[col + "_hi"].iloc[1], o[col + "_hi"].iloc[3], r["auc_L_hi"], r["auc_L_c_hi"]]
+        f = full[(full["sim"] == sim) & np.isclose(full["redshift"], 0.05)].iloc[0]
+        vals = [o[col].iloc[0], o[col].iloc[1], o[col].iloc[3], r["auc_L"], r["auc_L_c"], f["auc"]]
+        lo = [o[col + "_lo"].iloc[0], o[col + "_lo"].iloc[1], o[col + "_lo"].iloc[3], r["auc_L_lo"], r["auc_L_c_lo"], f["auc_lo"]]
+        hi = [o[col + "_hi"].iloc[0], o[col + "_hi"].iloc[1], o[col + "_hi"].iloc[3], r["auc_L_hi"], r["auc_L_c_hi"], f["auc_hi"]]
         x = np.arange(len(steps)) + dx
         ax.errorbar(x, vals, yerr=[np.subtract(vals, lo), np.subtract(hi, vals)], fmt="o-", color=color, ms=4, lw=1, capsize=2, label=f"LEMUR vs {sim}")
-        if "null_lo_L_c" in r:
-            ax.fill_between([len(steps) - 1.35, len(steps) - 0.65], r["null_lo_L_c"], r["null_hi_L_c"], color=color, alpha=0.12, lw=0)
+        for i, (nlo, nhi) in [(4, (r.get("null_lo_L_c"), r.get("null_hi_L_c"))), (5, (f.get("null_lo"), f.get("null_hi")))]:
+            if nlo is not None and np.isfinite(nlo):
+                ax.fill_between([x[i] - 0.12, x[i] + 0.12], nlo, nhi, color=color, alpha=0.15, lw=0)
     ax.axhline(0.5, color="gray", ls="--", lw=0.8)
-    ax.set_xticks(np.arange(len(steps)), steps, fontsize=7)
+    ax.set_xticks(np.arange(len(steps)), steps, fontsize=6.5)
     ax.set_ylabel("domain classifier AUC")
     ax.set_title("$z = 0.05$", fontsize=9)
     ax.set_ylim(0.3, 1.03)
     ax.legend(fontsize=7, loc="lower left")
     ax = axes[1]
     zs = [0.05, 0.1, 0.2]
-    for sim, color, dx in [("TNG300-1", "tab:blue", -0.08), ("TNG-Cluster", "tab:red", 0.08)]:
+    for sim, color, dx in [("TNG300-1", "tab:blue", -0.1), ("TNG-Cluster", "tab:red", 0.1)]:
         r = c[c["pair"] == f"LEMUR vs {sim}"].set_index("redshift")
+        f = full[full["sim"] == sim].set_index("redshift")
         x = np.arange(len(zs)) + dx
-        for key, marker, fill in [("auc_L", "o", "none"), ("auc_L_c", "o", color)]:
-            v = [r.loc[z, key] for z in zs]
-            ax.errorbar(x, v, yerr=[[r.loc[z, key] - r.loc[z, key + "_lo"] for z in zs], [r.loc[z, key + "_hi"] - r.loc[z, key] for z in zs]],
-                        fmt=marker, color=color, mfc=fill, ms=4, capsize=2, lw=1)
-        if "null_lo_L_c" in r:
-            for i, z in enumerate(zs):
-                ax.fill_between([i + dx - 0.12, i + dx + 0.12], r.loc[z, "null_lo_L_c"], r.loc[z, "null_hi_L_c"], color=color, alpha=0.12, lw=0)
+        for frame, key, fill, shift, nkey in [(r, "auc_L_c", "none", -0.04, "null_{}_L_c"), (f, "auc", color, 0.04, "null_{}")]:
+            v = np.array([frame.loc[z, key] for z in zs])
+            lo = np.array([frame.loc[z, key + "_lo"] for z in zs])
+            hi = np.array([frame.loc[z, key + "_hi"] for z in zs])
+            ax.errorbar(x + shift, v, yerr=[v - lo, hi - v], fmt="o", color=color, mfc=fill, ms=4, capsize=2, lw=1)
+            if nkey.format("lo") in frame:
+                for i, z in enumerate(zs):
+                    ax.fill_between([x[i] + shift - 0.035, x[i] + shift + 0.035], frame.loc[z, nkey.format("lo")], frame.loc[z, nkey.format("hi")],
+                                    color=color, alpha=0.15, lw=0)
     ax.axhline(0.5, color="gray", ls="--", lw=0.8)
     ax.set_xticks(np.arange(len(zs)), [f"$z={z:g}$" for z in zs], fontsize=8)
-    ax.plot([], [], "o", mfc="none", color="k", label="matched $L$, exposure")
-    ax.plot([], [], "o", color="k", label="+ concentration")
+    ax.plot([], [], "o", mfc="none", color="k", label="+ concentration")
+    ax.plot([], [], "o", color="k", label="+ S/N, point sources")
     ax.legend(fontsize=7, loc="upper right")
     ax.set_title("harmonized physical, all redshifts", fontsize=9)
     fig.tight_layout()
