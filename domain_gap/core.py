@@ -75,8 +75,11 @@ def measure(config_path, cache):
     return df
 
 
-def reweight_nd(target_values, target_class, other_values, other_class, bins):
-    """As mass_match.reweight, on several variables (lists of arrays, bin widths)."""
+def reweight_nd(target_values, target_class, other_values, other_class, bins, return_keys=False):
+    """As mass_match.reweight, on several variables (lists of arrays, bin widths).
+
+    ``return_keys`` also returns each row's bin key (None if a value is
+    missing), for a permutation null stratified by bin."""
     def keys(values, classes):
         out = []
         for i, cls in enumerate(classes):
@@ -94,6 +97,8 @@ def reweight_nd(target_values, target_class, other_values, other_class, bins):
     no = pd.Series([k for k in ko if k is not None]).value_counts().to_dict()
     wt = np.array([1.0 if k is not None and k in no else 0.0 for k in kt])
     wo = np.array([nt[k] / no[k] if k is not None and k in nt else 0.0 for k in ko])
+    if return_keys:
+        return wt, wo, kt, ko
     return wt, wo
 
 
@@ -115,11 +120,11 @@ def prepare(df, lum, core):
     return df
 
 
-def null_columns(x, a, b, wa, wb, n_perm):
+def null_columns(x, a, b, wa, wb, n_perm, strata=None):
     rows = np.r_[a["row"], b["row"]]
     labels = np.r_[np.ones(len(a)), np.zeros(len(b))]
     groups = np.r_[a["group"], b["group"]]
-    mean, lo, hi = ae.null_auc(x[rows], labels, groups, weights=np.r_[wa, wb], n_perm=n_perm)
+    mean, lo, hi = ae.null_auc(x[rows], labels, groups, weights=np.r_[wa, wb], n_perm=n_perm, strata=strata)
     return {"null_mean_L_c": mean, "null_lo_L_c": lo, "null_hi_L_c": hi}
 
 
@@ -137,19 +142,19 @@ def analyse(runs, lum, core, l_bin, c_bin, n_perm=0, null_config="harmonized_phy
             lemur_class = [mm.nearest_exposure(e, exposures) for e in lemur["exposure_ks"]]
             for sim in ["TNG300-1", "TNG-Cluster"]:
                 s = mocks[mocks["source"] == sim]
-                wl, ws = reweight_nd([lemur["log_L_ph"]], lemur_class, [s["log_L_ph"]], s["exposure_ks"], [l_bin])
-                wl2, ws2 = reweight_nd(
+                wl, ws, kl, ks = reweight_nd([lemur["log_L_ph"]], lemur_class, [s["log_L_ph"]], s["exposure_ks"], [l_bin], return_keys=True)
+                wl2, ws2, kl2, ks2 = reweight_nd(
                     [lemur["log_L_ph"], lemur["log_c"]], lemur_class,
-                    [s["log_L_ph"], s["log_c"]], s["exposure_ks"], [l_bin, c_bin],
+                    [s["log_L_ph"], s["log_c"]], s["exposure_ks"], [l_bin, c_bin], return_keys=True,
                 )
                 rows.append(
                     {
                         "config": name, "redshift": z, "pair": f"LEMUR vs {sim}",
-                        **mm._ci_columns("auc_L", mm._weighted_auc_ci(x, lemur, s, wl, ws)),
-                        **mm._ci_columns("auc_L_c", mm._weighted_auc_ci(x, lemur, s, wl2, ws2)),
+                        **mm._ci_columns("auc_L", mm._weighted_auc_ci(x, lemur, s, wl, ws, strata=list(kl) + list(ks))),
+                        **mm._ci_columns("auc_L_c", mm._weighted_auc_ci(x, lemur, s, wl2, ws2, strata=list(kl2) + list(ks2))),
                         "n_lemur_L": int(wl.sum()), "n_lemur_L_c": int(wl2.sum()),
                         "n_eff_mock_L": round(mm.n_eff(ws), 1), "n_eff_mock_L_c": round(mm.n_eff(ws2), 1),
-                        **(null_columns(x, lemur, s, wl2, ws2, n_perm) if n_perm and name == null_config else {}),
+                        **(null_columns(x, lemur, s, wl2, ws2, n_perm, list(kl2) + list(ks2)) if n_perm and name == null_config else {}),
                     }
                 )
                 if name == runs[0][2]:

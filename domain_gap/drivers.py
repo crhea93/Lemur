@@ -72,18 +72,18 @@ def matched_sets(df, sim, extra=()):
         cls = [mm.nearest_exposure(e, exposures) for e in lemur["exposure_ks"]]
         cols, bins = ["log_L_ph", "log_c"], [0.2, 0.15]
         cols, bins = cols + list(extra), bins + [EXTRA[e] for e in extra]
-        wl, wm = core_mod.reweight_nd([lemur[c] for c in cols], cls, [mocks[c] for c in cols], mocks["exposure_ks"], bins)
-        out.append((z, lemur, mocks, wl, wm))
+        wl, wm, kl, km = core_mod.reweight_nd([lemur[c] for c in cols], cls, [mocks[c] for c in cols], mocks["exposure_ks"], bins, return_keys=True)
+        out.append((z, lemur, mocks, wl, wm, list(kl) + list(km)))
     return out
 
 
-def scores_and_auc(x, lemur, mocks, wl, wm):
+def scores_and_auc(x, lemur, mocks, wl, wm, keys=None):
     rows = np.r_[lemur["row"], mocks["row"]]
     labels = np.r_[np.ones(len(lemur)), np.zeros(len(mocks))]
     groups = np.r_[lemur["group"], mocks["group"]]
     weights = np.r_[wl, wm]
     keep = weights > 0
-    result = ae.domain_auc(x[rows], labels, groups, weights=weights, return_scores=True)
+    result = ae.domain_auc(x[rows], labels, groups, weights=weights, return_scores=True, strata=keys)
     if not isinstance(result, tuple):
         return np.nan, None
     value, scores, lab, grp, w = result
@@ -96,8 +96,8 @@ def correlations(df, x):
 
     rows, all_scores = [], []
     for sim in ["TNG300-1", "TNG-Cluster"]:
-        for z, lemur, mocks, wl, wm in matched_sets(df, sim):
-            value, s = scores_and_auc(x, lemur, mocks, wl, wm)
+        for z, lemur, mocks, wl, wm, keys in matched_sets(df, sim):
+            value, s = scores_and_auc(x, lemur, mocks, wl, wm, keys)
             if s is None:
                 continue
             # Standardize within each comparison so scores can be pooled.
@@ -114,14 +114,23 @@ def correlations(df, x):
     return pd.DataFrame(rows).sort_values("spearman_rho", key=np.abs, ascending=False), scores
 
 
-def extra_matching(df, x):
+def extra_matching(df, x, n_perm=0, sets=EXTRA_SETS):
+    """AUC for each set of extra matching variables; the last set also gets a
+    permutation null when n_perm > 0 (heavily matched samples are small, and
+    their cross-validated AUCs are biased low even without signal)."""
     rows = []
-    for extra in EXTRA_SETS:
+    for extra in sets:
         for sim in ["TNG300-1", "TNG-Cluster"]:
-            for z, lemur, mocks, wl, wm in matched_sets(df, sim, extra):
-                value, lo, hi = mm._weighted_auc_ci(x, lemur, mocks, wl, wm)
-                rows.append({"matched_on": ", ".join(["L, c, exposure", *extra]), "sim": sim, "redshift": z,
-                             "auc": value, "auc_lo": lo, "auc_hi": hi, "n_lemur": int((wl > 0).sum()), "n_eff_mock": round(mm.n_eff(wm), 1)})
+            for z, lemur, mocks, wl, wm, keys in matched_sets(df, sim, extra):
+                value, lo, hi = mm._weighted_auc_ci(x, lemur, mocks, wl, wm, strata=keys)
+                row = {"matched_on": ", ".join(["L, c, exposure", *extra]), "sim": sim, "redshift": z,
+                       "auc": value, "auc_lo": lo, "auc_hi": hi, "n_lemur": int((wl > 0).sum()), "n_eff_mock": round(mm.n_eff(wm), 1)}
+                if n_perm and extra == sets[-1]:
+                    rr = np.r_[lemur["row"], mocks["row"]]
+                    labels = np.r_[np.ones(len(lemur)), np.zeros(len(mocks))]
+                    mean, nlo, nhi = ae.null_auc(x[rr], labels, np.r_[lemur["group"], mocks["group"]], weights=np.r_[wl, wm], n_perm=n_perm, strata=keys)
+                    row.update(null_mean=mean, null_lo=nlo, null_hi=nhi)
+                rows.append(row)
     return pd.DataFrame(rows)
 
 
@@ -158,17 +167,20 @@ def main(argv=None):
     parser.add_argument("--run", default=str(ROOT / "outputs" / "embeddings" / "simclr_mocks"))
     parser.add_argument("--out")
     parser.add_argument("--probe", choices=["linear", "mlp"], default="linear")
+    parser.add_argument("--null", type=int, default=0, help="Permutation null for the fully matched set")
+    parser.add_argument("--only-matching", action="store_true", help="Skip the correlations and gallery")
     args = parser.parse_args(argv)
     ae.PROBE = args.probe
     df, x, name = prepare(args.run)
     out = Path(args.out or ROOT / "outputs" / "figures" / f"drivers_{name}")
     out.mkdir(parents=True, exist_ok=True)
-    corr, scores = correlations(df, x)
-    corr.to_csv(out / "drivers_correlations.csv", index=False)
-    print(f"{name}: correlation of LEMUR's out-of-fold score with each property")
-    print(corr.to_string(index=False, float_format=lambda v: f"{v:.3g}"))
-    gallery(df, scores, out)
-    extra = extra_matching(df, x)
+    if not args.only_matching:
+        corr, scores = correlations(df, x)
+        corr.to_csv(out / "drivers_correlations.csv", index=False)
+        print(f"{name}: correlation of LEMUR's out-of-fold score with each property")
+        print(corr.to_string(index=False, float_format=lambda v: f"{v:.3g}"))
+        gallery(df, scores, out)
+    extra = extra_matching(df, x, args.null)
     extra.to_csv(out / "drivers_matching.csv", index=False)
     print(extra.to_string(index=False, float_format=lambda v: f"{v:.3f}"))
     print(f"Outputs in {out}")

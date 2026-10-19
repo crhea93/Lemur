@@ -120,3 +120,28 @@ def test_fit_physical_weights_groups_equally():
     groups = ["a"] * 50 + ["b"]
     _, vmax = intensity.fit_physical(images, masks, [0.1] * 51, 0, 60, groups=groups)
     assert vmax == pytest.approx(100.0)  # half of the pool is group b
+
+
+def test_fold_rebalancing_removes_the_reweighting_bias():
+    """No signal within bins, but the class mix varies by bin and the features
+    encode the bin: weights that balance the full sample bin by bin bias a
+    held-out AUC below 0.5 unless the classes are rebalanced in every fold."""
+    from domain_gap import analyze_embeddings as ae
+
+    rng = np.random.default_rng(4)
+    n_bins, rows = 12, []
+    for b in range(n_bins):
+        n_a, n_b = rng.integers(2, 5), rng.integers(10, 30)
+        rows += [(b, 1)] * n_a + [(b, 0)] * n_b
+    bins = np.array([r[0] for r in rows])
+    labels = np.array([r[1] for r in rows], float)
+    x = np.c_[np.eye(n_bins)[bins] * 3.0, rng.normal(size=(len(rows), 6))]
+    weights = np.ones(len(rows))
+    for b in range(n_bins):
+        in_b = bins == b
+        weights[in_b & (labels == 0)] = (in_b & (labels == 1)).sum() / (in_b & (labels == 0)).sum()
+    groups = np.arange(len(rows))
+    biased = ae.domain_auc(x, labels, groups, weights=weights)
+    fixed = ae.domain_auc(x, labels, groups, weights=weights, strata=list(bins))
+    assert biased < 0.4
+    assert abs(fixed - 0.5) < abs(biased - 0.5)

@@ -39,6 +39,7 @@ COPY = {
     "phase2/harmonized_physical_examples.png": "examples_physical.png",
     "phase2/harmonized_physical_profiles.png": "profiles_physical.png",
     "signal/signal.png": "signal.png",
+    "drivers_simclr_mocks/drivers_gallery.png": "drivers_gallery.png",
 }
 
 
@@ -222,6 +223,104 @@ def observational_macros(m):
     m.add("aucExpMocksMorph", span(morph["auc"].min(), morph["auc"].max()))
 
 
+# Representations compared in the robustness section: tag, label, core-analysis
+# folder (config name inside it) and driver-analysis folder.
+REPRESENTATIONS = [
+    ("Lin", "AstroCLIP, linear", "core", "harmonized_physical", "drivers_harmonized_physical"),
+    ("Mlp", "AstroCLIP, MLP", "core_mlp", "harmonized_physical", "drivers_harmonized_physical_mlp"),
+    ("SimM", "SimCLR (mocks), linear", "core_simclr", "simclr_mocks", "drivers_simclr_mocks"),
+    ("SimL", "SimCLR (LEMUR), linear", "core_simclr_lemur", "simclr_lemur", "drivers_simclr_lemur"),
+]
+FULL = "L, c, exposure, log_snr, ps_fraction"
+
+
+def robustness_macros(m):
+    pc_path = FIG / "simclr" / "positive_controls.csv"
+    if not pc_path.exists():
+        return
+    m.lines.append("% Robustness: positive controls, probes and encoders (simclr, core_*, drivers_*)")
+    pc = pd.read_csv(pc_path).set_index("run")
+    for run, tag in [("harmonized_physical", "Astro"), ("simclr_mocks", "SimM"), ("simclr_lemur", "SimL")]:
+        if run in pc.index:
+            r = pc.loc[run]
+            m.add(f"pcMass{tag}", fmt(r["R2_logM500_mocks"]))
+            m.add(f"pcTcool{tag}", fmt(r["R2_logtcool_TNGCluster"]))
+            m.add(f"pcConc{tag}", fmt(r["R2_logc_all"]))
+            m.add(f"pcHalo{tag}", f"{100 * r['same_halo_nn_fraction']:.0f}")
+    ps_rho, exp_rho = [], []
+    for tag, label, core_dir, config, drivers_dir in REPRESENTATIONS:
+        core_csv = FIG / core_dir / "core_auc.csv"
+        if core_csv.exists():
+            c = pd.read_csv(core_csv)
+            c = c[c["config"] == config]
+            vals = []
+            for _, r in c.iterrows():
+                key = SIMTAG[r["pair"].replace("LEMUR vs ", "")] + ZTAG[round(r["redshift"], 2)]
+                m.auc(f"aucLc{tag}{key}", r["auc_L_c"], r["auc_L_c_lo"], r["auc_L_c_hi"])
+                vals.append(r["auc_L_c"])
+            m.add(f"aucLcRange{tag}", span(min(vals), max(vals)))
+        match_csv = FIG / drivers_dir / "drivers_matching.csv"
+        if match_csv.exists():
+            d = pd.read_csv(match_csv)
+            full = d[d["matched_on"] == FULL]
+            if len(full):
+                m.add(f"aucFullRange{tag}", span(full["auc"].min(), full["auc"].max()))
+            if "null_lo" in full:
+                inside = ((full["auc"] >= full["null_lo"] - (full["auc_hi"] - full["auc"])) &
+                          (full["auc"] <= full["null_hi"] + (full["auc"] - full["auc_lo"])))
+                m.add(f"nFullInNull{tag}", str(int(inside.sum())))
+                m.add(f"nullFullRange{tag}", f"{full['null_mean'].min():.2f}--{full['null_mean'].max():.2f}")
+        corr_csv = FIG / drivers_dir / "drivers_correlations.csv"
+        if corr_csv.exists():
+            k = pd.read_csv(corr_csv).set_index("column")
+            ps_rho.append(k.loc["ps_fraction", "spearman_rho"])
+            exp_rho.append(k.loc["log_exposure", "spearman_rho"])
+    if ps_rho:
+        m.add("rhoPointSources", span(min(ps_rho), max(ps_rho)))
+        m.add("rhoExposure", span(min(exp_rho), max(exp_rho)))
+
+
+def robustness_figure(out):
+    """Per representation: AUC matched on (L, c, exposure) and also on S/N and point sources."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    zs = [0.05, 0.1, 0.2]
+    fig, axes = plt.subplots(1, 2, figsize=(7.2, 3.4), sharey=True)
+    offsets = np.linspace(-0.27, 0.27, len(REPRESENTATIONS))
+    colors = ["k", "0.5", "tab:purple", "tab:orange"]
+    for ax, sim in zip(axes, ["TNG300-1", "TNG-Cluster"]):
+        for (tag, label, core_dir, config, drivers_dir), dx, color in zip(REPRESENTATIONS, offsets, colors):
+            c = pd.read_csv(FIG / core_dir / "core_auc.csv")
+            c = c[(c["config"] == config) & (c["pair"] == f"LEMUR vs {sim}")].set_index("redshift")
+            d = pd.read_csv(FIG / drivers_dir / "drivers_matching.csv")
+            d = d[(d["matched_on"] == FULL) & (d["sim"] == sim)].set_index("redshift")
+            x = np.arange(len(zs)) + dx
+            for frame, key, fill, shift in [(c, "auc_L_c", "none", -0.03), (d, "auc", color, 0.03)]:
+                v = np.array([frame.loc[z, key] for z in zs])
+                lo = np.array([frame.loc[z, key + "_lo"] for z in zs])
+                hi = np.array([frame.loc[z, key + "_hi"] for z in zs])
+                ax.errorbar(x + shift, v, yerr=[v - lo, hi - v], fmt="o", color=color, mfc=fill, ms=3.5, lw=0.8, capsize=1.5)
+            if "null_lo" in d:
+                for i, z in enumerate(zs):
+                    ax.fill_between([x[i] - 0.06, x[i] + 0.06], d.loc[z, "null_lo"], d.loc[z, "null_hi"], color=color, alpha=0.15, lw=0)
+        ax.axhline(0.5, color="gray", ls="--", lw=0.8)
+        ax.set_xticks(np.arange(len(zs)), [f"$z={z:g}$" for z in zs])
+        ax.set_title(f"LEMUR vs {sim}", fontsize=9)
+    axes[0].set_ylabel("domain classifier AUC")
+    for (tag, label, *_), color in zip(REPRESENTATIONS, colors):
+        axes[1].plot([], [], "o", color=color, label=label)
+    axes[1].plot([], [], "o", mfc="none", color="k", label="matched $L$, $c$, exposure")
+    axes[1].plot([], [], "o", color="k", label="+ S/N, point sources")
+    axes[1].legend(fontsize=6.5, loc="upper right")
+    fig.tight_layout()
+    fig.savefig(out / "robustness.pdf")
+    fig.savefig(out / "robustness.png", dpi=150)
+    plt.close(fig)
+
+
 def waterfall(out):
     """AUC at each step at z = 0.05, with the permutation null of the last step."""
     import matplotlib
@@ -283,10 +382,12 @@ def main(argv=None):
     figures = paper / "figures"
     figures.mkdir(parents=True, exist_ok=True)
     m = Macros()
-    for part in (sample_macros, original_macros, core_macros, mass_macros, selection_macros, concentration_macros, observational_macros):
+    for part in (sample_macros, original_macros, core_macros, mass_macros, selection_macros, concentration_macros, observational_macros, robustness_macros):
         part(m)
     m.write(paper / "macros.tex")
     waterfall(figures)
+    if all((FIG / r[4] / "drivers_matching.csv").exists() for r in REPRESENTATIONS):
+        robustness_figure(figures)
     copied = 0
     for src, dst in COPY.items():
         if (FIG / src).exists():

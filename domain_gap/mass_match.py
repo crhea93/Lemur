@@ -124,7 +124,7 @@ def nearest_exposure(exposure_ks, choices):
     return float(choices[np.argmin(np.abs(np.log(choices) - np.log(max(exposure_ks, 1e-3))))])
 
 
-def reweight(target_values, target_class, other_values, other_class, bin_dex):
+def reweight(target_values, target_class, other_values, other_class, bin_dex, return_keys=False):
     """Weights making ``other`` follow ``target``'s distribution in (value bin, class).
 
     Returns (target weights, other weights): target rows whose bin has no
@@ -142,6 +142,8 @@ def reweight(target_values, target_class, other_values, other_class, bin_dex):
     no = pd.Series([k for k in ko if k is not None]).value_counts().to_dict()
     wt = np.array([1.0 if k is not None and k in no else 0.0 for k in kt])
     wo = np.array([nt[k] / no[k] if k is not None and k in nt else 0.0 for k in ko])
+    if return_keys:
+        return wt, wo, list(kt) + list(ko)
     return wt, wo
 
 
@@ -154,18 +156,21 @@ def n_eff(w):
 # ---------------------------------------------------------------- analysis
 
 
-def _weighted_auc(x, a, b, wa, wb):
-    return _weighted_auc_ci(x, a, b, wa, wb, n_boot=0)[0]
+def _weighted_auc(x, a, b, wa, wb, strata=None):
+    return _weighted_auc_ci(x, a, b, wa, wb, n_boot=0, strata=strata)[0]
 
 
-def _weighted_auc_ci(x, a, b, wa, wb, n_boot=1000):
-    """(AUC, 68% low, 68% high) of sample a against b with weights."""
+def _weighted_auc_ci(x, a, b, wa, wb, n_boot=1000, strata=None):
+    """(AUC, 68% low, 68% high) of sample a against b with weights.
+
+    ``strata``: the reweighting bin of each row (a's rows, then b's), so that
+    the classes are rebalanced within bins in every training fold."""
     rows = np.r_[a["row"], b["row"]]
     labels = np.r_[np.ones(len(a)), np.zeros(len(b))]
     groups = np.r_[a["group"], b["group"]]
     if n_boot == 0:
-        return ae.domain_auc(x[rows], labels, groups, weights=np.r_[wa, wb]), np.nan, np.nan
-    return ae.domain_auc_ci(x[rows], labels, groups, weights=np.r_[wa, wb], n_boot=n_boot)
+        return ae.domain_auc(x[rows], labels, groups, weights=np.r_[wa, wb], strata=strata), np.nan, np.nan
+    return ae.domain_auc_ci(x[rows], labels, groups, weights=np.r_[wa, wb], n_boot=n_boot, strata=strata)
 
 
 def _ci_columns(prefix, value):
@@ -187,13 +192,13 @@ def matched_aucs(runs, lum, bin_dex):
             for sim in ["TNG300-1", "TNG-Cluster"]:
                 s = mocks[mocks["source"] == sim]
                 before = _weighted_auc_ci(x, lemur, s, np.ones(len(lemur)), np.ones(len(s)))
-                wl, ws = reweight(lemur["log_L_ph"], lemur_class, s["log_L_ph"], s["exposure_ks"], bin_dex)
+                wl, ws, keys = reweight(lemur["log_L_ph"], lemur_class, s["log_L_ph"], s["exposure_ks"], bin_dex, return_keys=True)
                 rows.append(
                     {
                         "config": name, "redshift": z, "pair": f"LEMUR vs {sim}",
                         "matched_on": "L(<250 kpc), exposure",
                         **_ci_columns("auc_all", before),
-                        **_ci_columns("auc_matched", _weighted_auc_ci(x, lemur, s, wl, ws)),
+                        **_ci_columns("auc_matched", _weighted_auc_ci(x, lemur, s, wl, ws, strata=keys)),
                         "n_a": len(lemur), "n_a_matched": int(wl.sum()),
                         "n_b": len(s), "n_eff_b": round(n_eff(ws), 1),
                     }
@@ -202,16 +207,16 @@ def matched_aucs(runs, lum, bin_dex):
             tng300 = mocks[mocks["source"] == "TNG300-1"]
             cluster = mocks[mocks["source"] == "TNG-Cluster"]
             before = _weighted_auc_ci(x, cluster, tng300, np.ones(len(cluster)), np.ones(len(tng300)))
-            wc, wt = reweight(
+            wc, wt, keys = reweight(
                 np.log10(cluster["M500c_Msun"]), cluster["exposure_ks"],
-                np.log10(tng300["M500c_Msun"]), tng300["exposure_ks"], bin_dex,
+                np.log10(tng300["M500c_Msun"]), tng300["exposure_ks"], bin_dex, return_keys=True,
             )
             rows.append(
                 {
                     "config": name, "redshift": z, "pair": "TNG-Cluster vs TNG300-1",
                     "matched_on": "true M500, exposure",
                     **_ci_columns("auc_all", before),
-                    **_ci_columns("auc_matched", _weighted_auc_ci(x, cluster, tng300, wc, wt)),
+                    **_ci_columns("auc_matched", _weighted_auc_ci(x, cluster, tng300, wc, wt, strata=keys)),
                     "n_a": len(cluster), "n_a_matched": int(wc.sum()),
                     "n_b": len(tng300), "n_eff_b": round(n_eff(wt), 1),
                 }

@@ -38,15 +38,15 @@ from . import mass_match as mm
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def auc_with_null(x, a_rows, b_rows, wa, wb, groups_a, groups_b, n_perm):
+def auc_with_null(x, a_rows, b_rows, wa, wb, groups_a, groups_b, n_perm, strata=None):
     rows = np.r_[a_rows, b_rows]
     labels = np.r_[np.ones(len(a_rows)), np.zeros(len(b_rows))]
     groups = np.r_[groups_a, groups_b]
     weights = np.r_[wa, wb]
-    value, lo, hi = ae.domain_auc_ci(x[rows], labels, groups, weights=weights)
+    value, lo, hi = ae.domain_auc_ci(x[rows], labels, groups, weights=weights, strata=strata)
     out = {"auc": value, "auc_lo": lo, "auc_hi": hi, "n_a": int((wa > 0).sum()), "n_eff_b": round(mm.n_eff(wb), 1)}
     if n_perm:
-        mean, nlo, nhi = ae.null_auc(x[rows], labels, groups, weights=weights, n_perm=n_perm)
+        mean, nlo, nhi = ae.null_auc(x[rows], labels, groups, weights=weights, n_perm=n_perm, strata=strata)
         out.update(null_mean=mean, null_lo=nlo, null_hi=nhi)
     return out
 
@@ -110,9 +110,9 @@ def internal_tests(df, x, name, n_perm):
         cols = ["log_L_ph", "log_c", "redshift"] + ([] if prop.startswith("exposure") else ["log_exp"])
         # Coarse bins: four matching variables on ~700 clusters leave few per bin.
         bins = [0.3, 0.2, 0.1] + ([] if prop.startswith("exposure") else [0.5])
-        wa, wb = core_mod.reweight_nd([a[c] for c in cols], ["-"] * len(a), [b[c] for c in cols], ["-"] * len(b), bins)
+        wa, wb, ka, kb = core_mod.reweight_nd([a[c] for c in cols], ["-"] * len(a), [b[c] for c in cols], ["-"] * len(b), bins, return_keys=True)
         rows.append({"config": name, "test": f"LEMUR: {prop} vs not", "redshift": np.nan,
-                     **auc_with_null(x, a["row"].to_numpy(), b["row"].to_numpy(), wa, wb, a["group"], b["group"], n_perm)})
+                     **auc_with_null(x, a["row"].to_numpy(), b["row"].to_numpy(), wa, wb, a["group"], b["group"], n_perm, list(ka) + list(kb))})
     return rows
 
 
@@ -127,7 +127,7 @@ def versus_mocks(df, x, name, n_perm):
     rows = []
     for label, mask in subsets.items():
         lemur = lemur_all[mask]
-        a_rows, b_rows, wa_all, wb_all, ga, gb = [], [], [], [], [], []
+        a_rows, b_rows, wa_all, wb_all, ga, gb, ka_all, kb_all = [], [], [], [], [], [], [], []
         for z in ae.mock_redshifts(df):
             near = lemur[(lemur["redshift"] - z).abs() < ae.Z_WIDTH + 1e-9]
             mocks = df[(df["source"] != "LEMUR") & (df["redshift"] == z)]
@@ -135,7 +135,8 @@ def versus_mocks(df, x, name, n_perm):
                 continue
             exposures = sorted(mocks["exposure_ks"].unique())
             cls = [mm.nearest_exposure(e, exposures) for e in near["exposure_ks"]]
-            wa, wb = core_mod.reweight_nd([near["log_L_ph"], near["log_c"]], cls, [mocks["log_L_ph"], mocks["log_c"]], mocks["exposure_ks"], [0.2, 0.15])
+            wa, wb, ka, kb = core_mod.reweight_nd([near["log_L_ph"], near["log_c"]], cls, [mocks["log_L_ph"], mocks["log_c"]], mocks["exposure_ks"], [0.2, 0.15], return_keys=True)
+            ka_all += [(z, k) for k in ka]; kb_all += [(z, k) for k in kb]
             a_rows.append(near["row"].to_numpy()); b_rows.append(mocks["row"].to_numpy())
             wa_all.append(wa); wb_all.append(wb); ga.append(near["group"].to_numpy()); gb.append(mocks["group"].to_numpy())
         if not a_rows:
@@ -143,7 +144,7 @@ def versus_mocks(df, x, name, n_perm):
         # A mock image can appear at one redshift only, so concatenating keeps rows unique.
         rows.append({"config": name, "test": f"vs mocks: {label}", "redshift": np.nan,
                      **auc_with_null(x, np.concatenate(a_rows), np.concatenate(b_rows), np.concatenate(wa_all),
-                                     np.concatenate(wb_all), np.concatenate(ga), np.concatenate(gb), n_perm)})
+                                     np.concatenate(wb_all), np.concatenate(ga), np.concatenate(gb), n_perm, ka_all + kb_all)})
     return rows
 
 

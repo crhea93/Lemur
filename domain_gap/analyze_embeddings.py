@@ -191,34 +191,53 @@ def domain_auc_ci(x, labels, groups, weights=None, n_boot=1000, level=0.68, seed
     return value, float(lo), float(hi)
 
 
-def null_auc(x, labels, groups, weights=None, n_perm=50, seed=2, **kwargs):
+def null_auc(x, labels, groups, weights=None, n_perm=50, seed=2, strata=None, **kwargs):
     """(mean, 16th, 84th percentile) of ``domain_auc`` with the class labels permuted.
 
     Labels are shuffled between groups (keeping the number of groups per class),
     so the null keeps the group structure and sample sizes of the real test.
-    With small samples, cross-validated AUCs under the null scatter, and can be
-    biased, below 0.5; compare a measured AUC with this distribution.
+    With ``strata`` (one key per row, e.g. the reweighting bin), labels are
+    shuffled only among groups in the same stratum, a group belonging to its
+    rows' most common stratum. Reweighted comparisons need this: their classes
+    are balanced bin by bin, and holding out one object leaves its bin
+    unbalanced, which biases cross-validated AUCs below 0.5 in a way a global
+    shuffle does not reproduce. Compare a measured AUC with this distribution.
     """
     labels = np.asarray(labels, float)
     groups = np.asarray(groups)
     group_ids, first = np.unique(groups, return_index=True)
     group_label = labels[first]
+    if strata is None:
+        group_stratum = np.zeros(len(group_ids), dtype=object)
+    else:
+        keys = pd.Series([repr(k) if k is not None else None for k in strata])
+        modal = keys.groupby(pd.Series(groups)).agg(lambda v: v.dropna().mode().iloc[0] if v.notna().any() else "none")
+        group_stratum = modal.reindex(group_ids).to_numpy()
     rng = np.random.default_rng(seed)
     values = []
     for _ in range(n_perm):
-        shuffled = dict(zip(group_ids, rng.permutation(group_label)))
+        perm_label = group_label.copy()
+        for stratum in pd.unique(group_stratum):
+            idx = np.where(group_stratum == stratum)[0]
+            perm_label[idx] = rng.permutation(group_label[idx])
+        shuffled = dict(zip(group_ids, perm_label))
         perm = np.array([shuffled[g] for g in groups])
-        values.append(domain_auc(x, perm, groups, weights=weights, **kwargs))
+        values.append(domain_auc(x, perm, groups, weights=weights, strata=strata, **kwargs))
     values = np.asarray(values, float)
     return float(np.nanmean(values)), *(float(v) for v in np.nanpercentile(values, [16, 84]))
 
 
-def domain_auc(x, labels, groups, folds=5, l2=1.0, seed=0, weights=None, return_scores=False, probe=None):
+def domain_auc(x, labels, groups, folds=5, l2=1.0, seed=0, weights=None, return_scores=False, probe=None, strata=None):
     """Grouped k-fold cross-validated AUC of a class-balanced classifier.
 
     ``probe`` is "linear" (logistic regression) or "mlp" (one hidden layer);
     default PROBE. ``weights`` (optional, per sample) reweight both the fit and
     the AUC, e.g. to give two samples the same mass distribution.
+    ``strata`` (optional, one key per sample: the reweighting bin) rebalances
+    the two classes within every stratum of each TRAINING fold. Weights made
+    to balance the full sample bin by bin are unbalanced once a fold is held
+    out, and a classifier then learns which bins hold more of one class, which
+    pushes held-out scores, and the AUC, below 0.5 without any signal.
     ``return_scores`` also returns the out-of-fold scores, labels, groups and
     weights used.
     """
@@ -227,6 +246,7 @@ def domain_auc(x, labels, groups, folds=5, l2=1.0, seed=0, weights=None, return_
     sample_w = np.ones(len(labels)) if weights is None else np.asarray(weights, float)
     keep = sample_w > 0
     x, labels, groups, sample_w = x[keep], labels[keep], np.asarray(groups)[keep], sample_w[keep]
+    strata_arr = None if strata is None else np.array([repr(k) for k in strata], dtype=object)[keep]
     unique = np.unique(groups)
     if len(unique) < folds or labels.sum() < 5 or (1 - labels).sum() < 5:
         return np.nan
@@ -239,6 +259,18 @@ def domain_auc(x, labels, groups, folds=5, l2=1.0, seed=0, weights=None, return_
         if not test.any() or len(np.unique(labels[train])) < 2:
             return np.nan
         y, sw = labels[train], sample_w[train]
+        if strata_arr is not None:
+            sw = sw.copy()
+            st = strata_arr[train]
+            for key in np.unique(st):
+                in_key = st == key
+                w1, w0 = sw[in_key & (y == 1)].sum(), sw[in_key & (y == 0)].sum()
+                if w1 == 0 or w0 == 0:
+                    sw[in_key] = 0.0
+                else:
+                    sw[in_key & (y == 0)] *= w1 / w0
+            if sw[y == 1].sum() == 0 or sw[y == 0].sum() == 0:
+                return np.nan
         balance = np.where(y == 1, 0.5 / sw[y == 1].sum(), 0.5 / sw[y == 0].sum())
         mean = x[train].mean(axis=0)
         if probe == "mlp":
