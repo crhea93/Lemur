@@ -93,6 +93,57 @@ def _fit_logistic(x, y, weights, l2):
     return result.x
 
 
+# Probe used by domain_auc when none is given: "linear" (logistic regression) or
+# "mlp" (one hidden layer), set by the analyses' --probe option.
+PROBE = "linear"
+MLP_HIDDEN = 64
+MLP_MAXITER = 300
+
+
+def _fit_mlp(x, y, weights, l2, hidden=MLP_HIDDEN, seed=0, maxiter=MLP_MAXITER):
+    """One-hidden-layer ReLU network, weighted cross-entropy + L2, fitted by L-BFGS.
+
+    Returns a function mapping features to logits.
+    """
+    from scipy.optimize import minimize
+
+    rng = np.random.default_rng(seed)
+    d = x.shape[1]
+    shapes = [(d, hidden), (hidden,), (hidden,), (1,)]
+    sizes = [int(np.prod(s)) for s in shapes]
+    w0 = np.concatenate(
+        [rng.normal(0, np.sqrt(2.0 / d), sizes[0]), np.zeros(sizes[1]),
+         rng.normal(0, np.sqrt(1.0 / hidden), sizes[2]), np.zeros(1)]
+    )
+
+    def unpack(w):
+        parts, i = [], 0
+        for shape, size in zip(shapes, sizes):
+            parts.append(w[i : i + size].reshape(shape))
+            i += size
+        return parts
+
+    def loss(w):
+        w1, b1, w2, b2 = unpack(w)
+        pre = x @ w1 + b1
+        h = np.maximum(pre, 0.0)
+        z = h @ w2 + b2[0]
+        p = 1.0 / (1.0 + np.exp(-np.clip(z, -30, 30)))
+        eps = 1e-12
+        value = -np.sum(weights * (y * np.log(p + eps) + (1 - y) * np.log(1 - p + eps)))
+        value += 0.5 * l2 * (np.sum(w1**2) + np.sum(w2**2))
+        dz = weights * (p - y)
+        dh = np.outer(dz, w2) * (pre > 0)
+        grad = np.concatenate(
+            [(x.T @ dh + l2 * w1).ravel(), dh.sum(axis=0), h.T @ dz + l2 * w2, [dz.sum()]]
+        )
+        return value, grad
+
+    w = minimize(loss, w0, jac=True, method="L-BFGS-B", options={"maxiter": maxiter}).x
+    w1, b1, w2, b2 = unpack(w)
+    return lambda features: np.maximum(features @ w1 + b1, 0.0) @ w2 + b2[0]
+
+
 def auc(scores, labels, weights=None):
     """ROC AUC by the (weighted) Mann-Whitney statistic; ties count one half."""
     labels = np.asarray(labels, bool)
@@ -162,13 +213,16 @@ def null_auc(x, labels, groups, weights=None, n_perm=50, seed=2, **kwargs):
     return float(np.nanmean(values)), *(float(v) for v in np.nanpercentile(values, [16, 84]))
 
 
-def domain_auc(x, labels, groups, folds=5, l2=1.0, seed=0, weights=None, return_scores=False):
-    """Grouped k-fold cross-validated AUC of a class-balanced logistic regression.
+def domain_auc(x, labels, groups, folds=5, l2=1.0, seed=0, weights=None, return_scores=False, probe=None):
+    """Grouped k-fold cross-validated AUC of a class-balanced classifier.
 
-    ``weights`` (optional, per sample) reweight both the fit and the AUC, e.g.
-    to give two samples the same mass distribution. ``return_scores`` also
-    returns the out-of-fold scores, labels, groups and weights used.
+    ``probe`` is "linear" (logistic regression) or "mlp" (one hidden layer);
+    default PROBE. ``weights`` (optional, per sample) reweight both the fit and
+    the AUC, e.g. to give two samples the same mass distribution.
+    ``return_scores`` also returns the out-of-fold scores, labels, groups and
+    weights used.
     """
+    probe = probe or PROBE
     labels = np.asarray(labels, float)
     sample_w = np.ones(len(labels)) if weights is None else np.asarray(weights, float)
     keep = sample_w > 0
@@ -187,8 +241,12 @@ def domain_auc(x, labels, groups, folds=5, l2=1.0, seed=0, weights=None, return_
         y, sw = labels[train], sample_w[train]
         balance = np.where(y == 1, 0.5 / sw[y == 1].sum(), 0.5 / sw[y == 0].sum())
         mean = x[train].mean(axis=0)
-        w = _fit_logistic(x[train] - mean, y, sw * balance * len(y), l2)
-        scores[test] = (x[test] - mean) @ w[:-1] + w[-1]
+        if probe == "mlp":
+            predict = _fit_mlp(x[train] - mean, y, sw * balance * len(y), l2, seed=seed + k)
+            scores[test] = predict(x[test] - mean)
+        else:
+            w = _fit_logistic(x[train] - mean, y, sw * balance * len(y), l2)
+            scores[test] = (x[test] - mean) @ w[:-1] + w[-1]
     value = auc(scores, labels, sample_w)
     if return_scores:
         return value, scores, labels, groups, sample_w

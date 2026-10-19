@@ -258,13 +258,17 @@ def main(argv=None):
         "--luminosity-cache", default=str(ROOT / "outputs" / "figures" / "mass" / "luminosities.csv")
     )
     parser.add_argument("--no-signal-cut", action="store_true")
-    parser.add_argument("--null", type=int, default=0, help="Label permutations for the (L, c)-matched null (physical config)")
+    parser.add_argument("--null", type=int, default=0, help="Label permutations for the (L, c)-matched null")
+    parser.add_argument("--null-config", default="harmonized_physical", help="Run (config name) that gets the null")
     parser.add_argument("--snr-min", type=float, default=10.0)
     parser.add_argument("--ps-max", type=float, default=0.5)
+    parser.add_argument("--probe", choices=["linear", "mlp"], default="linear",
+                        help="Domain classifier; a non-default probe writes to <out>_<probe>")
     args = parser.parse_args(argv)
-    out = Path(args.out)
+    ae.PROBE = args.probe
+    out = Path(args.out + ("" if args.probe == "linear" else f"_{args.probe}"))
     out.mkdir(parents=True, exist_ok=True)
-    core = measure(args.config, out / "core.csv")
+    core = measure(args.config, ROOT / "outputs" / "figures" / "core" / "core.csv")
     lum = mm.luminosities(args.config, args.luminosity_cache)
     cut = None
     if not args.no_signal_cut:
@@ -273,7 +277,7 @@ def main(argv=None):
     first = prepare(runs[0][0], lum, core)
     validation_figure(first, out)
     distribution_figure(first, out, args.l_bin)
-    table, dist = analyse(runs, lum, core, args.l_bin, args.c_bin, args.null)
+    table, dist = analyse(runs, lum, core, args.l_bin, args.c_bin, args.null, args.null_config)
     table.to_csv(out / "core_auc.csv", index=False)
     dist.to_csv(out / "core_medians.csv", index=False)
     auc_figure(table, out)

@@ -129,8 +129,11 @@ def main(argv=None):
     parser.add_argument("--student", default=str(STUDENT))
     parser.add_argument("--embeddings", default=str(ROOT / "outputs" / "embeddings"))
     parser.add_argument("--out", default=str(ROOT / "outputs" / "figures" / "original"))
+    parser.add_argument("--probe", choices=["linear", "mlp"], default="linear",
+                        help="Domain classifier; a non-default probe writes to <out>_<probe>")
     args = parser.parse_args(argv)
-    out = Path(args.out)
+    ae.PROBE = args.probe
+    out = Path(args.out + ("" if args.probe == "linear" else f"_{args.probe}"))
     out.mkdir(parents=True, exist_ok=True)
     emb = Path(args.embeddings)
 

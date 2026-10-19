@@ -319,9 +319,12 @@ def main(argv=None):
         "--luminosity-cache", default=str(ROOT / "outputs" / "figures" / "mass" / "luminosities.csv")
     )
     parser.add_argument("--bin-dex", type=float, default=0.1, help="Bin width of the reweighting (dex)")
+    parser.add_argument("--probe", choices=["linear", "mlp"], default="linear",
+                        help="Domain classifier; a non-default probe writes to <out>_<probe>")
     ae.add_signal_args(parser)
     args = parser.parse_args(argv)
-    out = Path(args.out)
+    ae.PROBE = args.probe
+    out = Path(args.out + ("" if args.probe == "linear" else f"_{args.probe}"))
     out.mkdir(parents=True, exist_ok=True)
     lum = luminosities(args.luminosity_config, args.luminosity_cache)
     print(f"Luminosities: {lum['log_L_ph'].notna().sum()} of {len(lum)} images")
