@@ -297,6 +297,7 @@ def robustness_macros(m):
     # Significance of each matched AUC against its null: (AUC - null mean) /
     # sqrt(bootstrap half-width^2 + null half-width^2), the 68% half-widths.
     within1 = within2 = total = 0
+    outliers = []
     for tag, label, core_dir, config, drivers_dir in REPRESENTATIONS:
         c = pd.read_csv(FIG / core_dir / "core_auc.csv")
         c = c[c["config"] == config]
@@ -304,12 +305,16 @@ def robustness_macros(m):
             sig = np.sqrt(((c["auc_L_c_hi"] - c["auc_L_c_lo"]) / 2) ** 2 + ((c["null_hi_L_c"] - c["null_lo_L_c"]) / 2) ** 2)
             zs = (c["auc_L_c"] - c["null_mean_L_c"]) / sig
             m.add(f"sigLcMax{tag}", f"{zs.max():.1f}")
-            m.add(f"sigLcRange{tag}", f"{zs.min():.1f}--{zs.max():.1f}")
+            m.add(f"sigLcRange{tag}", f"{zs.min():.1f} to {zs.max():.1f}")
         d = pd.read_csv(FIG / drivers_dir / "drivers_matching.csv")
         f = d[d["matched_on"] == FULL]
         if "null_mean" in f and f["null_mean"].notna().all():
             sig = np.sqrt(((f["auc_hi"] - f["auc_lo"]) / 2) ** 2 + ((f["null_hi"] - f["null_lo"]) / 2) ** 2)
-            zs = ((f["auc"] - f["null_mean"]) / sig).abs()
+            signed = (f["auc"] - f["null_mean"]) / sig
+            zs = signed.abs()
+            for (_, r), zz in zip(f.iterrows(), signed):
+                if abs(zz) > 2:
+                    outliers.append(f"{label} against {r['sim'].replace('TNG300-1', 'TNG300')} at $z = {r['redshift']:g}$ (${zz:+.1f}\\sigma$)")
             within1 += int((zs <= 1).sum())
             within2 += int((zs <= 2).sum())
             total += len(zs)
@@ -317,6 +322,7 @@ def robustness_macros(m):
         m.add("nFullTotal", str(total))
         m.add("nFullWithinOne", str(within1))
         m.add("nFullWithinTwo", str(within2))
+        m.add("fullOutliers", "; ".join(outliers) if outliers else "none")
 
 
 def agn_macros(m):
@@ -340,6 +346,9 @@ def agn_macros(m):
     def pval(p):
         return "<0.001" if p < 0.001 else f"{p:.3f}"
 
+    plain = t[t["variant"] == "c"].pivot_table(index="redshift", columns="lemur", values="lemur_frac")
+    ratio = plain["not in PSZ2"] / plain["in PSZ2"]
+    m.add("selectionRatioRange", f"{ratio.min():.1f}--{ratio.max():.1f}")
     for _, r in t.iterrows():
         tag = subs[r["lemur"]] + variants[r["variant"]] + ZTAG[round(r["redshift"], 2)]
         m.add(f"fHigh{tag}", pct(r["lemur_frac"], r["lemur_lo"], r["lemur_hi"]))
