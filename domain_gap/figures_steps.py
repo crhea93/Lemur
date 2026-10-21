@@ -155,11 +155,11 @@ def harmonization(args):
 # ---------------------------------------------------------------- matching
 
 
-def matching_table():
+def matching_table(config="harmonized_physical"):
     lum = pd.read_csv(ROOT / "outputs" / "figures" / "mass" / "luminosities.csv")
     core = pd.read_csv(ROOT / "outputs" / "figures" / "core" / "core.csv")
     sig = pd.read_csv(ROOT / "outputs" / "figures" / "signal" / "signal.csv")
-    man = pd.read_parquet(PREPROCESSED / "harmonized_physical" / "manifest.parquet")
+    man = pd.read_parquet(PREPROCESSED / config / "manifest.parquet")
     df = man[man["usable"] & (man["index"] >= 0)]
     df = df.merge(lum[["source", "name", "log_L_ph"]], on=["source", "name"]).merge(core, on=["source", "name"])
     df = df.merge(sig[["source", "name", "snr", "ps_fraction"]], on=["source", "name"])
@@ -182,10 +182,17 @@ def matching(args):
 
     from . import mass_match as mm
 
-    df = matching_table()
-    rng = np.random.default_rng(args.seed)
+    df = matching_table(args.config)
     picks = []
-    for z in (0.05, 0.1, 0.2):
+    if args.names:
+        for name in args.names:
+            row = df[(df["source"] == "LEMUR") & (df["name"] == name)]
+            if len(row):
+                z = min((0.05, 0.1, 0.2), key=lambda v: abs(v - row["redshift"].iloc[0]))
+                picks.append((z, row.iloc[0]))
+            else:
+                print(f"{name}: not in the matched sample (z, signal cut), skipped")
+    for z in (() if args.names else (0.05, 0.1, 0.2)):
         lemur = df[(df["source"] == "LEMUR") & ((df["redshift"] - z).abs() < 0.025)]
         # Spread the examples over luminosity: low, middle and high.
         lemur = lemur.sort_values("log_L_ph")
@@ -204,7 +211,7 @@ def matching(args):
         mocks = df[(df["source"] != "LEMUR") & (df["redshift"] == z)]
         exposure = mm.nearest_exposure(lrow["exposure_ks"], sorted(mocks["exposure_ks"].unique()))
         mocks = mocks[mocks["exposure_ks"] == exposure]
-        img, _ = inputs_for("harmonized_physical", "LEMUR", lrow["name"])
+        img, _ = inputs_for(args.config, "LEMUR", lrow["name"])
         # One display scale per row, set by the LEMUR image, so faint clusters
         # are visible and the panels of a row stay comparable.
         row_max = max(float(np.percentile(img, 99.7)), 0.05)
@@ -214,7 +221,7 @@ def matching(args):
         last = None
         for c, (label, mcols, scales) in enumerate(levels, start=1):
             m = nearest(lrow, mocks, mcols, scales)
-            img, _ = inputs_for("harmonized_physical", m["source"], m["name"])
+            img, _ = inputs_for(args.config, m["source"], m["name"])
             axes[r, c].imshow(img, origin="lower", cmap="magma", vmin=0, vmax=row_max)
             axes[r, c].set_xlabel(f"{m['source']} {m['name']}\n" + describe(m), fontsize=6)
             last = m
@@ -230,9 +237,9 @@ def matching(args):
         axes[0, c].set_title(title, fontsize=8)
     fig.tight_layout()
     OUT.mkdir(parents=True, exist_ok=True)
-    fig.savefig(OUT / "matching_steps.png", dpi=120)
+    fig.savefig(OUT / args.out_name, dpi=120)
     plt.close(fig)
-    print(f"Wrote {OUT / 'matching_steps.png'}")
+    print(f"Wrote {OUT / args.out_name}")
 
 
 def main(argv=None):
@@ -241,6 +248,9 @@ def main(argv=None):
     h = sub.add_parser("harmonization")
     h.add_argument("--examples", nargs="*", default=["LEMUR:A401", "TNG300-1:0", "LEMUR:Abell2029", "TNG300-1:190"])
     m = sub.add_parser("matching")
+    m.add_argument("--config", default="harmonized_physical", help="Preprocessing run whose inputs are shown")
+    m.add_argument("--names", nargs="*", help="LEMUR clusters to show (default: two per redshift, spread in L)")
+    m.add_argument("--out-name", default="matching_steps.png")
     m.add_argument("--per-z", type=int, default=2)
     m.add_argument("--seed", type=int, default=0)
     args = parser.parse_args(argv)

@@ -1,0 +1,33 @@
+# The central 150 kpc only (otherwise as harmonized_physical): small-scale structure
+# (cavities, cold fronts, sloshing) instead of the overall halo shape.
+# Harmonized comparison that keeps absolute surface brightness: the spatial
+# settings of harmonized_morphology (so the extraction is shared), then one
+# asinh stretch for every image. vmin is 0 (background-subtracted); vmax is the
+# 99.7th percentile of the pooled covered pixels, each source weighted equally,
+# and is recorded in run.json. No dimming correction: compare at matched redshift.
+
+name: harmonized_core_physical
+band: broad
+field: {kpc: 150}
+grid: 144
+model_size: 144
+cosmology: Planck15
+center: xray_peak
+weighting: exposure
+smoothing: {sigma_pix: 1.5, masked: true}   # 1.6 kpc
+coverage: {pixel_min: 0.5, object_min: 0.95}
+allow_upsampling: true
+intensity:
+  mode: physical
+  asinh_a: 0.08
+  vmin: 0.0
+  vmax: null             # fitted
+  fit: {upper_pct: 99.7}
+  dimming_exponent: 0    # 3 or 4 to scale by (1 + z)^n instead
+
+lemur: {clusters_only: true}
+mocks:
+  sims: [TNG300-1, TNG-Cluster]
+  redshifts: [0.05, 0.1, 0.2]
+  exposures_ks: [20, 100]
+  projections: [x, y, z]
