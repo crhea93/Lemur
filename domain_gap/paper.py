@@ -40,6 +40,9 @@ COPY = {
     "phase2/harmonized_physical_profiles.png": "profiles_physical.png",
     "signal/signal.png": "signal.png",
     "drivers_simclr_mocks/drivers_gallery.png": "drivers_gallery.png",
+    "agn/agn_check.png": "agn_check.png",
+    "steps/harmonization_steps.png": "harmonization_steps.png",
+    "steps/matching_steps.png": "matching_steps.png",
 }
 
 
@@ -316,6 +319,35 @@ def robustness_macros(m):
         m.add("nFullWithinTwo", str(within2))
 
 
+def agn_macros(m):
+    """Central point sources and high-c fractions with bootstrap intervals (domain_gap.agn)."""
+    summary_csv, table_csv = FIG / "agn" / "summary.csv", FIG / "agn" / "high_c_fractions.csv"
+    if not (summary_csv.exists() and table_csv.exists()):
+        return
+    m.lines.append("% AGN check and high-c fractions with 68% bootstrap intervals (agn)")
+    summary = pd.read_csv(summary_csv, index_col=0).iloc[:, 0]
+    for key, name in [("lemur_flagged", "nAgnFlagged"), ("lemur_with_spike", "nAgnMeasured"),
+                      ("high_c_flagged", "nHighcFlagged"), ("high_c", "nHighc")]:
+        m.add(name, str(int(summary[key])))
+    m.add("rhoCvsCmasked", fmt(float(summary["rho_c_vs_c_masked_lemur"])))
+    t = pd.read_csv(table_csv)
+    subs = {"all": "All", "in PSZ2": "PSZ", "not in PSZ2": "NotPSZ"}
+    variants = {"c": "C", "c_masked": "Masked", "c, central point sources removed": "NoAgn"}
+
+    def pct(v, lo, hi):
+        return f"{100 * v:.0f}\\,[{100 * lo:.0f},\\,{100 * hi:.0f}]"
+
+    def pval(p):
+        return "<0.001" if p < 0.001 else f"{p:.3f}"
+
+    for _, r in t.iterrows():
+        tag = subs[r["lemur"]] + variants[r["variant"]] + ZTAG[round(r["redshift"], 2)]
+        m.add(f"fHigh{tag}", pct(r["lemur_frac"], r["lemur_lo"], r["lemur_hi"]))
+        m.add(f"fHighMock{tag}", pct(r["mock_frac"], r["mock_lo"], r["mock_hi"]))
+        m.add(f"pHigh{tag}", pval(r["p_lemur_not_higher"]))
+        m.add(f"nHigh{tag}", str(int(r["n_lemur"])))
+
+
 def robustness_figure(out):
     """Per representation: AUC matched on (L, c, exposure) and also on S/N and point sources."""
     import matplotlib
@@ -425,7 +457,7 @@ def main(argv=None):
     figures = paper / "figures"
     figures.mkdir(parents=True, exist_ok=True)
     m = Macros()
-    for part in (sample_macros, original_macros, core_macros, mass_macros, selection_macros, concentration_macros, observational_macros, robustness_macros):
+    for part in (sample_macros, original_macros, core_macros, mass_macros, selection_macros, concentration_macros, observational_macros, robustness_macros, agn_macros):
         part(m)
     m.write(paper / "macros.tex")
     waterfall(figures)
