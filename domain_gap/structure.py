@@ -19,8 +19,9 @@ configurations), the grouped cross-validated R^2 of ridge regressions of
 log w and log residual RMS, both directly and after removing what log L,
 log c and log S/N explain (structure beyond brightness, concentration and
 noise). It also compares LEMUR with the mocks reweighted to its
-(log L, log S/N, exposure) at each redshift: medians with bootstrap 68%
-intervals.
+(log L, log S/N, exposure) at each redshift, then adding the point-source
+fraction (point sources inside 75 kpc move the centroids) and log c (cool
+cores are rounder): medians with bootstrap 68% intervals.
 """
 
 import argparse
@@ -105,7 +106,7 @@ def load(run_dir=None):
         run_dir = ROOT / "outputs" / "embeddings" / "harmonized_core_physical"
     df, x, name = ae.load_run(run_dir, (sig, 10.0, 0.5))
     df = df.merge(st, on=["source", "name"], how="left").merge(lum[["source", "name", "log_L_ph"]], on=["source", "name"], how="left")
-    df = df.merge(core, on=["source", "name"], how="left").merge(sig[["source", "name", "snr"]], on=["source", "name"], how="left")
+    df = df.merge(core, on=["source", "name"], how="left").merge(sig[["source", "name", "snr", "ps_fraction"]], on=["source", "name"], how="left")
     df["log_w"] = np.log10(df["centroid_shift"].where(df["centroid_shift"] > 0))
     df["log_rms"] = np.log10(df["residual_rms"].where(df["residual_rms"] > 0))
     df["log_c"] = np.log10(df["c40_250"].where(df["c40_250"] > 0))
@@ -123,8 +124,9 @@ def residualize(y, covariates):
 def analyse(args):
     from .simclr import ridge_cv_r2
 
+    OUT.mkdir(parents=True, exist_ok=True)
     rows = []
-    for run in args.runs:
+    for run in [] if args.compare_only else args.runs:
         df, x, name = load(ROOT / "outputs" / "embeddings" / run)
         ok = df[["log_w", "log_rms", "log_L_ph", "log_c", "log_snr"]].notna().all(axis=1).to_numpy()
         d, xs = df[ok], x[ok]
@@ -136,10 +138,10 @@ def analyse(args):
             row[f"R2_{col}_beyond_L_c_snr"] = ridge_cv_r2(xs, residualize(y, cov), d["group"].to_numpy())
         rows.append(row)
         print(row, flush=True)
-    controls = pd.DataFrame(rows)
-    OUT.mkdir(parents=True, exist_ok=True)
-    controls.to_csv(OUT / "structure_r2.csv", index=False)
-    print(controls.to_string(index=False, float_format=lambda v: f"{v:.3f}"))
+    if rows:
+        controls = pd.DataFrame(rows)
+        controls.to_csv(OUT / "structure_r2.csv", index=False)
+        print(controls.to_string(index=False, float_format=lambda v: f"{v:.3f}"))
     comparison = compare()
     comparison.to_csv(OUT / "structure_lemur_vs_mocks.csv", index=False)
     print(comparison.to_string(index=False, float_format=lambda v: f"{v:.3f}"))
@@ -156,6 +158,15 @@ def weighted_median(v, w):
     return float(v[ok][order][np.searchsorted(cdf, 0.5)])
 
 
+# matching variables (besides exposure class) and their bin widths
+MATCH_SETS = [
+    (("log_L_ph", 0.2), ("log_snr", 0.3)),
+    (("log_L_ph", 0.2), ("log_snr", 0.3), ("ps_fraction", 0.1)),
+    (("log_L_ph", 0.2), ("log_snr", 0.3), ("ps_fraction", 0.1), ("log_c", 0.15)),
+]
+MATCH_LABELS = {"log_L_ph": "L", "log_snr": "S/N", "ps_fraction": "point sources", "log_c": "c"}
+
+
 def compare(n_boot=1000, seed=0):
     from . import analyze_embeddings as ae
     from . import core as core_mod
@@ -164,28 +175,35 @@ def compare(n_boot=1000, seed=0):
     df, _, _ = load()
     rng = np.random.default_rng(seed)
     rows = []
-    for z in ae.mock_redshifts(df):
-        lemur = df[(df["source"] == "LEMUR") & ((df["redshift"] - z).abs() < ae.Z_WIDTH + 1e-9)].dropna(subset=["log_w", "log_rms", "log_snr"])
-        mocks = df[(df["source"] != "LEMUR") & (df["redshift"] == z)].dropna(subset=["log_w", "log_rms", "log_snr"])
-        exposures = sorted(mocks["exposure_ks"].unique())
-        cls = [mm.nearest_exposure(e, exposures) for e in lemur["exposure_ks"]]
-        wl, wm = core_mod.reweight_nd([lemur["log_L_ph"], lemur["log_snr"]], cls, [mocks["log_L_ph"], mocks["log_snr"]], mocks["exposure_ks"], [0.2, 0.3])
-        lemur = lemur[wl > 0]
-        groups = mocks.groupby("group").indices
-        keys = list(groups)
-        for col, label in [("centroid_shift", "centroid shift w"), ("residual_rms", "residual RMS")]:
-            lv, mv = lemur[col].to_numpy(), mocks[col].to_numpy()
-            ml, mmed = float(np.median(lv)), weighted_median(mv, wm)
-            bl, bm = [], []
-            for _ in range(n_boot):
-                bl.append(np.median(lv[rng.integers(0, len(lv), len(lv))]))
-                idx = np.concatenate([groups[keys[i]] for i in rng.integers(0, len(keys), len(keys))])
-                bm.append(weighted_median(mv[idx], wm[idx]))
-            diff = np.array(bl) - np.array(bm)
-            rows.append({"redshift": z, "metric": label, "n_lemur": len(lv), "lemur_median": ml,
-                         "lemur_lo": np.percentile(bl, 16), "lemur_hi": np.percentile(bl, 84),
-                         "mock_median": mmed, "mock_lo": np.nanpercentile(bm, 16), "mock_hi": np.nanpercentile(bm, 84),
-                         "p_lemur_not_higher": float(np.mean(diff <= 0))})
+    for match in MATCH_SETS:
+        cols, widths = [c for c, _ in match], [b for _, b in match]
+        matched_on = ", ".join(MATCH_LABELS[c] for c in cols) + ", exposure"
+        for z in ae.mock_redshifts(df):
+            need = ["log_w", "log_rms", *cols]
+            lemur = df[(df["source"] == "LEMUR") & ((df["redshift"] - z).abs() < ae.Z_WIDTH + 1e-9)].dropna(subset=need)
+            mocks = df[(df["source"] != "LEMUR") & (df["redshift"] == z)].dropna(subset=need)
+            exposures = sorted(mocks["exposure_ks"].unique())
+            cls = [mm.nearest_exposure(e, exposures) for e in lemur["exposure_ks"]]
+            wl, wm = core_mod.reweight_nd([lemur[c] for c in cols], cls, [mocks[c] for c in cols], mocks["exposure_ks"], widths)
+            n_all = len(lemur)
+            lemur = lemur[wl > 0]
+            groups = mocks[wm > 0].groupby("group").indices
+            mocks, wm = mocks[wm > 0], wm[wm > 0]
+            keys = list(groups)
+            for col, label in [("centroid_shift", "centroid shift w"), ("residual_rms", "residual RMS")]:
+                lv, mv = lemur[col].to_numpy(), mocks[col].to_numpy()
+                ml, mmed = float(np.median(lv)), weighted_median(mv, wm)
+                bl, bm = [], []
+                for _ in range(n_boot):
+                    bl.append(np.median(lv[rng.integers(0, len(lv), len(lv))]))
+                    idx = np.concatenate([groups[keys[i]] for i in rng.integers(0, len(keys), len(keys))])
+                    bm.append(weighted_median(mv[idx], wm[idx]))
+                diff = np.array(bl) - np.array(bm)
+                rows.append({"matched_on": matched_on, "redshift": z, "metric": label, "n_lemur_all": n_all, "n_lemur": len(lv),
+                             "n_eff_mock": float(wm.sum() ** 2 / (wm**2).sum()), "lemur_median": ml,
+                             "lemur_lo": np.percentile(bl, 16), "lemur_hi": np.percentile(bl, 84),
+                             "mock_median": mmed, "mock_lo": np.nanpercentile(bm, 16), "mock_hi": np.nanpercentile(bm, 84),
+                             "p_lemur_not_higher": float(np.mean(diff <= 0))})
     return pd.DataFrame(rows)
 
 
@@ -196,18 +214,24 @@ def figure(comparison):
     import matplotlib.pyplot as plt
 
     metrics_ = list(dict.fromkeys(comparison["metric"]))
-    fig, axes = plt.subplots(1, len(metrics_), figsize=(4.4 * len(metrics_), 3.4))
+    sets = list(dict.fromkeys(comparison["matched_on"]))
+    colors = ["tab:purple", "tab:orange", "tab:green"]
+    fig, axes = plt.subplots(1, len(metrics_), figsize=(4.6 * len(metrics_), 3.6))
     for ax, metric in zip(np.atleast_1d(axes), metrics_):
-        t = comparison[comparison["metric"] == metric]
-        x = np.arange(len(t))
-        for key, color, dx, label in [("lemur", "k", -0.08, "LEMUR"), ("mock", "tab:purple", 0.08, "mocks matched in L, S/N, exposure")]:
-            v = t[f"{key}_median"].to_numpy()
-            ax.errorbar(x + dx, v, yerr=[v - t[f"{key}_lo"], t[f"{key}_hi"] - v], fmt="o", color=color, capsize=2, label=label)
+        for k, matched_on in enumerate(sets):
+            t = comparison[(comparison["metric"] == metric) & (comparison["matched_on"] == matched_on)]
+            x = np.arange(len(t))
+            dx = 0.12 * (k - (len(sets) - 1) / 2)
+            for key, color, mk, label in [("lemur", colors[k], "o", f"LEMUR ({matched_on})"), ("mock", colors[k], "s", f"mocks ({matched_on})")]:
+                v = t[f"{key}_median"].to_numpy()
+                ax.errorbar(x + dx + (-0.03 if key == "lemur" else 0.03), v, yerr=[v - t[f"{key}_lo"], t[f"{key}_hi"] - v],
+                            fmt=mk, mfc=color if key == "lemur" else "white", color=color, capsize=2, ms=4, label=label)
         ax.set_xticks(x, [f"z={z:g}" for z in t["redshift"]])
         ax.set_ylabel(f"median {metric}")
         ax.set_yscale("log")
-    np.atleast_1d(axes)[0].legend(fontsize=7)
-    fig.tight_layout()
+    handles, labels = np.atleast_1d(axes)[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="lower center", ncol=3, fontsize=7, frameon=False)
+    fig.tight_layout(rect=(0, 0.13, 1, 1))
     fig.savefig(OUT / "structure_lemur_vs_mocks.png", dpi=130)
     plt.close(fig)
 
@@ -219,6 +243,7 @@ def main(argv=None):
     m.add_argument("--force", action="store_true")
     a = sub.add_parser("analyse")
     a.add_argument("--runs", nargs="*", default=["harmonized_physical", "harmonized_morphology", "harmonized_core_physical", "harmonized_core_morphology"])
+    a.add_argument("--compare-only", action="store_true", help="skip the embedding regressions (structure_r2.csv)")
     args = parser.parse_args(argv)
     {"measure": measure, "analyse": analyse}[args.command](args)
     return 0

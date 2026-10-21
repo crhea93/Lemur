@@ -14,6 +14,7 @@ zA, zB, zC = z 0.05, 0.1, 0.2.
 
 import argparse
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -43,7 +44,21 @@ COPY = {
     "agn/agn_check.png": "agn_check.png",
     "steps/harmonization_steps.png": "harmonization_steps.png",
     "steps/matching_steps.png": "matching_steps.png",
+    "steps/matching_steps_150kpc.png": "matching_steps_150kpc.png",
+    "structure/structure_lemur_vs_mocks.png": "structure_lemur_vs_mocks.png",
 }
+
+
+def math_safe(value):
+    """A macro value that typesets the same in text and in math: signed
+    numbers as math (a true minus sign), range dashes and ' to ' as text."""
+    value = re.sub(r"(?<![\w.\-])([+-]\d+(?:\.\d+)?)", r"\\ensuremath{\1}", str(value))
+    return value.replace("--", "\\mbox{--}").replace(" to ", "\\mbox{ to }")
+
+
+def pval(p):
+    """A p-value with its relation, for '$p \\pX$'."""
+    return "< 0.001" if p < 0.001 else f"= {p:.3f}"
 
 
 def span(lo, hi, digits=2):
@@ -63,7 +78,7 @@ class Macros:
     def add(self, name, value, comment=None):
         if comment:
             self.lines.append(f"% {comment}")
-        self.lines.append(f"\\newcommand{{\\{name}}}{{{value}}}")
+        self.lines.append(f"\\newcommand{{\\{name}}}{{{math_safe(value)}}}")
 
     def auc(self, name, v, lo, hi):
         self.add(name, fmt(v))
@@ -343,9 +358,6 @@ def agn_macros(m):
     def pct(v, lo, hi):
         return f"{100 * v:.0f}\\,[{100 * lo:.0f},\\,{100 * hi:.0f}]"
 
-    def pval(p):
-        return "<0.001" if p < 0.001 else f"{p:.3f}"
-
     plain = t[t["variant"] == "c"].pivot_table(index="redshift", columns="lemur", values="lemur_frac")
     ratio = plain["not in PSZ2"] / plain["in PSZ2"]
     m.add("selectionRatioRange", f"{ratio.min():.1f}--{ratio.max():.1f}")
@@ -355,6 +367,76 @@ def agn_macros(m):
         m.add(f"fHighMock{tag}", pct(r["mock_frac"], r["mock_lo"], r["mock_hi"]))
         m.add(f"pHigh{tag}", pval(r["p_lemur_not_higher"]))
         m.add(f"nHigh{tag}", str(int(r["n_lemur"])))
+
+
+def significance(v, lo, hi, null_mean, null_lo, null_hi):
+    """(AUC - null mean) / sqrt(bootstrap half-width^2 + null half-width^2)."""
+    return (v - null_mean) / np.sqrt(((hi - lo) / 2) ** 2 + ((null_hi - null_lo) / 2) ** 2)
+
+
+def core150_macros(m):
+    """The central 150 kpc: domain AUCs (core_150kpc, drivers_harmonized_core_physical)
+    and small-scale structure (structure)."""
+    c_path = FIG / "core_150kpc" / "core_auc.csv"
+    if not c_path.exists():
+        return
+    m.lines.append("% Central 150 kpc (configs/harmonized_core_*.yaml)")
+    raw = pd.read_csv(FIG / "embeddings_150kpc" / "domain_auc.csv")
+    raw = raw[(raw["config"] == "harmonized_core_physical") & raw["pair"].str.startswith("LEMUR")]
+    m.add("aucCoreRawRange", span(raw["auc"].min(), raw["auc"].max()))
+    c = pd.read_csv(c_path)
+    for config, tag in [("harmonized_core_physical", "CoreP"), ("harmonized_core_morphology", "CoreM")]:
+        t = c[c["config"] == config]
+        m.add(f"aucLRange{tag}", span(t["auc_L"].min(), t["auc_L"].max()))
+        m.add(f"aucLcRange{tag}", span(t["auc_L_c"].min(), t["auc_L_c"].max()))
+        for _, r in t.iterrows():
+            key = SIMTAG[r["pair"].replace("LEMUR vs ", "")] + ZTAG[round(r["redshift"], 2)]
+            m.auc(f"aucLc{tag}{key}", r["auc_L_c"], r["auc_L_c_lo"], r["auc_L_c_hi"])
+            if np.isfinite(r["null_mean_L_c"]):
+                m.add(f"nullLc{tag}{key}", f"{fmt(r['null_mean_L_c'])}\\,[{fmt(r['null_lo_L_c'])},\\,{fmt(r['null_hi_L_c'])}]")
+        if t["null_mean_L_c"].notna().all():
+            excess = t["auc_L_c"] - t["null_mean_L_c"]
+            zs = significance(t["auc_L_c"], t["auc_L_c_lo"], t["auc_L_c_hi"], t["null_mean_L_c"], t["null_lo_L_c"], t["null_hi_L_c"])
+            m.add(f"excessLcRange{tag}", f"{excess.min():+.2f} to {excess.max():+.2f}")
+            m.add(f"sigLcRange{tag}", f"{zs.min():+.1f} to {zs.max():+.1f}")
+            m.add(f"sigLcMax{tag}", f"{zs.max():.1f}")
+    eq = pd.read_csv(FIG / "mass_150kpc" / "matched_auc.csv")
+    eq = eq[(eq["config"] == "harmonized_core_physical") & (eq["pair"] == "TNG-Cluster vs TNG300-1")]
+    m.add("aucSimsRawRangeCoreP", span(eq["auc_all"].min(), eq["auc_all"].max()))
+    m.add("aucSimsEqualMRangeCoreP", span(eq["auc_matched"].min(), eq["auc_matched"].max()))
+    d = pd.read_csv(FIG / "drivers_harmonized_core_physical" / "drivers_matching.csv")
+    full = d[d["matched_on"] == FULL]
+    zs = significance(full["auc"], full["auc_lo"], full["auc_hi"], full["null_mean"], full["null_lo"], full["null_hi"])
+    m.add("aucFullRangeCoreP", span(full["auc"].min(), full["auc"].max()))
+    m.add("nullFullRangeCoreP", span(full["null_mean"].min(), full["null_mean"].max()))
+    m.add("sigFullRangeCoreP", f"{zs.min():+.1f} to {zs.max():+.1f}")
+    m.add("nFullWithinOneCoreP", f"{int((zs.abs() <= 1).sum())} of {len(zs)}")
+
+    st = FIG / "structure"
+    r2 = pd.read_csv(st / "structure_r2.csv").set_index("run")
+    for run, tag in [("harmonized_physical", "P"), ("harmonized_morphology", "M"),
+                     ("harmonized_core_physical", "CoreP"), ("harmonized_core_morphology", "CoreM")]:
+        if run in r2.index:
+            r = r2.loc[run]
+            m.add(f"rtwoW{tag}", fmt(r["R2_log_w"]))
+            m.add(f"rtwoWBeyond{tag}", fmt(r["R2_log_w_beyond_L_c_snr"]))
+            m.add(f"rtwoRms{tag}", fmt(r["R2_log_rms"]))
+            m.add(f"rtwoRmsBeyond{tag}", fmt(r["R2_log_rms_beyond_L_c_snr"]))
+    cmp_ = pd.read_csv(st / "structure_lemur_vs_mocks.csv")
+    sets = {"L, S/N, exposure": "Base", "L, S/N, point sources, exposure": "Ps", "L, S/N, point sources, c, exposure": "PsC"}
+    for _, r in cmp_.iterrows():
+        tag = ("W" if r["metric"].startswith("centroid") else "Rms") + sets[r["matched_on"]] + ZTAG[round(r["redshift"], 2)]
+        scale, digits = (1e3, 1) if tag.startswith("W") else (1, 2)
+        m.add(f"med{tag}Lemur", fmt(scale * r["lemur_median"], digits))
+        m.add(f"med{tag}Mock", fmt(scale * r["mock_median"], digits))
+        m.add(f"p{tag}", pval(r["p_lemur_not_higher"]))
+    base = cmp_[(cmp_["matched_on"] == "L, S/N, exposure") & cmp_["metric"].str.startswith("centroid")]
+    dropped = 1 - base["n_lemur"] / base["n_lemur_all"]
+    m.add("pctStructureDropped", f"{100 * dropped.min():.0f}--{100 * dropped.max():.0f}")
+    m.add("nStructureLemur", span(base["n_lemur"].min(), base["n_lemur"].max(), 0))
+    for (metric, matched_on), t in cmp_.groupby(["metric", "matched_on"]):
+        tag = ("W" if metric.startswith("centroid") else "Rms") + sets[matched_on]
+        m.add(f"pRange{tag}", span(t["p_lemur_not_higher"].min(), t["p_lemur_not_higher"].max(), 3))
 
 
 def robustness_figure(out):
@@ -466,7 +548,7 @@ def main(argv=None):
     figures = paper / "figures"
     figures.mkdir(parents=True, exist_ok=True)
     m = Macros()
-    for part in (sample_macros, original_macros, core_macros, mass_macros, selection_macros, concentration_macros, observational_macros, robustness_macros, agn_macros):
+    for part in (sample_macros, original_macros, core_macros, mass_macros, selection_macros, concentration_macros, observational_macros, robustness_macros, agn_macros, core150_macros):
         part(m)
     m.write(paper / "macros.tex")
     waterfall(figures)

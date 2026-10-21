@@ -318,16 +318,18 @@ that AstroCLIP, trained on optical images, is the wrong encoder.
 
   | Representation, probe | (L, c, exposure) excess | Significance | + S/N, point sources: excess |
   |---|---|---|---|
-  | AstroCLIP, linear | +0.03 to +0.10 | 0.5–1.4σ | −0.14 to +0.02 |
-  | AstroCLIP, MLP | +0.03 to +0.16 | 0.3–2.7σ | −0.10 to +0.13 |
-  | SimCLR (mocks), linear | +0.10 to +0.20 | 1.8–5.0σ | −0.04 to +0.12 |
-  | SimCLR (LEMUR), linear | +0.09 to +0.18 | 1.0–3.4σ | −0.10 to +0.10 |
+  | AstroCLIP, linear | −0.02 to +0.10 | −0.3 to 1.4σ | −0.13 to +0.01 |
+  | AstroCLIP, MLP | +0.02 to +0.15 | 0.3–2.6σ | −0.09 to +0.12 |
+  | SimCLR (mocks), linear | +0.10 to +0.18 | 1.8–4.6σ | −0.03 to +0.14 |
+  | SimCLR (LEMUR), linear | +0.09 to +0.17 | 1.0–3.1σ | −0.10 to +0.11 |
 
-  After also matching S/N and point sources, all 24 comparisons are within 2σ of their
-  nulls and 17 within 1σ.
+  After also matching S/N and point sources, 23 of the 24 comparisons are within 2σ of
+  their nulls and 16 within 1σ. The exception is SimCLR (mocks) against TNG300 at
+  z = 0.1 (+2.2σ), about what chance gives among 24.
+  (Updated 2026-10-21 to the final rerun with corrected redshifts.)
 - **What carries the residual** (`domain_gap.drivers`). In every representation, LEMUR's
-  out-of-fold score correlates with point-source fraction (ρ = 0.16–0.45) and
-  anticorrelates with exposure (ρ = −0.37 to −0.11). The galleries
+  out-of-fold score correlates with point-source fraction (ρ = 0.20–0.47) and
+  anticorrelates with exposure (ρ = −0.37 to −0.10). The galleries
   (`drivers_gallery.png`) show the same: the most LEMUR-like images are faint,
   point-source-rich fields and compact cores.
 - **Interpretation.** Stronger probes and X-ray-native encoders see a residual that the
@@ -339,3 +341,51 @@ that AstroCLIP, trained on optical images, is the wrong encoder.
 
   The cool-core difference persists in every representation. Mocks drawn at LEMUR's
   exposures and with cluster AGN would be the fix.
+
+## The central 150 kpc (2026-10-21)
+
+Question (from a coworker): is the representation dominated by the overall halo shape
+and concentration rather than by small-scale core structure (cavities, cold fronts,
+sloshing), and what does the gap look like for the core alone?
+
+- **Configs.** `harmonized_core_physical` and `harmonized_core_morphology`: the
+  harmonized configs with a 150 kpc field on the same 144 px grid (1.04 kpc/px,
+  smoothing 1.6 kpc). Matching uses the 500 kpc luminosity, c, S/N and point-source
+  fraction. Run: preprocess, embed, then `core --null`, `mass_match`, `drivers --null`
+  on the new runs (outputs `*_150kpc`, `drivers_harmonized_core_physical`).
+- **Gap (core physical).** Unmatched AUC 0.67–0.91; matched in L and exposure,
+  0.64–0.72; with c too, 0.45–0.66, an excess over the null of −0.07 to +0.07
+  (−0.9 to +1.1σ). Adding S/N and point sources gives 0.49–0.52 against nulls
+  0.46–0.54, all six within 1σ. The two simulations: 0.87 apart, 0.48–0.54 at equal
+  M500. The same decomposition as at 500 kpc. Core morphology config, (L, c)
+  matched: 0.51–0.73; no nulls computed.
+- **Structure metrics** (`domain_gap.structure`, on the core stage-1 surface
+  brightness around the X-ray peak):
+  - centroid shift w: std of the peak-to-centroid distance in apertures of
+    15–75 kpc, over 75 kpc;
+  - residual RMS: RMS of the smoothed map minus its azimuthal profile within 75 kpc,
+    over the mean (includes photon noise).
+- **What AstroCLIP encodes.** Grouped-CV ridge R², directly / beyond log L, log c and
+  log S/N:
+
+  | Config | log w | beyond | log RMS | beyond |
+  |---|---|---|---|---|
+  | physical, 500 kpc | 0.20 | 0.09 | 0.65 | 0.35 |
+  | morphology, 500 kpc | 0.32 | 0.19 | 0.89 | 0.56 |
+  | physical, 150 kpc | 0.20 | 0.09 | 0.56 | 0.36 |
+  | morphology, 150 kpc | 0.37 | 0.23 | 0.92 | 0.65 |
+
+  The coworker's suspicion holds. Core dynamical state is weakly encoded beyond
+  brightness and concentration, and cropping to 150 kpc barely changes that.
+- **LEMUR vs TNG cores.** Medians, LEMUR against mocks reweighted to LEMUR:
+  - Matched in (L, S/N, exposure), LEMUR has larger centroid shifts at z = 0.1
+    (15.2 vs 11.6 ×10⁻³, p = 0.020) and z = 0.2 (17.9 vs 10.7, p = 0.006).
+  - That is a point-source effect: also matching the point-source fraction removes
+    it (p = 0.26–0.42), and adding c changes nothing (p = 0.20–0.44).
+  - Residual RMS never differs (p ≥ 0.08).
+- **Blind spot.** S/N matching drops 31–38% of LEMUR per redshift. Most are short
+  exposures, but they also include the deepest clusters (A2052, Hydra A, A2199, A2029,
+  A2597, Ophiuchus), whose S/N at their luminosity exceeds any 100 ks mock. Those are
+  the clusters with obvious cavities and fronts (`steps/matching_steps_150kpc.png`).
+  Comparing them needs deep (Ms) mocks of the brightest halos.
+
