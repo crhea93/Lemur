@@ -132,6 +132,8 @@ def core_macros(m):
             m.add(f"null{tag}", f"{fmt(r['null_mean_L_c'])}\\,[{fmt(r['null_lo_L_c'])},\\,{fmt(r['null_hi_L_c'])}]")
             m.add(f"excessLc{tag}", f"{r['auc_L_c'] - r['null_mean_L_c']:+.2f}")
         m.add(f"nLemurLc{tag}", str(int(r["n_lemur_L_c"])))
+    m.add("aucLRange", span(c["auc_L"].min(), c["auc_L"].max()))
+    m.add("aucLcRange", span(c["auc_L_c"].min(), c["auc_L_c"].max()))
     med = pd.read_csv(FIG / "core" / "core_medians.csv")
     for _, r in med.iterrows():
         tag = SIMTAG[r["sim"]] + ZTAG[round(r["redshift"], 2)]
@@ -151,6 +153,9 @@ def mass_macros(m):
         else:
             tag = SIMTAG[r["pair"].replace("LEMUR vs ", "")] + z
             m.auc(f"aucAll{tag}", r["auc_all"], r["auc_all_lo"], r["auc_all_hi"])
+    sims = t[t["pair"].str.startswith("TNG-Cluster vs")]
+    m.add("aucSimsAllRange", span(sims["auc_all"].min(), sims["auc_all"].max()))
+    m.add("aucSimsEqualMRange", span(sims["auc_matched"].min(), sims["auc_matched"].max()))
     # L-M relation of the mocks.
     from . import mass_match as mmod
 
