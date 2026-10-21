@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DB = Path("/home/crhea/Projects/Lemur/api/data/lemur.db")
@@ -78,13 +79,26 @@ def _existing(*paths):
 # ---------------------------------------------------------------- LEMUR
 
 
-def lemur_catalog(db_path=DEFAULT_DB, clusters_only=True):
-    """LEMUR objects with redshift, X-ray centre and observation summary."""
+CORRECTIONS = ROOT / "configs" / "lemur_corrections.csv"
+
+
+def lemur_catalog(db_path=DEFAULT_DB, clusters_only=True, corrections=CORRECTIONS):
+    """LEMUR objects with redshift, X-ray centre and observation summary.
+
+    ``corrections`` (configs/lemur_corrections.csv) replaces wrong catalog
+    redshifts and drops objects that are not clusters; each row cites its source.
+    """
     from .audit_lemur import load_catalog
 
     catalog = load_catalog(db_path)
     if clusters_only:
         catalog = catalog[catalog["is_cluster"]]
+    if corrections and Path(corrections).exists():
+        fixes = pd.read_csv(corrections)
+        excluded = set(fixes.loc[fixes["exclude"].astype(str) == "True", "name"])
+        z = dict(zip(fixes["name"], fixes["redshift"]))
+        catalog = catalog[~catalog["Name"].isin(excluded)].copy()
+        catalog["redshift"] = [z.get(n, v) for n, v in zip(catalog["Name"], catalog["redshift"])]
     return catalog.sort_values("Name").reset_index(drop=True)
 
 

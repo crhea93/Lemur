@@ -1,0 +1,4 @@
+name,redshift,exclude,note,reference
+1321045,0.263,False,"ACT-CL J1324.3+0419 / 4C 04.45; LEMUR had a placeholder z = 0.05",SIMBAD 2026-10-21; 2014ApJ...785..104R
+1E22157-04041E_7ba03,0.094,False,"centre on 1E 2216.0-0401 = ACT-CL J2218.6-0345; z of its BCG 2MASX J22184032-0346479; LEMUR had a placeholder z = 0.05",SIMBAD 2026-10-21; 2009MNRAS.399..683J
+1AXGJ0809072023,0.183,True,"not a cluster: the X-ray source is the Seyfert 1 2MASS J08090828+2024205; LEMUR had a placeholder z = 0.05",SIMBAD 2026-10-21; 2022yCat.1356....0G
