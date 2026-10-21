@@ -13,7 +13,8 @@ harmonization_steps.png: one row per example, columns
 Rows alternate LEMUR clusters and mocks.
 
 matching_steps.png: for LEMUR clusters near each mock redshift, the
-harmonized physical input next to the closest mock (either simulation, same
+harmonized physical input (one display scale per row, set by the LEMUR
+image; the two native cores share one too) next to the closest mock (either simulation, same
 redshift and nearest exposure) when matching on (L), (L, c) and
 (L, c, S/N, point-source fraction), then 100" native-resolution cores of the
 LEMUR cluster and of the last mock, to compare PSF, noise and point sources by
@@ -68,17 +69,23 @@ def raw_cutout(row, half_arcmin=RAW_FIELD_ARCMIN / 2):
     return data, pix, (cx - x0, cy - y0)
 
 
-def show_raw(ax, data, pix, centre, boxes=()):
+def show_raw(ax, data, pix, centre, boxes=(), limits=None):
+    """Smoothed native-resolution flux, asinh-stretched; returns the (lo, hi) used,
+    so a second panel can share the display scale."""
     from scipy.ndimage import gaussian_filter
 
     img = gaussian_filter(np.nan_to_num(data), 1.5)
-    pos = img[img > 0]
-    lo, hi = (np.percentile(pos, [5, 99.7]) if pos.size else (0, 1))
-    ax.imshow(np.arcsinh(np.clip(img - lo, 0, None) / (0.05 * (hi - lo) + 1e-30)), origin="lower", cmap="magma")
+    if limits is None:
+        pos = img[img > 0]
+        limits = tuple(np.percentile(pos, [5, 99.7])) if pos.size else (0.0, 1.0)
+    lo, hi = limits
+    shown = np.arcsinh(np.clip(img - lo, 0, None) / (0.05 * (hi - lo) + 1e-30))
+    ax.imshow(shown, origin="lower", cmap="magma", vmin=0, vmax=np.arcsinh(1 / 0.05))
     for side_arcsec, style in boxes:
         s = side_arcsec / pix
         ax.add_patch(__import__("matplotlib").patches.Rectangle((centre[0] - s / 2, centre[1] - s / 2), s, s, fill=False,
                                                                  ec="w", ls=style, lw=0.8))
+    return limits
 
 
 def student_image(halo, proj):
@@ -198,19 +205,23 @@ def matching(args):
         exposure = mm.nearest_exposure(lrow["exposure_ks"], sorted(mocks["exposure_ks"].unique()))
         mocks = mocks[mocks["exposure_ks"] == exposure]
         img, _ = inputs_for("harmonized_physical", "LEMUR", lrow["name"])
-        axes[r, 0].imshow(img, origin="lower", cmap="magma", vmin=0, vmax=1)
+        # One display scale per row, set by the LEMUR image, so faint clusters
+        # are visible and the panels of a row stay comparable.
+        row_max = max(float(np.percentile(img, 99.7)), 0.05)
+        axes[r, 0].imshow(img, origin="lower", cmap="magma", vmin=0, vmax=row_max)
         axes[r, 0].set_ylabel(f"{lrow['name']}\nz = {lrow['redshift']:.3f}, {lrow['exposure_ks']:.0f} ks", fontsize=7)
         axes[r, 0].set_xlabel(describe(lrow), fontsize=6)
         last = None
         for c, (label, mcols, scales) in enumerate(levels, start=1):
             m = nearest(lrow, mocks, mcols, scales)
             img, _ = inputs_for("harmonized_physical", m["source"], m["name"])
-            axes[r, c].imshow(img, origin="lower", cmap="magma", vmin=0, vmax=1)
+            axes[r, c].imshow(img, origin="lower", cmap="magma", vmin=0, vmax=row_max)
             axes[r, c].set_xlabel(f"{m['source']} {m['name']}\n" + describe(m), fontsize=6)
             last = m
+        limits = None
         for c, row in [(len(levels) + 1, lrow), (len(levels) + 2, last)]:
             data, pix, centre = raw_cutout(row, half_arcmin=50 / 60)
-            show_raw(axes[r, c], data, pix, centre)
+            limits = show_raw(axes[r, c], data, pix, centre, limits=limits)
             axes[r, c].set_xlabel(f"{pix:.3f}\"/px", fontsize=6)
         for c in range(len(cols)):
             axes[r, c].set_xticks([])
