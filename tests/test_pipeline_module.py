@@ -187,3 +187,19 @@ def test_parse_args_rejects_embeddings_with_new_mode():
         pipeline.parse_args(
             ["--compute-embeddings", "--cluster", "Abell133", "--obsids", "2203"]
         )
+
+
+def test_redshift_from_ned_uses_object_lookup(monkeypatch):
+    monkeypatch.setattr(
+        pipeline,
+        "_ned_object_lookup",
+        lambda name: {"Name": "Abell 1689", "Redshift": {"Value": 0.1847780941}},
+    )
+    monkeypatch.setattr(pipeline, "_fetch_text", lambda url: pytest.fail("fallback used"))
+    assert pipeline._redshift_from_ned("Abell 1689") == pytest.approx(0.1847780941)
+
+
+def test_redshift_from_ned_falls_back_without_lookup_redshift(monkeypatch):
+    monkeypatch.setattr(pipeline, "_ned_object_lookup", lambda name: {"Redshift": {}})
+    monkeypatch.setattr(pipeline, "_fetch_text", lambda url: "Redshift: 0.0566")
+    assert pipeline._redshift_from_ned("A2142") == 0.0566
