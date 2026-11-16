@@ -195,7 +195,9 @@ def test_redshift_from_ned_uses_object_lookup(monkeypatch):
         "_ned_object_lookup",
         lambda name: {"Name": "Abell 1689", "Redshift": {"Value": 0.1847780941}},
     )
-    monkeypatch.setattr(pipeline, "_fetch_text", lambda url: pytest.fail("fallback used"))
+    monkeypatch.setattr(
+        pipeline, "_fetch_text", lambda url: pytest.fail("fallback used")
+    )
     assert pipeline._redshift_from_ned("Abell 1689") == pytest.approx(0.1847780941)
 
 

@@ -18,7 +18,9 @@ def _db():
     con.execute(
         "CREATE UNIQUE INDEX idx_obsids_cluster_obsid ON Obsids (ClusterNumber, Obsid)"
     )
-    con.executemany("INSERT INTO Clusters VALUES (?, ?)", [(1, "A2142"), (2, "Abell2142")])
+    con.executemany(
+        "INSERT INTO Clusters VALUES (?, ?)", [(1, "A2142"), (2, "Abell2142")]
+    )
     con.executemany(
         "INSERT INTO Obsids VALUES (?, ?)",
         [(1, 1196), (1, 5005), (2, 5005), (2, 23844), (2, 24488)],

@@ -33,7 +33,10 @@ def test_stack_file_read_despite_stck_cards_and_decoy(tmp_path):
         "STCK  :11725/repro/acisf11725_repro_evt2_uncontam.fits.gz",
         "PARM  :outroot=Abell1682/",
     )
-    assert paper_stats.merged_obsids(header, tmp_path / "broad_flux.img") == {3244, 11725}
+    assert paper_stats.merged_obsids(header, tmp_path / "broad_flux.img") == {
+        3244,
+        11725,
+    }
 
 
 def test_single_obsid_image_uses_obs_id():
