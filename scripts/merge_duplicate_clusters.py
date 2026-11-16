@@ -6,7 +6,8 @@ Two steps, so the same decisions can be applied to another data drive later:
          The survivor is the entry processed with the most distinct ObsIDs
          (ties: has web plots, has an image on disk, already canonically named).
          It is renamed to Abell<N> (or the best-cased spelling for non-Abell
-         names) and keeps its own ObsIDs; the other entries are dropped.
+         names) and takes over the ObsIDs of the other entries, which are
+         dropped. A survivor that gains ObsIDs has to be merged again.
   r2     Copy each renamed survivor's FITS zip in R2 to its canonical key, so the
          Worker does not serve the dropped entry's zip (run before deploying).
   apply  Apply the plan to the local DB, Web/Cluster_plots (git mv / git rm) and,
@@ -107,8 +108,31 @@ def table_exists(con, table):
 
 
 def apply_db(con, plan):
+    """Apply the plan; returns {canonical name: ObsIDs the survivor gained}."""
+    gained = {}
     for item in plan:
+        survivor_id = item["survivor"]["id"]
+        own = {
+            o
+            for (o,) in con.execute(
+                "SELECT Obsid FROM Obsids WHERE ClusterNumber = ?", (survivor_id,)
+            )
+        }
+        added = set()
         for dropped in item["dropped"]:
+            # The survivor takes over the dropped entry's ObsIDs, so the merged
+            # object holds every observation of the target.
+            for (obsid,) in con.execute(
+                "SELECT DISTINCT Obsid FROM Obsids WHERE ClusterNumber = ?",
+                (dropped["id"],),
+            ).fetchall():
+                if obsid not in own:
+                    con.execute(
+                        "INSERT INTO Obsids (ClusterNumber, Obsid) VALUES (?, ?)",
+                        (survivor_id, obsid),
+                    )
+                    own.add(obsid)
+                    added.add(obsid)
             con.execute("DELETE FROM Obsids WHERE ClusterNumber = ?", (dropped["id"],))
             con.execute("DELETE FROM Region WHERE idCluster = ?", (dropped["id"],))
             con.execute("DELETE FROM Clusters WHERE ID = ?", (dropped["id"],))
@@ -129,7 +153,10 @@ def apply_db(con, plan):
                         f"UPDATE {table} SET {column} = ? WHERE {column} = ?",
                         (new, old),
                     )
+        if added:
+            gained[new] = sorted(added)
     con.commit()
+    return gained
 
 
 def git(*args):
@@ -263,10 +290,12 @@ def main(argv=None):
         return 0
     if not args.only_data:
         con = sqlite3.connect(args.sqlite_db)
-        apply_db(con, plan)
+        gained = apply_db(con, plan)
         con.close()
         apply_plots(plan)
         print(f"Applied {len(plan)} merges to the DB and Web/Cluster_plots")
+        for name, obsids in gained.items():
+            print(f"    {name}: gained ObsIDs {','.join(map(str, obsids))}; merge it again")
     for data_dir in data_dirs:
         print(f"==> Data folders in {data_dir}")
         apply_data(plan, data_dir)
