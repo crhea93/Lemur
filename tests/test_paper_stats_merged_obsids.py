@@ -2,7 +2,11 @@ import gzip
 import importlib.util
 from pathlib import Path
 
-from astropy.io import fits
+import pytest
+
+# paper_stats needs the analysis stack, which the CI image does not install.
+pytest.importorskip("pandas")
+fits = pytest.importorskip("astropy.io.fits")
 
 _spec = importlib.util.spec_from_file_location(
     "paper_stats", Path(__file__).resolve().parents[1] / "scripts" / "paper_stats.py"
