@@ -81,6 +81,9 @@ async function handleHealth() {
   return json({ status: "ok" });
 }
 
+const SESAME_TIMEOUT_MS = 4000;
+const RESOLVE_CACHE_SECONDS = 7 * 24 * 3600;
+
 async function handleResolveName(request) {
   const url = new URL(request.url);
   const q = (url.searchParams.get("q") || "").trim();
@@ -89,12 +92,16 @@ async function handleResolveName(request) {
   }
 
   const names = new Set([q]);
+  let resolverOk = false;
   try {
     const sesameUrl = `https://cds.unistra.fr/cgi-bin/nph-sesame/-oI/SNV?${encodeURIComponent(q)}`;
+    // Without a timeout an unreachable CDS holds the request for ~20 s.
     const resp = await fetch(sesameUrl, {
       headers: { "user-agent": "LemurArchive/1.0" },
+      signal: AbortSignal.timeout(SESAME_TIMEOUT_MS),
     });
     if (resp.ok) {
+      resolverOk = true;
       const text = await resp.text();
       for (const line of text.split("\n")) {
         const match = line.match(/^%I\S*\s+(.+)$/);
@@ -111,7 +118,19 @@ async function handleResolveName(request) {
     // Best-effort resolver endpoint; fallback to raw query.
   }
 
-  return json({ query: q, names: Array.from(names) });
+  const response = json({
+    query: q,
+    names: Array.from(names),
+    resolver_ok: resolverOk,
+  });
+  if (resolverOk) {
+    // Object identifiers rarely change; let browsers reuse lookups.
+    response.headers.set(
+      "cache-control",
+      `public, max-age=${RESOLVE_CACHE_SECONDS}`,
+    );
+  }
+  return response;
 }
 
 async function handleListClusters(env) {

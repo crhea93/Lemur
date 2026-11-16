@@ -11,6 +11,20 @@
 }
 
 body {
+    background: var(--bg-0);
+    color: var(--ink-1);
+    min-height: 100vh;
+}
+
+/* The page gradient lives on a fixed, viewport-sized layer. Painted on body,
+   it tiled every viewport height (main.css sets html, body { height: 100% }),
+   leaving a hard seam and a repeated glow partway down long pages. */
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
     background:
         radial-gradient(
             1200px 600px at 15% 10%,
@@ -23,8 +37,6 @@ body {
             transparent 60%
         ),
         linear-gradient(160deg, var(--bg-0), var(--bg-1));
-    color: var(--ink-1);
-    min-height: 100vh;
 }
 
 a {

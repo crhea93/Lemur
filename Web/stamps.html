@@ -2,6 +2,8 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>Lemur Cluster Stamps</title>
         <link rel="stylesheet" type="text/css" href="css/nav.css" />
@@ -252,7 +254,18 @@
                         img.decoding = "async";
                         img.src = item.preview_url;
                         img.alt = `${item.name} preview`;
+                        // Without a broad-band preview, show the soft or hard
+                        // band one, as the cluster page does.
+                        const fallbacks = ["soft_exp.png", "hard_exp.png"].map(
+                            (file) =>
+                                item.preview_url.replace(/bkgsub_exp\.png$/, file),
+                        );
                         img.onerror = () => {
+                            const next = fallbacks.shift();
+                            if (next && next !== img.src) {
+                                img.src = next;
+                                return;
+                            }
                             img.remove();
                             const missing = document.createElement("div");
                             missing.className = "placeholder";
