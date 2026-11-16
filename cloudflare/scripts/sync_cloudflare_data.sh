@@ -246,7 +246,8 @@ if [[ "$SKIP_FITS" -eq 0 ]]; then
         fi
 
         build_zip() {  # $1: 0 = everything; 1 = *.fits.gz images (no merged event file);
-                       #     2 = flux images and exposure map only (for the largest objects)
+                       #     2 = flux images and exposure map only (for the largest objects);
+                       #     3 = flux and counts images only (exposure map alone too large)
             python3 - "$cluster_dir" "$tmp_zip" "$1" <<'PY'
 import pathlib
 import sys
@@ -260,7 +261,9 @@ with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED, compressle
             continue
         if level >= 1 and not path.name.endswith(".fits.gz"):
             continue
-        if level >= 2 and not path.name.endswith(("_flux.fits.gz", "_expmap.fits.gz")):
+        if level == 2 and not path.name.endswith(("_flux.fits.gz", "_expmap.fits.gz")):
+            continue
+        if level == 3 and not path.name.endswith(("_flux.fits.gz", "_counts.fits.gz")):
             continue
         zf.write(path, arcname=path.name)
 PY
@@ -276,6 +279,11 @@ PY
         if (( zip_size_bytes > MAX_R2_UPLOAD_BYTES )); then
             echo "'$cluster_name.zip' still over 300 MiB: uploading only the flux images and exposure map"
             build_zip 2
+            zip_size_bytes="$(wc -c < "$tmp_zip")"
+        fi
+        if (( zip_size_bytes > MAX_R2_UPLOAD_BYTES )); then
+            echo "'$cluster_name.zip' still over 300 MiB: uploading only the flux and counts images"
+            build_zip 3
             zip_size_bytes="$(wc -c < "$tmp_zip")"
         fi
         if (( zip_size_bytes > MAX_R2_UPLOAD_BYTES )); then
