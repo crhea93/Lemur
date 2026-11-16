@@ -3,7 +3,8 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" type="image/png" href="Table/images/icons/udem.png" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
         <link rel="stylesheet" type="text/css" href="css/main.css" />
         <link
             rel="stylesheet"
@@ -77,6 +78,9 @@
                     );
                 opacity: 0.85;
                 pointer-events: none;
+                /* Fade the stripes out instead of ending them at a hard edge. */
+                -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent);
+                mask-image: linear-gradient(to bottom, #000 55%, transparent);
             }
 
             .hero-content {
@@ -190,7 +194,9 @@
                 margin: 0 auto;
                 padding: 40px 24px 60px;
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+                /* At most two columns: the full-width name panel would
+                   otherwise leave an empty third column beside the cards. */
+                grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
                 gap: 24px;
             }
 
@@ -214,6 +220,38 @@
                 color: var(--ink-1);
                 line-height: 1.7;
                 font-size: 1.14rem;
+            }
+
+            .hero-logo {
+                width: 88px;
+                height: 88px;
+                display: block;
+                margin-bottom: 18px;
+                filter: drop-shadow(0 12px 22px rgba(56, 38, 88, 0.28));
+            }
+
+            .name-panel {
+                grid-column: 1 / -1;
+                display: flex;
+                align-items: center;
+                gap: 24px;
+            }
+
+            .name-panel img {
+                width: 96px;
+                height: 96px;
+                flex: none;
+            }
+
+            .name-panel p {
+                margin: 0;
+            }
+
+            @media (max-width: 560px) {
+                .name-panel {
+                    flex-direction: column;
+                    align-items: flex-start;
+                }
             }
 
             .citation-note {
@@ -325,6 +363,11 @@
         <section class="hero">
             <div class="hero-content">
                 <div>
+                    <img
+                        class="hero-logo"
+                        src="/logo/lemur-mark.svg"
+                        alt="LEMUR logo: Lemur the cat, whose body and ringed tail form an L"
+                    />
                     <div class="hero-subtitle">Open Chandra Archive</div>
                     <h1 class="hero-title">X-ray Galaxy Cluster Archive</h1>
                     <p class="section-label">
@@ -407,6 +450,24 @@
                     A paper describing the LEMUR catalog is coming soon. Once
                     it is published, please cite it as well.
                 </p>
+            </div>
+            <div class="info-panel name-panel">
+                <img
+                    src="/logo/lemur-mark.svg"
+                    alt="Lemur the cat, whose body and ringed tail form an L"
+                />
+                <div>
+                    <h3>The name</h3>
+                    <p>
+                        LEMUR is not an acronym. Like its sibling project
+                        <a href="https://github.com/crhea93/LUCI">LUCI</a>, it
+                        is named after one of my cats: Lemur, who got
+                        her name from her ringed tail. The logo is Lemur sitting
+                        with her tail along the ground. Her body is the upright
+                        of the L and her ringed tail is its base, drawn in the
+                        magma colors the archive uses for its X-ray images.
+                    </p>
+                </div>
             </div>
         </section>
 

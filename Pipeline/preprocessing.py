@@ -10,8 +10,17 @@ from Preliminary.Centroid import basic_centroid, basic_centroid_guess, merged_ce
 from Preliminary.chips_ccd import AGN, display_ccds, display_entire, display_merge
 from Preliminary.CreateLightcurves import bkg_clean_srcs, bkg_lightcurve
 from Preliminary.FaintCleaning import FaintCleaning
-from Preliminary.Merge import merge_objects
+from Preliminary.Merge import has_cleaned_events, merge_objects
 from Preliminary.unzip import unzip
+
+
+def needs_cleaning(inputs, obsid):
+    """cleaning = True: clean every ObsID; False: none; missing: only ObsIDs
+    without a cleaned event file (an object re-merged with new ObsIDs)."""
+    mode = str(inputs["cleaning"]).lower()
+    if mode == "missing":
+        return not has_cleaned_events(obsid, inputs["home_dir"])
+    return mode == "true"
 
 
 def set_aside_previous_reduction(inputs):
@@ -109,7 +118,8 @@ def run_single_observation(inputs, ccds, main_out, db_service):
         bkg_ccd, src_ccd = display_ccds(ccds, obsid_)
         main_out_obsid.write("The background CCD chosen is CCD#%s\n" % bkg_ccd)
         main_out_obsid.write("The source CCD chosen is CCD#%s\n" % src_ccd)
-        if inputs["cleaning"].lower() == "true":
+        clean = needs_cleaning(inputs, obsid_)
+        if clean:
             print("    We can now create a lightcurve for the background...")
             bkg_clean_srcs(bkg_ccd)
             bkg_lightcurve(bkg_ccd, obsid_, create_plot=False)
@@ -118,7 +128,7 @@ def run_single_observation(inputs, ccds, main_out, db_service):
             filenames = FaintCleaning(
                 inputs["home_dir"], obsid_, bkg_ccd, cen_x, cen_y, ccds[obsid_]
             )
-        if inputs["cleaning"].lower() == "false":
+        else:
             os.chdir(inputs["home_dir"] + "/" + obsid_)
             filenames, temp = get_filenames()
             filenames["evt2_repro"] = (
@@ -162,7 +172,7 @@ def run_single_observation(inputs, ccds, main_out, db_service):
             "The centroid's X,Y sky coordinates are: %s,%s \n"
             % (str(cen_ra), str(cen_dec))
         )
-        if inputs["cleaning"].lower() == "true":
+        if clean:
             os.chdir(inputs["home_dir"] + "/" + obsid_ + "/repro")
             print("    Creating Clean Image...")
             create_clean_img(filenames)
@@ -173,7 +183,7 @@ def run_single_observation(inputs, ccds, main_out, db_service):
                 obsid_,
                 filenames,
             )
-        if inputs["cleaning"].lower() == "false":
+        else:
             filenames["evt2_repro_uncontam"] = (
                 filenames["evt2_repro"].split(".")[0] + "_uncontam.fits"
             )
@@ -209,7 +219,7 @@ def run_merge_observations(inputs, ccds, main_out, db_service):
 
     for obsid_ in inputs["dir_list"]:
         db_service.add_obsid(inputs["name"], obsid_)
-        if inputs["cleaning"].lower() == "true":
+        if needs_cleaning(inputs, obsid_):
             main_out_obsid = open(
                 inputs["home_dir"] + "/" + obsid_ + "/decisions.txt", "w+"
             )
@@ -248,8 +258,10 @@ def run_merge_observations(inputs, ccds, main_out, db_service):
                 )
                 filenames["evt_bkgsub_img"] = filenames["evt_uncontam_img"]
             main_out_obsid.close()
+        else:
+            print(f"    ObsID {obsid_}: using its existing cleaned event file")
 
-    if inputs["cleaning"].lower() == "false":
+    if str(inputs["cleaning"]).lower() in ("false", "missing"):
         os.chdir(inputs["home_dir"] + "/" + inputs["dir_list"][0])
         filenames, temp = get_filenames()
         filenames["evt2_repro"] = (

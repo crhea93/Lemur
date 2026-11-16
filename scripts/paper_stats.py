@@ -115,7 +115,10 @@ def merged_obsids(header, image=None):
                 break
         blob = blob.split("outroot=")[0]
         if "@" in blob and image is not None:
-            stack = Path(image).parent / Path(blob.split("@")[-1].strip(" ,'\"")).name
+            # CIAO follows the stack file's name with its contents as STCK
+            # cards; without the cut, the name would end in the last listed file.
+            name = blob.split("@")[-1].split("STCK")[0].strip(" ,'\"")
+            stack = Path(image).parent / Path(name).name
             if stack.exists():
                 blob = "," + ",".join(stack.read_text().split())
         return {int(x) for x in re.findall(r"(?:^|[/,=@])(?:acisf)?0*(\d+)[_/]", blob)}

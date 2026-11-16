@@ -104,6 +104,16 @@ def _cleaned(path):
     return max(existing, key=os.path.getmtime) if existing else None
 
 
+def has_cleaned_events(obsid, home_dir="."):
+    """True if the ObsID has the cleaned event file(s) merge_objects would use."""
+    repro = os.path.join(home_dir, str(obsid), "repro")
+    return bool(
+        glob.glob(f"{repro}/acisf{obsid}_[0-9][0-9][0-9]_repro_evt2.fits*")
+        or _cleaned(f"{repro}/acisf{obsid}_repro_evt2_uncontam.fits")
+        or _cleaned(f"{repro}/acisf{obsid}_repro_evt2.fits")
+    )
+
+
 def merge_objects(Obsids, output_name, clean="yes"):
     """
     Merge background subtracted event files for photometric analysis

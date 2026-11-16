@@ -1,4 +1,10 @@
-# Lemur
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="Web/logo/lemur-lockup-dark.png">
+    <img alt="LEMUR logo: Lemur the cat, whose body and ringed tail form an L" src="Web/logo/lemur-lockup-light.png" width="480">
+  </picture>
+</p>
+
 X-ray Galaxy Cluster Archive with a FastAPI backend and a modern web UI.
 
 Live cluster website: https://lemur-archive.lemur-xray.workers.dev
@@ -6,6 +12,10 @@ Live cluster website: https://lemur-archive.lemur-xray.workers.dev
 [![CI](https://github.com/crhea93/Lemur/actions/workflows/ci.yml/badge.svg)](https://github.com/crhea93/Lemur/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-pytest--cov-blue)](#development)
 [![DOI](https://zenodo.org/badge/166745110.svg)](https://doi.org/10.5281/zenodo.18728228)
+
+## The name
+
+LEMUR is not an acronym. Like its sibling project [LUCI](https://github.com/crhea93/LUCI), it is named after one of my cats: Lemur, who got her name from her ringed tail. The logo is Lemur sitting with her tail along the ground. Her body is the upright of the L and her ringed tail is its base, drawn in the magma colors the archive uses for its X-ray images.
 
 ## Quick Start
 1. Create the SQLite database from the SQL dump:

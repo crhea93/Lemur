@@ -40,7 +40,9 @@ def test_ensure_sqlite_schema_dedupes_obsids_and_blocks_repeats(tmp_path):
     )
     db_module.ensure_sqlite_schema(conn)
 
-    rows = conn.execute("SELECT ClusterNumber, Obsid FROM Obsids ORDER BY rowid").fetchall()
+    rows = conn.execute(
+        "SELECT ClusterNumber, Obsid FROM Obsids ORDER BY rowid"
+    ).fetchall()
     assert rows == [(1, 554), (1, 3184), (2, 554)]
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute("INSERT INTO Obsids VALUES (1, 554)")

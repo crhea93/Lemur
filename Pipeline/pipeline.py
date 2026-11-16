@@ -28,6 +28,7 @@ carter.rhea@umontreal.ca
 # ------------------------------------IMPORTS-----------------------------------#
 # ----------------------------------GENERAL IMPORTS-----------------------------#
 import argparse
+import json
 import os
 import re
 import sys
@@ -296,7 +297,29 @@ def _fetch_text(url, timeout=10):
         return resp.read().decode("utf-8", errors="ignore")
 
 
+def _ned_object_lookup(name, timeout=10):
+    """NED's name resolver (srs/ObjectLookup): the "Preferred" record, or None."""
+    data = urllib.parse.urlencode({"json": json.dumps({"name": {"v": name}})}).encode()
+    req = urllib.request.Request(
+        "https://ned.ipac.caltech.edu/srs/ObjectLookup",
+        data=data,
+        headers={"User-Agent": "LemurPipeline/1.0"},
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        payload = json.loads(resp.read().decode("utf-8", errors="ignore"))
+    return payload.get("Preferred") or None
+
+
 def _redshift_from_ned(cluster_name):
+    # The byname pages below now return NED's home page; ObjectLookup is the
+    # current interface. The old URLs stay as a fallback.
+    try:
+        preferred = _ned_object_lookup(cluster_name) or {}
+        value = _first_float(str((preferred.get("Redshift") or {}).get("Value")))
+        if value is not None and 0 <= value <= 5:
+            return value
+    except Exception:
+        pass
     quoted = urllib.parse.quote(cluster_name)
     candidates = [
         f"https://ned.ipac.caltech.edu/byname?objname={quoted}&extend=no&of=pre_text",

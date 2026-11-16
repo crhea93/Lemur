@@ -221,6 +221,7 @@ fi
 
 if [[ "$SKIP_FITS" -eq 0 ]]; then
     echo "==> Packaging cluster FITS and uploading ZIPs to R2 bucket '$R2_BUCKET_NAME'"
+    FAILED_UPLOADS=()
     for cluster_dir in "$FITS_ROOT"/*; do
         [[ -d "$cluster_dir" ]] || continue
         cluster_name="$(basename "$cluster_dir")"
@@ -244,19 +245,25 @@ if [[ "$SKIP_FITS" -eq 0 ]]; then
             continue
         fi
 
-        build_zip() {  # $1 = 1 to leave out the merged event file (keep *.fits.gz images)
+        build_zip() {  # $1: 0 = everything; 1 = *.fits.gz images (no merged event file);
+                       #     2 = flux images and exposure map only (for the largest objects);
+                       #     3 = flux and counts images only (exposure map alone too large)
             python3 - "$cluster_dir" "$tmp_zip" "$1" <<'PY'
 import pathlib
 import sys
 import zipfile
 
-cluster, zip_path, images_only = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3] == "1"
+cluster, zip_path, level = pathlib.Path(sys.argv[1]), sys.argv[2], int(sys.argv[3])
 extensions = {".fits", ".fit", ".fts", ".gz"}
 with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
     for path in sorted(cluster.iterdir()):
         if not path.is_file() or path.suffix.lower() not in extensions:
             continue
-        if images_only and not path.name.endswith(".fits.gz"):
+        if level >= 1 and not path.name.endswith(".fits.gz"):
+            continue
+        if level == 2 and not path.name.endswith(("_flux.fits.gz", "_expmap.fits.gz")):
+            continue
+        if level == 3 and not path.name.endswith(("_flux.fits.gz", "_counts.fits.gz")):
             continue
         zf.write(path, arcname=path.name)
 PY
@@ -270,14 +277,37 @@ PY
             zip_size_bytes="$(wc -c < "$tmp_zip")"
         fi
         if (( zip_size_bytes > MAX_R2_UPLOAD_BYTES )); then
+            echo "'$cluster_name.zip' still over 300 MiB: uploading only the flux images and exposure map"
+            build_zip 2
+            zip_size_bytes="$(wc -c < "$tmp_zip")"
+        fi
+        if (( zip_size_bytes > MAX_R2_UPLOAD_BYTES )); then
+            echo "'$cluster_name.zip' still over 300 MiB: uploading only the flux and counts images"
+            build_zip 3
+            zip_size_bytes="$(wc -c < "$tmp_zip")"
+        fi
+        if (( zip_size_bytes > MAX_R2_UPLOAD_BYTES )); then
             zip_size_mib="$(awk "BEGIN {printf \"%.1f\", $zip_size_bytes/1048576}")"
             echo "Skipping '$cluster_name.zip' (${zip_size_mib} MiB): exceeds Wrangler upload limit of 300 MiB"
+            FAILED_UPLOADS+=("$cluster_name (too large)")
             rm -f "$tmp_zip"
             continue
         fi
-        run_cmd "${WRANGLER[@]}" r2 object put "$object_path" --file "$tmp_zip" --remote
+        uploaded=0
+        for attempt in 1 2 3 4; do
+            if run_cmd "${WRANGLER[@]}" r2 object put "$object_path" --file "$tmp_zip" --remote; then
+                uploaded=1
+                break
+            fi
+            echo "Upload of '$cluster_name.zip' failed (attempt $attempt of 4)"
+            sleep $((30 * attempt))
+        done
         rm -f "$tmp_zip"
+        [[ "$uploaded" -eq 1 ]] || FAILED_UPLOADS+=("$cluster_name")
     done
+    if (( ${#FAILED_UPLOADS[@]} > 0 )); then
+        echo "Not uploaded (${#FAILED_UPLOADS[@]}): ${FAILED_UPLOADS[*]}"
+    fi
 fi
 
 echo "Done."
