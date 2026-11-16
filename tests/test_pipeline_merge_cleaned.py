@@ -6,7 +6,7 @@ import Pipeline  # noqa: F401  (puts Pipeline/ on sys.path)
 # Merge.py star-imports CIAO tools; the helper under test needs none of them.
 if "ciao_contrib.runtool" not in sys.modules:
     stub = types.ModuleType("ciao_contrib.runtool")
-    stub.__all__ = []
+    setattr(stub, "__all__", [])
     sys.modules.setdefault("ciao_contrib", types.ModuleType("ciao_contrib"))
     sys.modules["ciao_contrib.runtool"] = stub
 

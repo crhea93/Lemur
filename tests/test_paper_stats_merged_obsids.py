@@ -7,6 +7,7 @@ from astropy.io import fits
 _spec = importlib.util.spec_from_file_location(
     "paper_stats", Path(__file__).resolve().parents[1] / "scripts" / "paper_stats.py"
 )
+assert _spec is not None and _spec.loader is not None
 paper_stats = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(paper_stats)
 

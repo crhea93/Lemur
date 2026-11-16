@@ -6,6 +6,7 @@ _spec = importlib.util.spec_from_file_location(
     "merge_duplicate_clusters",
     Path(__file__).resolve().parents[1] / "scripts" / "merge_duplicate_clusters.py",
 )
+assert _spec is not None and _spec.loader is not None
 mdc = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(mdc)
 
