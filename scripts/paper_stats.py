@@ -47,6 +47,7 @@ CLUSTER_CATEGORY = "CLUSTERS OF GALAXIES"
 # ACCEPT core entropies (Cavagnolo et al. 2009) for the cool-core neighbor test.
 ACCEPT_CSV = SURVEY_DIR / "accept" / "accept_k0.csv"
 ACCEPT_MATCH_ARCSEC = 60.0
+ACCEPT_CENTER_MATCH_ARCSEC = 120.0  # positional check of the X-ray centers
 COOL_CORE_K0 = 30.0  # keV cm^2
 N_PERMUTATIONS = 5000
 # Cool-core fraction falls with redshift and neighbors share redshift, so the
@@ -188,6 +189,28 @@ def center_offsets_arcsec(centers, clusters, ra, dec):
     )
     b = SkyCoord(merged["ra"].values * u.deg, merged["dec"].values * u.deg)
     return merged.assign(offset_arcsec=a.separation(b).arcsec)
+
+
+def accept_center_offsets(centers, accept):
+    """Separation of each ACCEPT cluster from the nearest LEMUR X-ray peak."""
+    from astropy import units as u
+    from astropy.coordinates import SkyCoord
+
+    peaks = centers[centers["method"] == "xray_bandpass_peak"]
+    if peaks.empty:
+        return {}
+    ours = SkyCoord(peaks["center_ra"].values * u.deg, peaks["center_dec"].values * u.deg)
+    theirs = SkyCoord(accept["ra_deg"].values * u.deg, accept["dec_deg"].values * u.deg)
+    _, sep, _ = theirs.match_to_catalog_sky(ours)
+    sep = sep.arcsec[sep.arcsec <= ACCEPT_CENTER_MATCH_ARCSEC]
+    return {
+        "n_accept_total": int(len(accept)),
+        "n_accept_center_matched": int(len(sep)),
+        "accept_center_offset_median_arcsec": float(np.median(sep)) if len(sep) else None,
+        "accept_center_offset_p16_arcsec": float(np.percentile(sep, 16)) if len(sep) else None,
+        "accept_center_offset_p84_arcsec": float(np.percentile(sep, 84)) if len(sep) else None,
+        "pct_accept_center_within_10arcsec": float(100 * np.mean(sep <= 10)) if len(sep) else None,
+    }
 
 
 def cool_core_agreement(embeddings, similar, accept):
@@ -379,11 +402,38 @@ def compute_stats(clusters, obsids, centers, embeddings, similar, survey, data_d
         if len(pool) > 1
         else None
     )
+    # The same test among clusters only, since galaxies are local and clusters
+    # are not: the class split alone would make neighbors share redshift.
+    is_cluster_name = clusters.set_index("Name")["is_cluster"]
+    cluster_pairs = pairs[
+        pairs["ClusterName"].map(is_cluster_name).fillna(False).astype(bool)
+        & pairs["NeighborName"].map(is_cluster_name).fillna(False).astype(bool)
+    ]
+    cluster_pool = (
+        log_z[log_z.index.map(is_cluster_name).fillna(False).astype(bool)]
+        .reindex(embeddings["ClusterName"])
+        .dropna()
+        .values
+    )
+    stats["neighbor_dlogz_median_clusters"] = (
+        float(np.median(np.abs(cluster_pairs["a"] - cluster_pairs["b"])))
+        if len(cluster_pairs)
+        else None
+    )
+    stats["random_dlogz_median_clusters"] = (
+        float(
+            np.median(
+                np.abs(rng.choice(cluster_pool, 100_000) - rng.choice(cluster_pool, 100_000))
+            )
+        )
+        if len(cluster_pool) > 1
+        else None
+    )
 
     if ACCEPT_CSV.exists():
-        stats.update(
-            cool_core_agreement(embeddings, similar, pd.read_csv(ACCEPT_CSV, comment="#"))
-        )
+        accept = pd.read_csv(ACCEPT_CSV, comment="#")
+        stats.update(cool_core_agreement(embeddings, similar, accept))
+        stats.update(accept_center_offsets(centers, accept))
 
     frames = {
         "clusters": clusters,
@@ -447,7 +497,15 @@ def write_macros(stats, path):
         "nEmbeddedClusters": fmt(stats["n_embedded_clusters"]),
         "neighborDlogZ": fmt(stats["neighbor_dlogz_median"], 2),
         "randomDlogZ": fmt(stats["random_dlogz_median"], 2),
+        "neighborDlogZClusters": fmt(stats["neighbor_dlogz_median_clusters"], 2),
+        "randomDlogZClusters": fmt(stats["random_dlogz_median_clusters"], 2),
         "nAcceptMatched": fmt(stats.get("n_accept_matched")),
+        "nAcceptTotal": fmt(stats.get("n_accept_total")),
+        "nAcceptCenterMatched": fmt(stats.get("n_accept_center_matched")),
+        "acceptCenterOffset": fmt(stats.get("accept_center_offset_median_arcsec"), 0),
+        "acceptCenterLow": fmt(stats.get("accept_center_offset_p16_arcsec"), 0),
+        "acceptCenterHigh": fmt(stats.get("accept_center_offset_p84_arcsec"), 0),
+        "acceptCenterWithinTen": fmt(stats.get("pct_accept_center_within_10arcsec"), 0),
         "nAcceptPairs": fmt(stats.get("n_accept_pairs")),
         "acceptCoolCorePercent": fmt(100 * stats.get("accept_cool_core_fraction", np.nan)),
         "ccAgreementPercent": fmt(100 * stats.get("cc_agreement", np.nan)),
