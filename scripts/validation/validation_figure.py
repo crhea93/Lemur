@@ -1,0 +1,122 @@
+"""Figure and LaTeX macros for the image validation (paper Section 3.2).
+
+Reads flux_sources.csv (validate_flux.py) and background.csv
+(validate_background.py) from DIR and writes validation.pdf and
+validation_macros.tex there.
+
+    python scripts/validation/validation_figure.py DIR
+"""
+
+import sqlite3
+import sys
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from common import DB_PATH, mean_start_year  # noqa: E402
+
+MAX_LOCAL_FRAC = 0.2  # sources on bright diffuse emission are dominated by the local level
+
+
+def fmt(x, digits=0):
+    """Number for LaTeX text: thousands separator and a math minus sign."""
+    return f"{x:,.{digits}f}".replace(",", "{,}").replace("-", "$-$")
+
+
+def main(out_dir):
+    out_dir = Path(out_dir)
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    plt.rcParams.update({"font.size": 9, "savefig.bbox": "tight"})
+    src = pd.read_csv(out_dir / "flux_sources.csv")
+    if "error" in src:
+        src = src[src["error"].isna()]
+    stats = {}
+    bands = {"broad": ("0.5–7", "k"), "soft": ("0.5–2", "#1f77b4"), "hard": ("2–7", "#d62728")}
+    sel = {}
+    for band in bands:
+        ok = (
+            src[f"lemur_{band}"].notna()
+            & src[f"csc_{band}"].notna()
+            & (src[f"csc_{band}"] > 0)
+            & (src[f"local_frac_{band}"].abs() < MAX_LOCAL_FRAC)
+        )
+        sel[band] = src[ok]
+        ratio = sel[band][f"lemur_{band}"] / sel[band][f"csc_{band}"]
+        stats[band] = dict(n=int(ok.sum()), med=ratio.median(), p16=ratio.quantile(0.16), p84=ratio.quantile(0.84))
+    all_objects = pd.read_csv(out_dir / "background.csv")
+    objects = all_objects.dropna(subset=["bkg_resid"])
+    con = sqlite3.connect(DB_PATH)
+    method = pd.read_sql("SELECT ClusterName AS name, method FROM cluster_center", con)
+    objects = objects.merge(method, on="name")
+    quiet = objects[objects.method == "target_position"].bkg_resid
+    loud = objects[objects.method != "target_position"].bkg_resid
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7.1, 2.8))
+    for band, (label, color) in bands.items():
+        d = sel[band]
+        ax1.scatter(d[f"csc_{band}"], d[f"lemur_{band}"] / d[f"csc_{band}"], s=8, color=color,
+                    alpha=0.7, linewidths=0, label=f"{label} keV ({stats[band]['n']})")
+    ax1.axhline(1, color="0.5", lw=0.8, ls=":")
+    ax1.axhline(stats["broad"]["med"], color="k", lw=1)
+    ax1.set(xscale="log", ylim=(0.5, 1.5), xlabel=r"CSC photon flux (cm$^{-2}$ s$^{-1}$)",
+            ylabel="LEMUR / CSC")
+    ax1.legend(frameon=False, fontsize=7, loc="upper right")
+    ax1.set_title("(a)", loc="left", fontsize=9)
+    bins = np.linspace(-0.3, 1.0, 40)
+    ax2.hist(np.clip(quiet, bins[0], bins[-1]), bins=bins, histtype="step", lw=1.2, color="k",
+             label=f"No extended emission ({len(quiet)})")
+    ax2.hist(np.clip(loud, bins[0], bins[-1]), bins=bins, histtype="step", lw=1.2, color="#d62728",
+             label=f"Extended emission ({len(loud)})")
+    ax2.axvline(0, color="0.5", lw=0.8, ls=":")
+    ax2.set(xlabel=r"$(C-B)/B$ at 4–8$'$", ylabel="Objects")
+    ax2.legend(frameon=False, fontsize=7, loc="upper right")
+    ax2.set_title("(b)", loc="left", fontsize=9)
+    fig.savefig(out_dir / "validation.pdf")
+
+    # Soft-band ratio by observation epoch (mean start year of the object's ObsIDs).
+    soft = sel["soft"].assign(year=sel["soft"].object.map(mean_start_year()))
+    soft_ratio = soft.lemur_soft / soft.csc_soft
+    early, late = soft_ratio[soft.year <= 2004], soft_ratio[soft.year > 2014]
+
+    b = stats["broad"]
+    macros = {
+        "nValSources": fmt(b["n"]),
+        "nValObjects": fmt(sel["broad"].object.nunique()),
+        "valBroadRatio": f"{b['med']:.3f}",
+        "valBroadLow": f"{b['p16']:.2f}",
+        "valBroadHigh": f"{b['p84']:.2f}",
+        "valSoftRatio": f"{stats['soft']['med']:.3f}",
+        "valHardRatio": f"{stats['hard']['med']:.3f}",
+        "valSoftLow": f"{stats['soft']['p16']:.2f}",
+        "valSoftHigh": f"{stats['soft']['p84']:.2f}",
+        "valHardLow": f"{stats['hard']['p16']:.2f}",
+        "valHardHigh": f"{stats['hard']['p84']:.2f}",
+        "valSoftEarly": f"{early.median():.2f}",
+        "valSoftLate": f"{late.median():.2f}",
+        "nValSoft": fmt(stats["soft"]["n"]),
+        "nValHard": fmt(stats["hard"]["n"]),
+        "nBkgObjects": fmt(len(objects)),
+        "nBkgQuiet": fmt(len(quiet)),
+        "bkgQuietMedian": fmt(100 * quiet.median(), 1),
+        "bkgQuietLow": fmt(100 * quiet.quantile(0.16), 0),
+        "bkgQuietHigh": fmt(100 * quiet.quantile(0.84), 0),
+        "bkgQuietWithinTen": fmt(100 * (quiet.abs() < 0.1).mean(), 0),
+        "bkgLoudMedian": fmt(100 * loud.median(), 0),
+        "pctNoBkgModel": fmt(100 * (all_objects.frac_no_bkg > 0.05).mean(), 0),
+    }
+    lines = ["% Generated by scripts/validation/validation_figure.py -- do not edit by hand."]
+    lines += [f"\\newcommand{{\\{k}}}{{{v}}}" for k, v in macros.items()]
+    (out_dir / "validation_macros.tex").write_text("\n".join(lines) + "\n")
+    for band, s in stats.items():
+        print(band, {k: round(v, 3) if isinstance(v, float) else v for k, v in s.items()})
+    print(macros)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1] if len(sys.argv) > 1 else "paper/validation")

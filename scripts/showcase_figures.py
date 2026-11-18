@@ -183,6 +183,7 @@ def main(argv=None):
 
         ra = center.ra.to_string(unit="hourangle", sep=":", precision=2, pad=True)
         dec = center.dec.to_string(sep=":", precision=1, alwayssign=True, pad=True)
+        dec = dec.replace("-", "$-$", 1)  # a minus sign, not a hyphen, in LaTeX
         macros = {
             "ObsIDs": fmt_obsids(merged),
             "NObsIDs": str(len(merged)),
