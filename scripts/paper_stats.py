@@ -37,6 +37,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "Pipeline"))
+from center import WORK_PIXEL_ARCSEC  # noqa: E402
 from cluster_paths import data_roots, resolve_cluster_file  # noqa: E402
 
 from Pipeline.pipeline import _coerce_coord_value  # noqa: E402
@@ -56,6 +57,7 @@ N_DEEPEST = 10
 # Bullet Cluster (major merger) and a merger with a cold front.
 NEIGHBOR_QUERIES = ("Abell2029", "1E0657-56", "Abell3667")
 NEIGHBOR_FIGURE_K = 5
+ACIS_PIXEL_ARCSEC = 0.492
 
 
 def load_catalog(db_path):
@@ -315,14 +317,33 @@ def compute_stats(clusters, obsids, centers, embeddings, similar, survey, data_d
 
     stats["n_centers"] = int(len(centers))
     stats["center_methods"] = centers["method"].value_counts().to_dict()
+    fallback = centers.loc[centers["method"] == "target_position", "ClusterName"]
+    fallback_is_cluster = fallback.map(clusters.set_index("Name")["is_cluster"])
+    stats["n_center_fallback_clusters"] = int(fallback_is_cluster.eq(True).sum())
+    stats["n_center_fallback_galaxies"] = int(fallback_is_cluster.eq(False).sum())
     offsets = center_offsets_arcsec(centers, clusters, ra, dec)
-    peak = offsets.loc[
-        offsets["method"] == "xray_bandpass_peak", "offset_arcsec"
-    ].values
+    peak_rows = offsets[offsets["method"] == "xray_bandpass_peak"]
+    peak = peak_rows["offset_arcsec"].values
+    peak_is_cluster = (
+        peak_rows["ClusterName"]
+        .map(clusters.set_index("Name")["is_cluster"])
+        .fillna(False)
+        .astype(bool)
+        .values
+    )
     stats["center_offset_median_arcsec"] = float(np.median(peak)) if len(peak) else None
     stats["center_offset_p75_arcsec"] = float(np.percentile(peak, 75)) if len(peak) else None
+    stats["center_offset_p16_arcsec"] = float(np.percentile(peak, 16)) if len(peak) else None
+    stats["center_offset_p84_arcsec"] = float(np.percentile(peak, 84)) if len(peak) else None
+    for label, mask in (("clusters", peak_is_cluster), ("galaxies", ~peak_is_cluster)):
+        stats[f"center_offset_median_{label}_arcsec"] = (
+            float(np.median(peak[mask])) if mask.any() else None
+        )
     stats["n_center_offset_within_30arcsec"] = int((peak <= 30).sum())
     stats["n_center_offset_above_2arcmin"] = int((peak > 120).sum())
+    stats["n_center_offset_above_2arcmin_galaxies"] = int(
+        (peak[~peak_is_cluster] > 120).sum()
+    )
 
     stats["n_embeddings"] = int(len(embeddings))
     stats["embedding_models"] = embeddings["model"].value_counts().to_dict()
@@ -373,6 +394,7 @@ def compute_stats(clusters, obsids, centers, embeddings, similar, survey, data_d
         "ra": ra,
         "dec": dec,
         "offsets": peak,
+        "offsets_is_cluster": peak_is_cluster,
         "top1": top1,
         "similar": similar,
     }
@@ -405,10 +427,17 @@ def write_macros(stats, path):
         "nCenters": fmt(stats["n_centers"]),
         "nCentersPeak": fmt(stats["center_methods"].get("xray_bandpass_peak", 0)),
         "nCentersFallback": fmt(
-            stats["center_methods"].get("placeholder_existing_centroid", 0)
+            stats["center_methods"].get("target_position", 0)
         ),
+        "nCentersFallbackClusters": fmt(stats["n_center_fallback_clusters"]),
+        "nCentersFallbackGalaxies": fmt(stats["n_center_fallback_galaxies"]),
         "medianCenterOffset": fmt(stats["center_offset_median_arcsec"], 0),
         "upperQuartileCenterOffset": fmt(stats["center_offset_p75_arcsec"], 0),
+        "lowCenterOffset": fmt(stats["center_offset_p16_arcsec"], 0),
+        "highCenterOffset": fmt(stats["center_offset_p84_arcsec"], 0),
+        "medianCenterOffsetClusters": fmt(stats["center_offset_median_clusters_arcsec"], 0),
+        "medianCenterOffsetGalaxies": fmt(stats["center_offset_median_galaxies_arcsec"], 0),
+        "nGalaxyCenterBeyondTwoArcmin": fmt(stats["n_center_offset_above_2arcmin_galaxies"]),
         "nCenterWithinThirtyArcsec": fmt(stats["n_center_offset_within_30arcsec"]),
         "nCenterBeyondTwoArcmin": fmt(stats["n_center_offset_above_2arcmin"]),
         "nEmbeddings": fmt(stats["n_embeddings"]),
@@ -590,16 +619,50 @@ def make_figures(frames, stats, out_dir):
     offsets = frames["offsets"]
     if len(offsets):
         fig, ax = plt.subplots()
-        ax.hist(
-            np.clip(offsets, 0.1, None),
-            bins=np.logspace(-1, np.log10(max(offsets.max(), 10)), 31),
-            color="0.4",
-        )
+        clipped = np.clip(offsets, 0.1, None)
+        bins = np.logspace(-1, np.log10(max(offsets.max(), 10)), 31)
+        ax.hist(clipped, bins=bins, color="0.82", label="All")
+        is_cluster_offset = frames["offsets_is_cluster"]
+        for label, mask in (
+            ("Clusters", is_cluster_offset),
+            ("Galaxies", ~is_cluster_offset),
+        ):
+            ax.hist(
+                clipped[mask],
+                bins=bins,
+                histtype="step",
+                lw=1.2,
+                color=colors[label],
+                label=label,
+            )
+        # Median and 16th-84th percentiles of all objects; the pixel scales
+        # show what a perfect match could look like at most.
+        p16, p50, p84 = np.percentile(offsets, [16, 50, 84])
+        ax.axvspan(p16, p84, color="0.3", alpha=0.12, lw=0)
+        ax.axvline(p50, color="k", lw=1)
+        for pixel, style, text in (
+            (ACIS_PIXEL_ARCSEC, ":", "ACIS pixel"),
+            (WORK_PIXEL_ARCSEC, "--", "Center grid"),
+        ):
+            ax.axvline(pixel, color="0.35", ls=style, lw=0.9)
+            ax.text(
+                pixel * 0.85,
+                0.97,
+                text,
+                transform=ax.get_xaxis_transform(),
+                rotation=90,
+                ha="right",
+                va="top",
+                fontsize=7,
+                color="0.35",
+            )
         ax.set(
             xscale="log",
-            xlabel="X-ray peak $-$ target position (arcsec)",
+            xlabel="X-ray center $-$ target position (arcsec)",
             ylabel="Objects",
         )
+        ax.set_ylim(top=ax.get_ylim()[1] * 1.35)  # room for the legend
+        ax.legend(frameon=False, loc="upper right", fontsize=7)
         save(fig, "center_offsets")
 
     similar = frames["similar"]
