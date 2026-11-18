@@ -12,6 +12,7 @@ Live cluster website: https://lemur-archive.lemur-xray.workers.dev
 [![CI](https://github.com/crhea93/Lemur/actions/workflows/ci.yml/badge.svg)](https://github.com/crhea93/Lemur/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-pytest--cov-blue)](#development)
 [![DOI](https://zenodo.org/badge/166745110.svg)](https://doi.org/10.5281/zenodo.18728228)
+[![Data DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24351915.svg)](https://doi.org/10.5281/zenodo.24351915)
 
 ## The name
 
@@ -149,6 +150,16 @@ make sync-fits
 make dry-run
 ```
 
+## Data release
+The catalog tables of data release 1 (DR1) are archived on Zenodo:
+[doi:10.5281/zenodo.24351915](https://doi.org/10.5281/zenodo.24351915). They list every object's class, target
+position, X-ray center, redshift, ObsIDs, clean exposure and archive URL, plus
+its most similar objects and its AstroCLIP embedding; the images themselves
+are served by the website. `scripts/make_data_release.py` writes the tables
+and `scripts/zenodo_release.py` creates the Zenodo draft. The image validation
+in the paper (fluxes against the Chandra Source Catalog, background residuals)
+is reproduced with `make paper-validation`.
+
 ## Development
 For contribution workflow, linting, typing, and test commands, see:
 - `CONTRIBUTING.md`
@@ -165,5 +176,22 @@ If you use Lemur or its data products in your work, please cite the Zenodo recor
   year      = {2026},
   doi       = {10.5281/zenodo.18728228},
   url       = {https://doi.org/10.5281/zenodo.18728228}
+}
+```
+
+If you use the catalog tables, please also cite the data release:
+[doi:10.5281/zenodo.24351915](https://doi.org/10.5281/zenodo.24351915)
+
+```bibtex
+@dataset{rhea_lemur_dr1,
+  author    = {Rhea, Carter Lee and Hlavacek-Larrondo, Julie and Prunier, Marine and
+               Choi, Hyunseop and Donahue, Megan and Thibeault, Christian},
+  title     = {LEMUR Data Release 1: catalog of merged Chandra images of
+               galaxies and galaxy clusters},
+  publisher = {Zenodo},
+  version   = {DR1},
+  year      = {2026},
+  doi       = {10.5281/zenodo.24351915},
+  url       = {https://doi.org/10.5281/zenodo.24351915}
 }
 ```
