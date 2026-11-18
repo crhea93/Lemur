@@ -28,6 +28,7 @@ import pandas as pd
 from . import analyze_embeddings as ae
 from . import core as core_mod
 from . import mass_match as mm
+from .plotting import save_figure
 
 ROOT = Path(__file__).resolve().parents[1]
 PREPROCESSED = Path("/run/media/crhea/ef10789c-0ada-41e4-8d3f-8f17dbcc0558/_domain_gap/preprocessed")
@@ -158,7 +159,7 @@ def gallery(df, scores, out, n=8):
             ax.set_title(f"{str(info['name'])[:16]}\nps={info['ps_fraction']:.2f} z={info['redshift']:.2f}", fontsize=5.5)
         axes[r, 0].set_ylabel(title, fontsize=7)
     fig.tight_layout()
-    fig.savefig(out / "drivers_gallery.png", dpi=130)
+    save_figure(fig, out / "drivers_gallery.png", dpi=200)
     plt.close(fig)
 
 

@@ -27,6 +27,7 @@ import numpy as np
 import pandas as pd
 
 from . import io, spatial
+from .plotting import save_figure
 
 ROOT = Path(__file__).resolve().parents[1]
 APERTURE_KPC = 250.0
@@ -173,7 +174,7 @@ def figure(table, manifest, out, snr_min=SNR_MIN, ps_max=PS_MAX):
         axes[1, c].set_xlabel("point-source fraction of aperture flux")
         axes[0, c].legend(fontsize=7)
     fig.tight_layout()
-    fig.savefig(out / "signal.png", dpi=120)
+    save_figure(fig, out / "signal.png")
     plt.close(fig)
 
 

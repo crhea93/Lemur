@@ -30,6 +30,7 @@ import pandas as pd
 from . import analyze_embeddings as ae
 from . import mass_match as mm
 from . import preprocess
+from .plotting import save_figure
 
 ROOT = Path(__file__).resolve().parents[1]
 CORE_KPC = 40.0
@@ -192,7 +193,7 @@ def validation_figure(df, out):
         ax.set_xlabel("central cooling time at z = 0 (Gyr)")
     axes[0, 0].set_ylabel(r"$c = F(<40)/F(<250\,$kpc)")
     fig.tight_layout()
-    fig.savefig(out / "core_validation.png", dpi=120)
+    save_figure(fig, out / "core_validation.png")
     plt.close(fig)
 
 
@@ -216,7 +217,7 @@ def distribution_figure(df, out, l_bin):
         ax.set_xlabel(r"log $c$ = log F(<40)/F(<250 kpc)")
         ax.legend(fontsize=7)
     fig.tight_layout()
-    fig.savefig(out / "core_distributions.png", dpi=120)
+    save_figure(fig, out / "core_distributions.png")
     plt.close(fig)
 
 
@@ -244,7 +245,7 @@ def auc_figure(table, out):
     for r in range(len(pairs)):
         axes[r, 0].set_ylabel("domain AUC")
     fig.tight_layout()
-    fig.savefig(out / "core_auc.png", dpi=120)
+    save_figure(fig, out / "core_auc.png")
     plt.close(fig)
 
 

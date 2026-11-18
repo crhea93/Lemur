@@ -29,6 +29,7 @@ import numpy as np
 import pandas as pd
 
 from . import io, spatial
+from .plotting import save_figure
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "outputs" / "figures" / "steps"
@@ -147,7 +148,7 @@ def harmonization(args):
         axes[0, c].set_title(title, fontsize=8)
     fig.tight_layout()
     OUT.mkdir(parents=True, exist_ok=True)
-    fig.savefig(OUT / "harmonization_steps.png", dpi=130)
+    save_figure(fig, OUT / "harmonization_steps.png", dpi=200)
     plt.close(fig)
     print(f"Wrote {OUT / 'harmonization_steps.png'}")
 
@@ -237,7 +238,7 @@ def matching(args):
         axes[0, c].set_title(title, fontsize=8)
     fig.tight_layout()
     OUT.mkdir(parents=True, exist_ok=True)
-    fig.savefig(OUT / args.out_name, dpi=120)
+    save_figure(fig, OUT / args.out_name, dpi=200)
     plt.close(fig)
     print(f"Wrote {OUT / args.out_name}")
 

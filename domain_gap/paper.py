@@ -561,7 +561,12 @@ def main(argv=None):
         robustness_figure(figures)
     copied = 0
     for src, dst in COPY.items():
-        if (FIG / src).exists():
+        pdf = (FIG / src).with_suffix(".pdf")
+        if pdf.exists():  # vector version from plotting.save_figure; drop the older PNG copy
+            shutil.copy2(pdf, (figures / dst).with_suffix(".pdf"))
+            (figures / dst).unlink(missing_ok=True)
+            copied += 1
+        elif (FIG / src).exists():
             shutil.copy2(FIG / src, figures / dst)
             copied += 1
     print(f"Wrote {paper / 'macros.tex'} ({sum(l.startswith(chr(92)) for l in m.lines)} macros), waterfall, {copied} figures")

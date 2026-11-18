@@ -33,6 +33,7 @@ import numpy as np
 import pandas as pd
 
 from . import preprocess, spatial
+from .plotting import save_figure
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "outputs" / "figures" / "structure"
@@ -232,7 +233,7 @@ def figure(comparison):
     handles, labels = np.atleast_1d(axes)[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="lower center", ncol=3, fontsize=7, frameon=False)
     fig.tight_layout(rect=(0, 0.13, 1, 1))
-    fig.savefig(OUT / "structure_lemur_vs_mocks.png", dpi=130)
+    save_figure(fig, OUT / "structure_lemur_vs_mocks.png")
     plt.close(fig)
 
 

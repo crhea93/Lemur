@@ -27,6 +27,7 @@ import pandas as pd
 from . import analyze_embeddings as ae
 from . import core as core_mod
 from . import mass_match as mm
+from .plotting import save_figure
 
 ROOT = Path(__file__).resolve().parents[1]
 CATALOGS = ROOT / "outputs" / "catalogs"
@@ -105,7 +106,7 @@ def mass_check_figure(table, masses, out):
         ax.set_title(f"n={stats[col][0]}: offset {stats[col][1]:+.2f}, scatter {stats[col][2]:.2f} dex", fontsize=9)
     axes[0].set_ylabel(r"log $M_{500}$, TNG-calibrated from $L_{\rm ph}$")
     fig.tight_layout()
-    fig.savefig(out / "mass_check.png", dpi=120)
+    save_figure(fig, out / "mass_check.png")
     plt.close(fig)
     return stats
 
@@ -168,7 +169,7 @@ def core_figure(table, out):
     axes[0, 0].set_ylabel(f"fraction with c > {C_HIGH}")
     axes[0, 0].legend(fontsize=7)
     fig.tight_layout()
-    fig.savefig(out / "selection_core.png", dpi=120)
+    save_figure(fig, out / "selection_core.png")
     plt.close(fig)
 
 

@@ -38,6 +38,7 @@ import numpy as np
 import pandas as pd
 
 from . import io, spatial
+from .plotting import save_figure
 from .signal import _box, _read_box
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -312,7 +313,7 @@ def figure(df, table):
     ax.set_ylabel(f"fraction with c > {C_HIGH}")
     ax.legend(fontsize=6.5)
     fig.tight_layout()
-    fig.savefig(OUT / "agn_check.png", dpi=130)
+    save_figure(fig, OUT / "agn_check.png")
     plt.close(fig)
 
 

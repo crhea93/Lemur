@@ -40,6 +40,7 @@ import pandas as pd
 
 from . import analyze_embeddings as ae
 from . import preprocess, spatial
+from .plotting import save_figure
 
 ROOT = Path(__file__).resolve().parents[1]
 APERTURE_KPC = 250.0
@@ -258,7 +259,7 @@ def lm_figure(df, lum, out):
         ax.legend(fontsize=6.5)
     axes[0, 0].set_ylabel(r"log $M_{500}$ [M$_\odot$]")
     fig.tight_layout()
-    fig.savefig(out / "lm_relation.png", dpi=120)
+    save_figure(fig, out / "lm_relation.png")
     plt.close(fig)
 
 
@@ -279,7 +280,7 @@ def mass_figure(df, masses, out):
         ax.set_xlabel(r"log $M_{500}$ [M$_\odot$]")
         ax.legend(fontsize=6.5)
     fig.tight_layout()
-    fig.savefig(out / "masses.png", dpi=120)
+    save_figure(fig, out / "masses.png")
     plt.close(fig)
 
 
@@ -307,7 +308,7 @@ def auc_figure(table, out):
     for r in range(len(pairs)):
         axes[r, 0].set_ylabel("domain AUC")
     fig.tight_layout()
-    fig.savefig(out / "matched_auc.png", dpi=120)
+    save_figure(fig, out / "matched_auc.png")
     plt.close(fig)
 
 

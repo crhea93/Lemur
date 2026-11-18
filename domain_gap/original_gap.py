@@ -35,6 +35,7 @@ import pandas as pd
 
 from . import analyze_embeddings as ae
 from . import mass_match as mm
+from .plotting import save_figure
 
 ROOT = Path(__file__).resolve().parents[1]
 STUDENT = Path.home() / "friend-mac-recovery" / "MSC_LATEST" / "May"
@@ -117,7 +118,7 @@ def pca_figure(panels, out):
         ax.set_ylabel("PC2")
         ax.legend(fontsize=7, markerscale=2)
     fig.tight_layout()
-    fig.savefig(out / "original_pca.png", dpi=120)
+    save_figure(fig, out / "original_pca.png")
     plt.close(fig)
 
 

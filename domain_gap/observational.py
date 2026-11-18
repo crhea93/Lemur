@@ -34,6 +34,7 @@ import pandas as pd
 from . import analyze_embeddings as ae
 from . import core as core_mod
 from . import mass_match as mm
+from .plotting import save_figure
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -188,7 +189,7 @@ def figure(table, pairs, out):
     ax2.set_title("mocks: what moves an embedding", fontsize=9)
     ax2.legend(fontsize=6.5)
     fig.tight_layout()
-    fig.savefig(out / "observational.png", dpi=120)
+    save_figure(fig, out / "observational.png")
     plt.close(fig)
 
 
