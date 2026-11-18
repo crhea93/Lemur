@@ -62,6 +62,47 @@ def test_find_xray_peak_follows_emission_beyond_search_radius():
     assert abs(x - 175) <= 2 and abs(y - 150) <= 2
 
 
+def test_find_xray_peak_galaxy_radius_ignores_emission_arcminutes_away():
+    # Emission 2' (30 pixels) from the target: inside the cluster search disk,
+    # outside the galaxy one.
+    data, exposure = _field()
+    data += _beta(data.shape, 180, 150, norm=1.0, core_pix=4)
+    x, y = center.find_xray_peak(data, exposure, PIXEL, prior_xy=(150, 150))
+    assert abs(x - 180) <= 2 and abs(y - 150) <= 2
+    galaxy = center.search_options([2], {2: "NORMAL GALAXIES"})
+    # Its flank reaches into the 1' disk, but a galaxy does not follow it out.
+    assert center.find_xray_peak(data, exposure, PIXEL, (150, 150), **galaxy) is None
+
+
+def test_prior_radius_from_science_category(tmp_path):
+    (tmp_path / "cda.csv").write_text(
+        "Obs ID,Science Category,Exposure\n"
+        "1,CLUSTERS OF GALAXIES,10\n"
+        "2,NORMAL GALAXIES,20\n"
+        "3,normal galaxies,5\n"
+    )
+    categories = center.load_categories(tmp_path)
+    assert categories == {
+        1: "CLUSTERS OF GALAXIES",
+        2: "NORMAL GALAXIES",
+        3: "NORMAL GALAXIES",
+    }
+    galaxy = {
+        "prior_radius_arcsec": center.GALAXY_PRIOR_RADIUS_ARCSEC,
+        "follow_emission": False,
+    }
+    cluster = {
+        "prior_radius_arcsec": center.PRIOR_RADIUS_ARCSEC,
+        "follow_emission": True,
+    }
+    assert center.search_options(["2", "3"], categories) == galaxy
+    # Any cluster ObsID makes the object a cluster, as in the catalog statistics.
+    assert center.search_options([2, 1], categories) == cluster
+    # Unknown ObsIDs keep the wider cluster search.
+    assert center.search_options(["99"], categories) == cluster
+    assert center.search_options([], categories) == cluster
+
+
 def test_find_xray_peak_maps_back_to_native_pixels():
     data, exposure = _field(shape=(160, 160))
     data += _beta(data.shape, 100, 60, norm=3.0, core_pix=6)

@@ -80,9 +80,12 @@ written to `similar_clusters` and served at `GET /api/clusters/{name}/similar`.
 AstroCLIP was trained on optical Legacy Survey cutouts, so on Chandra images it
 is out of distribution: treat neighbors as morphological similarity.
 
-The canonical center (`Pipeline/center.py`) is the X-ray emission peak: a
-band-pass smoothed flux image with chip edges (from `broad_thresh.expmap`) and
-point sources masked, preferring the peak within 4' of the catalog position.
+The canonical center (`Pipeline/center.py`) is the X-ray emission peak: the
+brightest point of a band-pass smoothed flux image, with chip edges (from
+`broad_thresh.expmap`) and point sources masked, within 4' of the target
+position for clusters and 1' for galaxies. A peak must be 5 robust standard
+deviations above the image's band-pass level; objects without one keep their
+target position (method `target_position`).
 
 Workflow (set `LEMUR_CHANDRA_DIR` in `.env.local` first, see `.env.example`):
 ```bash
