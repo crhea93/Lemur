@@ -94,7 +94,7 @@ def load_categories(survey_dir=SURVEY_DIR):
     """{ObsID: CDA science category} from the CDA search results in survey_dir."""
     import csv
 
-    categories = {}
+    categories: dict[int, str] = {}
     for path in sorted(Path(survey_dir).glob("*.csv")):
         with open(path, newline="", encoding="utf-8") as handle:
             for row in csv.DictReader(handle):
