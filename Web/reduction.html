@@ -126,20 +126,19 @@
                         files.
                     </li>
                     <li>
-                        Apply flare filtering and good-time interval screening
-                        to remove high-background periods.
+                        Remove background flares: detect point sources on the
+                        chip least affected by the target, drop them, and clip
+                        the high-background periods from its light curve.
                     </li>
                     <li>
-                        Detect and mask point sources before generating diffuse
-                        cluster products.
+                        Subtract the scaled ACIS blank-sky background and merge
+                        all ObsIDs of an object into exposure-corrected images
+                        in the broad (0.5&ndash;7 keV), soft and hard bands.
+                        The images keep all point sources.
                     </li>
                     <li>
-                        Create exposure-corrected imaging products and export
-                        cleaned FITS files with metadata for archive use.
-                    </li>
-                    <li>
-                        Run quality checks on astrometry, exposure maps, and
-                        file integrity before publication.
+                        Check that every ObsID of an object is in its merged
+                        images in every band before publication.
                     </li>
                 </ol>
 

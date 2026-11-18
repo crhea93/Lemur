@@ -1,6 +1,6 @@
 .PHONY: help deploy sync-all sync-d1 sync-fits dry-run check-chandra-dir \
 	astroclip-env pull-db centers embeddings similar serve publish-similar \
-	fetch-obsids flux-images merge-duplicates publish paper-stats showcase \
+	fetch-obsids flux-images merge-duplicates publish paper-stats paper-validation showcase \
 	band-previews stage-fits publish-fits
 
 # Load local runtime env vars if present (see .env.example).
@@ -28,6 +28,7 @@ help:
 	@echo "  make publish          - Push ALL tables to D1, fix merged FITS zips, deploy"
 	@echo ""
 	@echo "  make paper-stats      - Catalog numbers, LaTeX macros and figures for the paper (paper/)"
+	@echo "  make paper-validation - Image validation vs CSC 2.1 and background residuals (paper/validation/)"
 	@echo "  make showcase         - Showcase figures + caption macros (paper/showcase_macros.tex)"
 	@echo ""
 	@echo "Band images (after scripts/run_band_pass.py), in order:"
@@ -143,6 +144,15 @@ stage-fits: check-chandra-dir
 
 publish-fits:
 	$(SYNC_SCRIPT) --skip-d1 --overwrite --fits-root "$(RELEASE_FITS_DIR)"
+
+# Needs network access (CSC 2.1 TAP) and api/data/cda_acis_ocat_2026-11-02.tsv.
+paper-validation: check-chandra-dir
+	LEMUR_CHANDRA_DIR="$(LEMUR_CHANDRA_DIR)" LEMUR_DB_PATH="$(LEMUR_DB_PATH)" \
+		$(ASTROCLIP_PYTHON) -W ignore scripts/validation/validate_flux.py paper/validation
+	LEMUR_CHANDRA_DIR="$(LEMUR_CHANDRA_DIR)" LEMUR_DB_PATH="$(LEMUR_DB_PATH)" \
+		$(ASTROCLIP_PYTHON) -W ignore scripts/validation/validate_background.py paper/validation
+	LEMUR_DB_PATH="$(LEMUR_DB_PATH)" \
+		$(ASTROCLIP_PYTHON) -W ignore scripts/validation/validation_figure.py paper/validation
 
 showcase:
 	$(ASTROCLIP_PYTHON) -W ignore scripts/showcase_figures.py --db "$(LEMUR_DB_PATH)" \

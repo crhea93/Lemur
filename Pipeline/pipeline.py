@@ -420,7 +420,7 @@ def load_inputs_from_cli(cluster_name, obsid_args, defaults_path, redshift_overr
 
 
 def run_pipeline_with_config(inputs, merge_bool, env_vars):
-    from center import compute_center
+    from center import compute_center, load_categories, search_options
     from context import PipelineContext
     from db import connect_db
     from db_service import DatabaseService
@@ -490,6 +490,7 @@ def run_pipeline_with_config(inputs, merge_bool, env_vars):
             final_ra,
             final_dec,
             db_service,
+            **search_options(ctx.inputs["dir_list"], load_categories()),
         )
     else:
         print(
@@ -626,7 +627,7 @@ def backfill_missing_coordinates(
 def recompute_centers(
     input_path=None, defaults_path=None, sqlite_db_path=None, home_dir=None
 ):
-    from center import compute_center
+    from center import compute_center, load_categories, search_options
     from cluster_paths import resolve_cluster_file
     from db import connect_db
     from db_service import DatabaseService
@@ -651,6 +652,7 @@ def recompute_centers(
 
     updated = 0
     unresolved = []
+    categories = load_categories()
     try:
         mycursor.execute("SELECT Name, RightAsc, Declination FROM Clusters")
         rows = mycursor.fetchall()
@@ -683,12 +685,19 @@ def recompute_centers(
                     unresolved.append(name)
                     continue
                 db_service.add_coord(name, coords[0], coords[1])
+            mycursor.execute(
+                "SELECT o.Obsid FROM Obsids o JOIN Clusters c ON c.ID = o.ClusterNumber "
+                "WHERE c.Name = %s",
+                (name,),
+            )
+            obsids = [row[0] for row in mycursor.fetchall()]
             compute_center(
                 name,
                 image_path,
                 coords[0],
                 coords[1],
                 db_service,
+                **search_options(obsids, categories),
             )
             updated += 1
 

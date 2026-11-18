@@ -81,10 +81,15 @@ POINT_SOURCE_SIGMA_ARCSEC = 4.0
 LOCAL_SIGMA_ARCSEC = 20.0
 POINT_SOURCE_NSIGMA = 5.0
 POINT_SOURCE_DILATE_ARCSEC = 8.0
-# Prior: prefer the peak within PRIOR_RADIUS_ARCSEC of the target position
-# unless the best peak on the whole array is GLOBAL_OVERRIDE times stronger.
+# Prior: search for the peak within PRIOR_RADIUS_ARCSEC of the target position;
+# a peak on the edge of the search disk follows the emission uphill. Galaxy
+# targets have arcsecond positions, so for them (--galaxies) the search stays
+# within GALAXY_PRIOR_RADIUS_ARCSEC and does not follow emission out of it.
 PRIOR_RADIUS_ARCSEC = 240.0
-GLOBAL_OVERRIDE = 2.0
+GALAXY_PRIOR_RADIUS_ARCSEC = 60.0
+# A peak counts as emission only if its band-pass value is at least this many
+# robust standard deviations of the band-pass image above its median.
+MIN_PEAK_SIGNIFICANCE = 5.0
 # Distance from the chip/exposure edge excluded from the peak search.
 EDGE_ARCSEC = 30.0
 # Pixels with exposure below this fraction of the typical exposure are masked.
@@ -131,14 +136,38 @@ def _point_source_mask(binned, mask, work_arcsec):
     return binary_dilation(sources, iterations=iterations) & mask
 
 
-def find_xray_peak(data, exposure=None, pixel_arcsec=ACIS_PIXEL_ARCSEC, prior_xy=None):
+def _climb(values, allowed, y, x):
+    """Steepest ascent from (y, x) to a local maximum of values within allowed."""
+    ny, nx = values.shape
+    while True:
+        y0, y1 = max(y - 1, 0), min(y + 2, ny)
+        x0, x1 = max(x - 1, 0), min(x + 2, nx)
+        window = np.where(allowed[y0:y1, x0:x1], values[y0:y1, x0:x1], -np.inf)
+        dy, dx = np.unravel_index(np.argmax(window), window.shape)
+        if window[dy, dx] <= values[y, x]:
+            return y, x
+        y, x = y0 + dy, x0 + dx
+
+
+def find_xray_peak(
+    data,
+    exposure=None,
+    pixel_arcsec=ACIS_PIXEL_ARCSEC,
+    prior_xy=None,
+    prior_radius_arcsec=PRIOR_RADIUS_ARCSEC,
+    follow_emission=True,
+):
     """Peak of the diffuse emission in a flux image.
 
     :param data: 2D flux image
     :param exposure: optional exposure map on the same pixel grid
     :param pixel_arcsec: pixel size of ``data`` in arcseconds
     :param prior_xy: optional prior position, 0-based pixels of ``data``
-    :return: (x, y) peak in 0-based pixel coordinates of ``data``, or None
+    :param prior_radius_arcsec: search radius around ``prior_xy``
+    :param follow_emission: if the best peak in the search disk lies on the
+        flank of emission outside it, follow it uphill (True) or give up (False)
+    :return: (x, y) peak in 0-based pixel coordinates of ``data``, or None if
+        no peak reaches MIN_PEAK_SIGNIFICANCE
     """
     from scipy.ndimage import binary_erosion, label
 
@@ -167,36 +196,46 @@ def find_xray_peak(data, exposure=None, pixel_arcsec=ACIS_PIXEL_ARCSEC, prior_xy
         covered = mask
     if not covered.any():
         return None
-    # The global search uses only the largest contiguous exposed region (the
-    # aimpoint array), so detached off-axis chips with higher background can't win.
-    search = covered
-    labels, count = label(covered)
-    if count > 1:
-        sizes = np.bincount(labels.ravel())
-        sizes[0] = 0
-        search = labels == np.argmax(sizes)
+    if prior_xy is not None:
+        yy, xx = np.indices(covered.shape)
+        px = (prior_xy[0] + 0.5) / factor - 0.5
+        py = (prior_xy[1] + 0.5) / factor - 0.5
+        search = covered & (
+            (xx - px) ** 2 + (yy - py) ** 2 <= (prior_radius_arcsec / work_arcsec) ** 2
+        )
+        if not search.any():
+            return None
+    else:
+        # Without a target, search only the largest contiguous exposed region
+        # (the aimpoint array), so detached off-axis chips with higher
+        # background can't win.
+        search = covered
+        labels, count = label(covered)
+        if count > 1:
+            sizes = np.bincount(labels.ravel())
+            sizes[0] = 0
+            search = labels == np.argmax(sizes)
 
     # Smooth only over covered pixels that are not point sources.
     weights = mask & ~_point_source_mask(binned, mask, work_arcsec)
     band_pass = _masked_smooth(
         binned, weights, CORE_SIGMA_ARCSEC / work_arcsec
     ) - _masked_smooth(binned, weights, BACKGROUND_SIGMA_ARCSEC / work_arcsec)
-    global_map = np.where(search, band_pass, -np.inf)
-    by, bx = np.unravel_index(np.argmax(global_map), global_map.shape)
+    peak_map = np.where(search, band_pass, -np.inf)
+    by, bx = np.unravel_index(np.argmax(peak_map), peak_map.shape)
 
-    if prior_xy is not None:
-        yy, xx = np.indices(band_pass.shape)
-        px = (prior_xy[0] + 0.5) / factor - 0.5
-        py = (prior_xy[1] + 0.5) / factor - 0.5
-        near = covered & (
-            (xx - px) ** 2 + (yy - py) ** 2 <= (PRIOR_RADIUS_ARCSEC / work_arcsec) ** 2
-        )
-        if near.any():
-            local_map = np.where(near, band_pass, -np.inf)
-            ly, lx = np.unravel_index(np.argmax(local_map), local_map.shape)
-            local_value = band_pass[ly, lx]
-            if local_value > 0 and band_pass[by, bx] <= GLOBAL_OVERRIDE * local_value:
-                by, bx = ly, lx
+    values = band_pass[covered]
+    level = np.median(values)
+    scatter = 1.4826 * np.median(np.abs(values - level))
+    if not scatter > 0 or band_pass[by, bx] - level < MIN_PEAK_SIGNIFICANCE * scatter:
+        return None
+    # A peak on the edge of the search disk lies on the flank of emission
+    # that continues outward; follow it to its maximum, or give up when that
+    # emission is not the target's.
+    top_y, top_x = _climb(band_pass, covered, by, bx)
+    if not follow_emission and not search[top_y, top_x]:
+        return None
+    by, bx = top_y, top_x
 
     # Refine on a finer smoothing scale within a small radius of the coarse peak.
     fine = _masked_smooth(binned, weights, REFINE_SIGMA_ARCSEC / work_arcsec)
@@ -209,7 +248,7 @@ def find_xray_peak(data, exposure=None, pixel_arcsec=ACIS_PIXEL_ARCSEC, prior_xy
     return (bx + 0.5) * factor - 0.5, (by + 0.5) * factor - 0.5
 
 
-def xray_center(image_path, expmap_path=None):
+def xray_center(image_path, expmap_path=None, galaxy=False):
     """(ra, dec, x, y, method) of the X-ray center of a FITS image.
 
     Falls back to the target position (RA_TARG/DEC_TARG) when no peak is found;
@@ -242,7 +281,16 @@ def xray_center(image_path, expmap_path=None):
         else None
     )
 
-    peak = find_xray_peak(data, exposure, pixel_arcsec, prior_xy=prior_xy)
+    peak = find_xray_peak(
+        data,
+        exposure,
+        pixel_arcsec,
+        prior_xy=prior_xy,
+        prior_radius_arcsec=(
+            GALAXY_PRIOR_RADIUS_ARCSEC if galaxy else PRIOR_RADIUS_ARCSEC
+        ),
+        follow_emission=not galaxy,
+    )
     if peak is not None:
         sky = wcs.pixel_to_world(*peak)
         return (
@@ -506,6 +554,13 @@ def main(argv=None):
         "--device", help="torch device, e.g. cuda or cpu (default: cuda if available)"
     )
     parser.add_argument("--batch-size", type=int, default=16)
+    parser.add_argument(
+        "--galaxies",
+        action="store_true",
+        help="The images are galaxies: search for the X-ray peak only within "
+        f'{GALAXY_PRIOR_RADIUS_ARCSEC:.0f}" of the target position '
+        f'(clusters: {PRIOR_RADIUS_ARCSEC:.0f}")',
+    )
     args = parser.parse_args(argv)
 
     out = Path(args.out)
@@ -522,7 +577,7 @@ def main(argv=None):
             )
             continue
         try:
-            center = xray_center(image_path, find_expmap(image_path))
+            center = xray_center(image_path, find_expmap(image_path), args.galaxies)
             if center is None:
                 raise ValueError("no X-ray peak and no RA_TARG/DEC_TARG in the header")
             cutout = make_cutout(image_path, center[0], center[1], args.cutout_size)

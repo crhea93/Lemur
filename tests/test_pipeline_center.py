@@ -36,18 +36,71 @@ def test_find_xray_peak_ignores_unexposed_regions():
     assert abs(x - 150) <= 2 and abs(y - 150) <= 2
 
 
-def test_find_xray_peak_prior_keeps_nearby_cluster_unless_far_one_dominates():
-    data, exposure = _field()
-    data += _beta(data.shape, 80, 80, norm=1.0, core_pix=8)
-    data += _beta(data.shape, 220, 220, norm=1.5, core_pix=8)
-    x, y = center.find_xray_peak(data, exposure, PIXEL, prior_xy=(85, 75))
-    assert abs(x - 80) <= 2 and abs(y - 80) <= 2
+def test_find_xray_peak_prior_keeps_nearby_cluster_over_brighter_far_one():
+    for near_norm in (1.0, 0.3):
+        data, exposure = _field()
+        data += _beta(data.shape, 80, 80, norm=near_norm, core_pix=8)
+        data += _beta(data.shape, 220, 220, norm=3.0, core_pix=8)
+        x, y = center.find_xray_peak(data, exposure, PIXEL, prior_xy=(85, 75))
+        assert abs(x - 80) <= 2 and abs(y - 80) <= 2
 
+
+def test_find_xray_peak_returns_none_without_significant_emission():
     data, exposure = _field()
-    data += _beta(data.shape, 80, 80, norm=0.3, core_pix=8)
-    data += _beta(data.shape, 220, 220, norm=3.0, core_pix=8)
-    x, y = center.find_xray_peak(data, exposure, PIXEL, prior_xy=(85, 75))
-    assert abs(x - 220) <= 2 and abs(y - 220) <= 2
+    assert center.find_xray_peak(data, exposure, PIXEL, prior_xy=(150, 150)) is None
+    # A bright cluster far outside the search disk is another source.
+    data += _beta(data.shape, 250, 250, norm=3.0, core_pix=8)
+    assert center.find_xray_peak(data, exposure, PIXEL, prior_xy=(60, 60)) is None
+
+
+def test_find_xray_peak_follows_emission_beyond_search_radius():
+    # The target lies 75 pixels (295 arcsec) from the cluster, outside the
+    # 240 arcsec search disk, but the cluster's emission reaches into it.
+    data, exposure = _field()
+    data += _beta(data.shape, 175, 150, norm=3.0, core_pix=15)
+    x, y = center.find_xray_peak(data, exposure, PIXEL, prior_xy=(100, 150))
+    assert abs(x - 175) <= 2 and abs(y - 150) <= 2
+
+
+def test_find_xray_peak_galaxy_radius_ignores_emission_arcminutes_away():
+    # Emission 2' (30 pixels) from the target: inside the cluster search disk,
+    # outside the galaxy one.
+    data, exposure = _field()
+    data += _beta(data.shape, 180, 150, norm=1.0, core_pix=4)
+    x, y = center.find_xray_peak(data, exposure, PIXEL, prior_xy=(150, 150))
+    assert abs(x - 180) <= 2 and abs(y - 150) <= 2
+    galaxy = center.search_options([2], {2: "NORMAL GALAXIES"})
+    # Its flank reaches into the 1' disk, but a galaxy does not follow it out.
+    assert center.find_xray_peak(data, exposure, PIXEL, (150, 150), **galaxy) is None
+
+
+def test_prior_radius_from_science_category(tmp_path):
+    (tmp_path / "cda.csv").write_text(
+        "Obs ID,Science Category,Exposure\n"
+        "1,CLUSTERS OF GALAXIES,10\n"
+        "2,NORMAL GALAXIES,20\n"
+        "3,normal galaxies,5\n"
+    )
+    categories = center.load_categories(tmp_path)
+    assert categories == {
+        1: "CLUSTERS OF GALAXIES",
+        2: "NORMAL GALAXIES",
+        3: "NORMAL GALAXIES",
+    }
+    galaxy = {
+        "prior_radius_arcsec": center.GALAXY_PRIOR_RADIUS_ARCSEC,
+        "follow_emission": False,
+    }
+    cluster = {
+        "prior_radius_arcsec": center.PRIOR_RADIUS_ARCSEC,
+        "follow_emission": True,
+    }
+    assert center.search_options(["2", "3"], categories) == galaxy
+    # Any cluster ObsID makes the object a cluster, as in the catalog statistics.
+    assert center.search_options([2, 1], categories) == cluster
+    # Unknown ObsIDs keep the wider cluster search.
+    assert center.search_options(["99"], categories) == cluster
+    assert center.search_options([], categories) == cluster
 
 
 def test_find_xray_peak_maps_back_to_native_pixels():
@@ -71,5 +124,5 @@ def test_compute_center_falls_back_to_initial_coordinates(tmp_path):
     result = center.compute_center(
         "X", tmp_path / "missing.img", "01:02:03", "-01:02:03", Service()
     )
-    assert result["method"] == "placeholder_existing_centroid"
+    assert result["method"] == "target_position"
     assert result["center_ra"] == "01:02:03"

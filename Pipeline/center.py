@@ -16,11 +16,21 @@ POINT_SOURCE_SIGMA_ARCSEC = 4.0
 LOCAL_SIGMA_ARCSEC = 20.0
 POINT_SOURCE_NSIGMA = 5.0
 POINT_SOURCE_DILATE_ARCSEC = 8.0
-# Catalog prior: prefer the peak within PRIOR_RADIUS_ARCSEC of the catalog
-# position unless the best peak on the whole array is GLOBAL_OVERRIDE times
-# stronger (catalog positions are sometimes several arcminutes off).
+# Catalog prior: search for the peak within PRIOR_RADIUS_ARCSEC of the target.
+# Brighter peaks elsewhere in the field are other sources (foreground clusters,
+# the parent cluster of an offset pointing, bright chips), so they never win;
+# a peak on the edge of the search disk follows the emission uphill instead.
+# Cluster targets are often optical or SZ positions arcminutes from the X-ray
+# peak; galaxy targets are optical positions good to arcseconds, so emission
+# arcminutes away is another source (a knot in a spiral arm, a chip edge).
 PRIOR_RADIUS_ARCSEC = 240.0
-GLOBAL_OVERRIDE = 2.0
+GALAXY_PRIOR_RADIUS_ARCSEC = 60.0
+CLUSTER_CATEGORY = "CLUSTERS OF GALAXIES"
+SURVEY_DIR = Path(__file__).resolve().parents[1] / "survey"
+# A peak counts as emission only if its band-pass value is at least this many
+# robust standard deviations of the band-pass image above its median; noise
+# peaks within the search disk reach 2-4.
+MIN_PEAK_SIGNIFICANCE = 5.0
 # Distance from the chip/exposure edge excluded from the peak search.
 EDGE_ARCSEC = 30.0
 # Pixels with exposure below this fraction of the typical exposure are masked.
@@ -67,14 +77,75 @@ def _point_source_mask(binned, mask, work_arcsec):
     return binary_dilation(sources, iterations=iterations) & mask
 
 
-def find_xray_peak(data, exposure=None, pixel_arcsec=0.492, prior_xy=None):
+def _climb(values, allowed, y, x):
+    """Steepest ascent from (y, x) to a local maximum of values within allowed."""
+    ny, nx = values.shape
+    while True:
+        y0, y1 = max(y - 1, 0), min(y + 2, ny)
+        x0, x1 = max(x - 1, 0), min(x + 2, nx)
+        window = np.where(allowed[y0:y1, x0:x1], values[y0:y1, x0:x1], -np.inf)
+        dy, dx = np.unravel_index(np.argmax(window), window.shape)
+        if window[dy, dx] <= values[y, x]:
+            return y, x
+        y, x = y0 + dy, x0 + dx
+
+
+def load_categories(survey_dir=SURVEY_DIR):
+    """{ObsID: CDA science category} from the CDA search results in survey_dir."""
+    import csv
+
+    categories: dict[int, str] = {}
+    for path in sorted(Path(survey_dir).glob("*.csv")):
+        with open(path, newline="", encoding="utf-8") as handle:
+            for row in csv.DictReader(handle):
+                try:
+                    obsid = int(row["Obs ID"])
+                except (KeyError, TypeError, ValueError):
+                    continue
+                category = (row.get("Science Category") or "").strip().upper()
+                if category:
+                    categories.setdefault(obsid, category)
+    return categories
+
+
+def search_options(obsids, categories):
+    """``find_xray_peak`` search options for an object with these ObsIDs.
+
+    An object is a cluster if any ObsID is in the clusters category (as in the
+    catalog statistics) and a galaxy if its ObsIDs are known and none is.
+    Galaxies are searched within GALAXY_PRIOR_RADIUS_ARCSEC and never follow
+    emission out of that disk; clusters and objects with unknown ObsIDs get
+    the wider search.
+    """
+    ids = [int(o) for o in obsids if str(o).strip().isdigit()]
+    known = [categories[o] for o in ids if o in categories]
+    if known and CLUSTER_CATEGORY not in known:
+        return {
+            "prior_radius_arcsec": GALAXY_PRIOR_RADIUS_ARCSEC,
+            "follow_emission": False,
+        }
+    return {"prior_radius_arcsec": PRIOR_RADIUS_ARCSEC, "follow_emission": True}
+
+
+def find_xray_peak(
+    data,
+    exposure=None,
+    pixel_arcsec=0.492,
+    prior_xy=None,
+    prior_radius_arcsec=PRIOR_RADIUS_ARCSEC,
+    follow_emission=True,
+):
     """Locate the cluster emission peak in a flux image.
 
     :param data: 2D flux image (e.g. broad_flux.img)
     :param exposure: optional exposure map on the same pixel grid
     :param pixel_arcsec: pixel size of ``data`` in arcseconds
     :param prior_xy: optional catalog position, 0-based pixels of ``data``
-    :return: (x, y) peak in 0-based pixel coordinates of ``data``, or None
+    :param prior_radius_arcsec: search radius around ``prior_xy``
+    :param follow_emission: if the best peak in the search disk lies on the
+        flank of emission outside it, follow it uphill (True) or give up (False)
+    :return: (x, y) peak in 0-based pixel coordinates of ``data``, or None if
+        no peak reaches MIN_PEAK_SIGNIFICANCE
     """
     from scipy.ndimage import binary_erosion, label
 
@@ -103,36 +174,46 @@ def find_xray_peak(data, exposure=None, pixel_arcsec=0.492, prior_xy=None):
         covered = mask
     if not covered.any():
         return None
-    # The global search uses only the largest contiguous exposed region (the
-    # aimpoint array), so detached off-axis chips with higher background can't win.
-    search = covered
-    labels, count = label(covered)
-    if count > 1:
-        sizes = np.bincount(labels.ravel())
-        sizes[0] = 0
-        search = labels == np.argmax(sizes)
+    if prior_xy is not None:
+        yy, xx = np.indices(covered.shape)
+        px = (prior_xy[0] + 0.5) / factor - 0.5
+        py = (prior_xy[1] + 0.5) / factor - 0.5
+        search = covered & (
+            (xx - px) ** 2 + (yy - py) ** 2 <= (prior_radius_arcsec / work_arcsec) ** 2
+        )
+        if not search.any():
+            return None
+    else:
+        # Without a target, search only the largest contiguous exposed region
+        # (the aimpoint array), so detached off-axis chips with higher
+        # background can't win.
+        search = covered
+        labels, count = label(covered)
+        if count > 1:
+            sizes = np.bincount(labels.ravel())
+            sizes[0] = 0
+            search = labels == np.argmax(sizes)
 
     # Smooth only over covered pixels that are not point sources.
     weights = mask & ~_point_source_mask(binned, mask, work_arcsec)
     band_pass = _masked_smooth(
         binned, weights, CORE_SIGMA_ARCSEC / work_arcsec
     ) - _masked_smooth(binned, weights, BACKGROUND_SIGMA_ARCSEC / work_arcsec)
-    global_map = np.where(search, band_pass, -np.inf)
-    by, bx = np.unravel_index(np.argmax(global_map), global_map.shape)
+    peak_map = np.where(search, band_pass, -np.inf)
+    by, bx = np.unravel_index(np.argmax(peak_map), peak_map.shape)
 
-    if prior_xy is not None:
-        yy, xx = np.indices(band_pass.shape)
-        px = (prior_xy[0] + 0.5) / factor - 0.5
-        py = (prior_xy[1] + 0.5) / factor - 0.5
-        near = covered & (
-            (xx - px) ** 2 + (yy - py) ** 2 <= (PRIOR_RADIUS_ARCSEC / work_arcsec) ** 2
-        )
-        if near.any():
-            local_map = np.where(near, band_pass, -np.inf)
-            ly, lx = np.unravel_index(np.argmax(local_map), local_map.shape)
-            local_value = band_pass[ly, lx]
-            if local_value > 0 and band_pass[by, bx] <= GLOBAL_OVERRIDE * local_value:
-                by, bx = ly, lx
+    values = band_pass[covered]
+    level = np.median(values)
+    scatter = 1.4826 * np.median(np.abs(values - level))
+    if not scatter > 0 or band_pass[by, bx] - level < MIN_PEAK_SIGNIFICANCE * scatter:
+        return None
+    # A peak on the edge of the search disk lies on the flank of emission
+    # that continues outward; follow it to its maximum, or give up when that
+    # emission is not the target's.
+    top_y, top_x = _climb(band_pass, covered, by, bx)
+    if not follow_emission and not search[top_y, top_x]:
+        return None
+    by, bx = top_y, top_x
 
     # Refine on a finer smoothing scale within a small radius of the coarse peak.
     fine = _masked_smooth(binned, weights, REFINE_SIGMA_ARCSEC / work_arcsec)
@@ -162,7 +243,7 @@ def _prior_pixel(wcs, ra, dec):
     return float(x), float(y)
 
 
-def _xray_center(image_path, prior_ra=None, prior_dec=None):
+def _xray_center(image_path, prior_ra=None, prior_dec=None, **search):
     from astropy.io import fits
     from astropy.wcs import WCS
     from astropy.wcs.utils import proj_plane_pixel_scales
@@ -179,7 +260,13 @@ def _xray_center(image_path, prior_ra=None, prior_dec=None):
             exposure = hdul[0].data
 
     prior_xy = _prior_pixel(wcs, prior_ra, prior_dec)
-    peak = find_xray_peak(data, exposure, pixel_arcsec, prior_xy=prior_xy)
+    peak = find_xray_peak(
+        data,
+        exposure,
+        pixel_arcsec,
+        prior_xy=prior_xy,
+        **search,
+    )
     if peak is None:
         return None
     x, y = peak
@@ -195,18 +282,21 @@ def compute_center(
     db_service,
     fallback_ra=None,
     fallback_dec=None,
+    **search,
 ):
     """Compute and store the canonical cluster center.
 
-    Uses the X-ray emission peak of ``image_path`` (see ``find_xray_peak``);
+    Uses the X-ray emission peak of ``image_path`` near the target (see
+    ``find_xray_peak``; ``search`` are its options from ``search_options``);
     center_x/center_y are 0-based pixel coordinates in that image. Falls back
-    to the provided RA/DEC when the image cannot be used.
+    to the provided RA/DEC (the target position) when the image has no
+    significant peak or cannot be used.
     """
     prior_ra = initial_ra if initial_ra is not None else fallback_ra
     prior_dec = initial_dec if initial_dec is not None else fallback_dec
     result = None
     try:
-        result = _xray_center(image_path, prior_ra, prior_dec)
+        result = _xray_center(image_path, prior_ra, prior_dec, **search)
     except Exception as exc:
         print(f"  X-ray center failed for {cluster_name}: {exc}")
 
@@ -217,7 +307,7 @@ def compute_center(
         center_ra = initial_ra if initial_ra is not None else fallback_ra
         center_dec = initial_dec if initial_dec is not None else fallback_dec
         center_x = center_y = None
-        method = "placeholder_existing_centroid"
+        method = "target_position"
     if center_ra is None or center_dec is None:
         raise RuntimeError(
             f"Unable to compute center for {cluster_name}: no valid RA/DEC available."
