@@ -11,6 +11,7 @@ Live cluster website: https://lemur-archive.lemur-xray.workers.dev
 
 [![CI](https://github.com/crhea93/Lemur/actions/workflows/ci.yml/badge.svg)](https://github.com/crhea93/Lemur/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-pytest--cov-blue)](#development)
+[![arXiv](https://img.shields.io/badge/arXiv-2611.24937-b31b1b.svg)](https://arxiv.org/abs/2611.24937)
 [![DOI](https://zenodo.org/badge/166745110.svg)](https://doi.org/10.5281/zenodo.18728228)
 [![Data DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24351915.svg)](https://doi.org/10.5281/zenodo.24351915)
 
@@ -165,7 +166,11 @@ For contribution workflow, linting, typing, and test commands, see:
 - `CONTRIBUTING.md`
 
 ## Citation
-If you use Lemur or its data products in your work, please cite the Zenodo record:
+If you use Lemur or its data products in your work, please cite the catalog paper:
+[LEMUR: A Searchable Web Archive of Deep Chandra Images of Galaxies and Galaxy Clusters](https://arxiv.org/abs/2611.24937)
+([arXiv:2611.24937](https://arxiv.org/abs/2611.24937)).
+
+Please also cite the Zenodo software record:
 [doi:10.5281/zenodo.18728228](https://doi.org/10.5281/zenodo.18728228)
 
 ```bibtex
