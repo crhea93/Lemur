@@ -162,6 +162,11 @@ def figure(table, pairs, out):
     y = 0
     ticks, labels = [], []
     colors = {"baseline": "tab:blue", "harmonized_morphology": "tab:orange", "harmonized_physical": "tab:green"}
+    config_labels = {
+        "baseline": "Baseline",
+        "harmonized_morphology": "Harmonized morphology",
+        "harmonized_physical": "Harmonized physical",
+    }
     for test in tests:
         for config in configs:
             r = table[(table["test"] == test) & (table["config"] == config)]
@@ -180,14 +185,31 @@ def figure(table, pairs, out):
     ax.set_xlabel("domain AUC (grey band: permutation null, 68%)")
     ax.invert_yaxis()
     for config, color in colors.items():
-        ax.plot([], [], "o", color=color, label=config)
+        ax.plot([], [], "o", color=color, label=config_labels.get(config, config))
     ax.legend(fontsize=7, loc="lower right")
     ax2 = axes[1]
-    p = pairs.groupby("config")[["same_halo_20_vs_100ks", "same_halo_other_projection", "other_halo_same_mass"]].median()
-    p.plot.bar(ax=ax2, rot=20, fontsize=7)
+    distance_labels = {
+        "same_halo_20_vs_100ks": "20 vs 100 ks",
+        "same_halo_other_projection": "other projection",
+        "other_halo_same_mass": "other halo, same mass",
+    }
+    # Keep configuration colors consistent between panels.  The former plot
+    # reused the same three colors for distance types on the right, making a
+    # color mean different things in the two panels.
+    p = pairs.groupby("config")[list(distance_labels)].median().T
+    p.index = [distance_labels[v] for v in p.index]
+    p.plot.bar(
+        ax=ax2,
+        rot=20,
+        fontsize=7,
+        color=[colors.get(config, "0.5") for config in p.columns],
+    )
+    ax2.legend(
+        [config_labels.get(config, config) for config in p.columns],
+        fontsize=6.5,
+    )
     ax2.set_ylabel("median cosine distance")
     ax2.set_title("mocks: what moves an embedding", fontsize=9)
-    ax2.legend(fontsize=6.5)
     fig.tight_layout()
     save_figure(fig, out / "observational.png")
     plt.close(fig)
